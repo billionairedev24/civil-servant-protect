@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"><link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css"><link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css"><script src="csp-i18n.js"></script><style>
+body{margin:0;background:#EDEBE4;color:#14181B;font-family:"Public Sans",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#046A38}a:hover{color:#03502A}
+button{font-family:inherit;-webkit-tap-highlight-color:transparent}
+button:focus-visible{outline:2px solid #046A38;outline-offset:2px}
+::-webkit-scrollbar{width:0;height:0}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+</style></helmet>
+
+<div style="position:sticky;top:0;z-index:40;display:flex;align-items:center;gap:14px 20px;flex-wrap:wrap;padding:9px 26px;min-height:62px;background:#14181B;color:#F7F6F2">
+<div style="display:flex;align-items:center;gap:10px;flex:none">
+<div style="width:28px;height:28px;border-radius:8px;background:#046A38;display:flex;align-items:center;justify-content:center"><i class="ph-fill ph-shield-check" style="font-size:16px;color:#F7F6F2"></i></div>
+<div style="display:flex;flex-direction:column">
+<span style="font-size:14px;font-weight:700;letter-spacing:-.01em;line-height:1.2">Civil Servant Protect</span>
+<span style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.12em;color:rgba(247,246,242,.5)">ONE SYSTEM · THREE SURFACES</span>
+</div>
+</div>
+
+<div style="flex:none;display:flex;gap:3px;padding:3px;border-radius:99px;background:rgba(247,246,242,.08)">
+<sc-for list="{{ surfaceTabs }}" as="tb" hint-placeholder-count="4">
+<button type="button" onClick="{{ tb.go }}" style="flex:none;white-space:nowrap;display:flex;align-items:center;gap:8px;padding:7px 15px;border:0;border-radius:99px;background:{{ tb.bg }};color:{{ tb.fg }};font-size:13px;font-weight:{{ tb.fw }};cursor:pointer;transition:background .15s" style-hover="background:rgba(247,246,242,.14)"><i class="{{ tb.icon }}" style="font-size:15px;flex:none"></i>{{ tb.label }}</button>
+</sc-for>
+</div>
+
+<div style="flex:1;min-width:0"></div>
+
+<div style="flex:none;display:flex;align-items:center;gap:7px;white-space:nowrap">
+<i class="{{ surfaceIcon }}" style="font-size:15px;color:#5FA383"></i>
+<span style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em;color:rgba(247,246,242,.5)">{{ surfaceMeta }}</span>
+</div>
+</div>
+
+<div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px 20px;padding:13px 26px;background:#FFFFFF;border-bottom:1px solid #E2E1DA">
+<div style="flex:none;display:flex;align-items:center;gap:9px;white-space:nowrap">
+<span style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.12em;color:#8A928C">RAIL</span>
+<div style="display:flex;gap:5px">
+<sc-for list="{{ sponsorPicks }}" as="sp" hint-placeholder-count="4">
+<button type="button" onClick="{{ sp.go }}" style="flex:none;white-space:nowrap;display:flex;align-items:center;gap:6px;padding:6px 11px;border:1.5px solid {{ sp.bc }};border-radius:99px;background:{{ sp.bg }};color:{{ sp.fg }};font-size:12px;font-weight:{{ sp.fw }};cursor:pointer" style-hover="border-color:#046A38"><i class="{{ sp.icon }}" style="font-size:13px;flex:none"></i>{{ sp.name }}</button>
+</sc-for>
+</div>
+</div>
+
+<div style="flex:none;display:flex;align-items:center;gap:9px;white-space:nowrap">
+<span style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.12em;color:#8A928C">LANG</span>
+<div style="display:flex;gap:5px">
+<sc-for list="{{ langPicks }}" as="l" hint-placeholder-count="5">
+<button type="button" onClick="{{ l.go }}" style="flex:none;padding:6px 10px;border:1.5px solid {{ l.bc }};border-radius:99px;background:{{ l.bg }};color:{{ l.fg }};font-size:12px;font-weight:{{ l.fw }};cursor:pointer" style-hover="border-color:#046A38">{{ l.name }}</button>
+</sc-for>
+</div>
+</div>
+
+<div style="flex:1;min-width:240px;display:flex;align-items:baseline;gap:9px">
+<span style="font-size:13px;font-weight:600;white-space:nowrap">{{ surfaceName }}</span>
+<span style="font-size:12.5px;line-height:1.45;color:#5C6560">{{ surfaceNote }}</span>
+</div>
+<div style="flex:none;font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:#8A928C;white-space:nowrap">{{ railNote }}</div>
+</div>
+
+<sc-if value="{{ isPhone }}" hint-placeholder-val="{{ true }}">
+<div style="animation:rise .2s ease">
+<dc-import name="Civil Servant Protect App v3" start-sponsor="{{ sponsorId }}" start-lang="{{ lang }}" hint-size="100%,1100px"></dc-import>
+</div>
+</sc-if>
+
+<sc-if value="{{ isWeb }}" hint-placeholder-val="{{ false }}">
+<div style="animation:rise .2s ease">
+<dc-import name="CSP Member Web" start-sponsor="{{ sponsorId }}" start-lang="{{ lang }}" hint-size="100%,1000px"></dc-import>
+</div>
+</sc-if>
+
+<sc-if value="{{ isConsole }}" hint-placeholder-val="{{ false }}">
+<div style="animation:rise .2s ease">
+<dc-import name="CSP Sponsor Console" start-sponsor="{{ sponsorId }}" hint-size="100%,1000px"></dc-import>
+</div>
+</sc-if>
+
+<sc-if value="{{ isSpec }}" hint-placeholder-val="{{ false }}">
+<div style="animation:rise .2s ease">
+<dc-import name="CSP Implementation Spec" hint-size="100%,1000px"></dc-import>
+</div>
+</sc-if>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;startSurface&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;phone&quot;,&quot;web&quot;,&quot;console&quot;,&quot;spec&quot;],&quot;default&quot;:&quot;phone&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;startSponsor&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;federal&quot;,&quot;state&quot;,&quot;employer&quot;,&quot;self&quot;],&quot;default&quot;:&quot;federal&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;startLang&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;en&quot;,&quot;ha&quot;,&quot;yo&quot;,&quot;ig&quot;,&quot;pcm&quot;],&quot;default&quot;:&quot;en&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+const G = "#046A38", GD = "#03502A", TINT = "#F1F6F3", MUT = "#5C6560", LIGHT = "rgba(247,246,242,.7)";
+const SPONSORS = [
+  ["federal", "Federal", "ph ph-bank", "IPPIS deduction code CSP-114 · OAGF approved"],
+  ["state", "State", "ph ph-map-trifold", "Schedule CSP-LA-07 · State Accountant-General"],
+  ["employer", "Employer", "ph ph-buildings", "Schedule CSP-EM-2214 · monthly CSV + invoice"],
+  ["self", "Self-pay", "ph ph-user", "NIBSS e-mandate MND-88214 · card on file"]
+];
+const LANGS = [["en", "EN"], ["ha", "HA"], ["yo", "YO"], ["ig", "IG"], ["pcm", "PCM"]];
+const TABS = [
+  ["phone", "Phone", "ph ph-device-mobile", "The native app. Enrolment, the offline protection card, the camera and USSD fallback live here.", "ANDROID-FIRST · 4.1 MB", "Member · phone"],
+  ["web", "Web", "ph ph-monitor", "The same twelve member jobs on a desk browser: full tables, scanned uploads, printing and PDFs.", "≥1024 DESIGNED · 20-MIN SESSION", "Member · web"],
+  ["console", "Console", "ph ph-buildings", "The employer side. Schedules, return files, reconciliation, exceptions, debit runs and roster.", "DESKTOP-FIRST · HR PHONE LAYOUT", "Sponsor · console"],
+  ["spec", "Spec", "ph ph-file-text", "Contracts, copy keys, validation rules, screen states, breakpoints and how the four rails branch.", "FOR THE BUILD TEAM", "Implementation spec"]
+];
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = Object.assign({}, this.state, {
+      surface: props.startSurface || "phone",
+      sponsor: Math.max(0, SPONSORS.findIndex(s => s[0] === (props.startSponsor || "federal"))),
+      lang: props.startLang || "en"
+    });
+  }
+  state = { surface: "phone", sponsor: 0, lang: "en" };
+  renderVals() {
+    const s = this.state, v = {};
+    const tab = TABS.find(t => t[0] === s.surface) || TABS[0];
+    v.isPhone = s.surface === "phone";
+    v.isWeb = s.surface === "web";
+    v.isConsole = s.surface === "console";
+    v.isSpec = s.surface === "spec";
+    v.surfaceTabs = TABS.map(([id, label, icon]) => ({
+      label, icon, go: () => this.setState({ surface: id }),
+      bg: s.surface === id ? G : "transparent",
+      fg: s.surface === id ? "#F7F6F2" : LIGHT,
+      fw: s.surface === id ? 600 : 500
+    }));
+    v.surfaceName = tab[5];
+    v.surfaceIcon = tab[2];
+    v.surfaceNote = tab[3];
+    v.surfaceMeta = tab[4];
+    v.railNote = v.isSpec ? "All four rails documented" : SPONSORS[s.sponsor][3];
+    v.sponsorPicks = SPONSORS.map(([id, name, icon], i) => ({
+      name, icon, go: () => this.setState({ sponsor: i }),
+      bc: s.sponsor === i ? G : "#DAD8CE",
+      bg: s.sponsor === i ? TINT : "transparent",
+      fg: s.sponsor === i ? GD : MUT,
+      fw: s.sponsor === i ? 600 : 500
+    }));
+    v.langPicks = LANGS.map(([id, name]) => ({
+      name, go: () => this.setState({ lang: id }),
+      bc: s.lang === id ? G : "#DAD8CE",
+      bg: s.lang === id ? TINT : "transparent",
+      fg: s.lang === id ? GD : MUT,
+      fw: s.lang === id ? 600 : 500
+    }));
+    v.sponsorId = SPONSORS[s.sponsor][0];
+    v.lang = s.lang;
+    return v;
+  }
+}
+</script>
+</body>
+</html>

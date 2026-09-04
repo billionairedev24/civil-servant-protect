@@ -1,0 +1,1262 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"><link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css"><link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css"><style>
+body{margin:0;background:#EDEBE4;color:#14181B;font-family:"Public Sans",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#046A38}a:hover{color:#03502A}
+button{font-family:inherit;-webkit-tap-highlight-color:transparent}
+button:focus-visible{outline:2px solid #046A38;outline-offset:2px}
+input,select,textarea{font-family:inherit}
+input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid #046A38;outline-offset:1px}
+::-webkit-scrollbar{width:0;height:0}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+</style></helmet>
+
+<div style="display:flex;gap:28px;padding:30px 34px 44px;align-items:flex-start;min-height:100vh">
+
+<div style="flex:none;width:206px;position:sticky;top:30px;display:flex;flex-direction:column;gap:13px">
+<div style="display:flex;flex-direction:column;gap:3px">
+<div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.12em;color:#046A38;font-weight:500">CIVIL SERVANT PROTECT</div>
+<div style="font-size:17px;font-weight:700;letter-spacing:-.02em">Sponsor console</div>
+<div style="font-size:12px;line-height:1.5;color:#5C6560">The employer-side product. Eleven screens, driven by whichever collection rail the sponsor sits on.</div>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:7px;padding-top:11px;border-top:1px solid #DAD8CE">
+<div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:#8A928C">SPONSOR TYPE</div>
+<div style="display:flex;flex-wrap:wrap;gap:5px">
+<sc-for list="{{ sponsorPicks }}" as="sp" hint-placeholder-count="4">
+<button type="button" onClick="{{ sp.go }}" style="display:flex;align-items:center;gap:5px;padding:5px 10px;border:1.5px solid {{ sp.bc }};border-radius:99px;background:{{ sp.bg }};color:{{ sp.fg }};font-size:12px;font-weight:{{ sp.fw }};cursor:pointer" style-hover="border-color:#046A38"><i class="{{ sp.icon }}" style="font-size:13px"></i>{{ sp.name }}</button>
+</sc-for>
+</div>
+<div style="font-family:'IBM Plex Mono',monospace;font-size:10px;line-height:1.5;color:#8A928C">{{ sponsorRail }}</div>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:7px;padding-top:11px;border-top:1px solid #DAD8CE">
+<div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:#8A928C">VIEWING ON</div>
+<div style="display:flex;gap:5px">
+<sc-for list="{{ devicePicks }}" as="dv" hint-placeholder-count="2">
+<button type="button" onClick="{{ dv.go }}" style="display:flex;align-items:center;gap:5px;padding:5px 11px;border:1.5px solid {{ dv.bc }};border-radius:99px;background:{{ dv.bg }};color:{{ dv.fg }};font-size:12px;font-weight:{{ dv.fw }};cursor:pointer" style-hover="border-color:#046A38"><i class="{{ dv.icon }}" style="font-size:13px"></i>{{ dv.name }}</button>
+</sc-for>
+</div>
+<div style="font-size:11.5px;line-height:1.5;color:#8A928C">Finance officers work on desktop; the HR officer in a state secretariat is often on a phone.</div>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:1px;padding-top:11px;border-top:1px solid #DAD8CE">
+<sc-for list="{{ navItems }}" as="it" hint-placeholder-count="11">
+<button type="button" onClick="{{ it.go }}" style="display:flex;justify-content:space-between;align-items:center;gap:8px;text-align:left;padding:6px 9px;border:0;border-radius:7px;background:{{ it.bg }};color:{{ it.fg }};font-size:12.5px;font-weight:{{ it.fw }};cursor:pointer" style-hover="background:#E3E1D8">{{ it.label }}<span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:#A9A69B">{{ it.group }}</span></button>
+</sc-for>
+</div>
+
+<div style="padding-top:11px;border-top:1px solid #DAD8CE;font-size:11.5px;line-height:1.55;color:#8A928C">The member-facing app is a separate file — <a href="Civil Servant Protect App v3.dc.html">Civil Servant Protect v3</a>.</div>
+</div>
+
+<div style="flex:none;display:flex;flex-direction:column;gap:11px">
+<div style="width:{{ fw }};height:{{ fh }};background:#F7F6F2;border:{{ fborder }};border-radius:{{ fradius }};box-shadow:0 24px 60px rgba(20,24,27,.22);overflow:hidden;display:flex;flex-direction:column">
+
+<sc-if value="{{ desk }}" hint-placeholder-val="{{ true }}">
+<div style="flex:none;display:flex;align-items:center;gap:8px;padding:0 14px;height:38px;background:#E7E5DE;border-bottom:1px solid #DAD8CE">
+<span style="width:10px;height:10px;border-radius:50%;background:#D2CFC4"></span>
+<span style="width:10px;height:10px;border-radius:50%;background:#D2CFC4"></span>
+<span style="width:10px;height:10px;border-radius:50%;background:#D2CFC4"></span>
+<div style="flex:1;display:flex;justify-content:center"><div style="display:flex;align-items:center;gap:7px;padding:4px 16px;border-radius:7px;background:#F7F6F2;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#8A928C"><i class="ph ph-lock-simple" style="font-size:11px;color:#046A38"></i>sponsor.civilservantprotect.ng</div></div>
+<div style="width:78px"></div>
+</div>
+</sc-if>
+
+<sc-if value="{{ mob }}" hint-placeholder-val="{{ false }}">
+<div style="flex:none;display:flex;justify-content:space-between;align-items:center;padding:13px 24px 4px;font-size:12.5px;font-weight:600"><span>09:41</span><span style="display:flex;gap:6px;align-items:center;color:#5C6560"><i class="ph-fill ph-cell-signal-medium" style="font-size:13px"></i><i class="ph-fill ph-battery-medium" style="font-size:15px"></i></span></div>
+</sc-if>
+
+<div style="flex:1;min-height:0;display:flex">
+
+<sc-if value="{{ desk }}" hint-declaration="sidebar" hint-placeholder-val="{{ true }}">
+<div style="flex:none;width:224px;display:flex;flex-direction:column;background:#FFFFFF;border-right:1px solid #E2E1DA">
+<div style="padding:17px 16px 15px;border-bottom:1px solid #E2E1DA">
+<div style="display:flex;align-items:center;gap:8px">
+<div style="flex:none;width:30px;height:30px;border-radius:8px;background:#046A38;display:flex;align-items:center;justify-content:center"><i class="ph-fill ph-shield-check" style="font-size:17px;color:#F7F6F2"></i></div>
+<div style="min-width:0"><div style="font-size:13.5px;font-weight:700;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ sponsorOrg }}</div><div style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.1em;color:#046A38">{{ sponsorTag }} SPONSOR</div></div>
+</div>
+</div>
+<div style="flex:1;min-height:0;overflow-y:auto;padding:12px 10px">
+<sc-for list="{{ sideGroups }}" as="gp" hint-placeholder-count="3">
+<div style="margin-bottom:16px">
+<div style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.12em;color:#A9A69B;padding:0 8px 6px">{{ gp.name }}</div>
+<div style="display:flex;flex-direction:column;gap:2px">
+<sc-for list="{{ gp.items }}" as="it" hint-placeholder-count="4">
+<button type="button" onClick="{{ it.go }}" style="display:flex;align-items:center;gap:9px;text-align:left;padding:8px 9px;border:0;border-radius:8px;background:{{ it.bg }};color:{{ it.fg }};font-size:13px;font-weight:{{ it.fw }};cursor:pointer;transition:background .12s" style-hover="background:#F1F6F3">
+<i class="{{ it.icon }}" style="flex:none;font-size:16px;color:{{ it.ic }}"></i>
+<span style="flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ it.label }}</span>
+<sc-if value="{{ it.badge }}" hint-placeholder-val="{{ false }}">
+<span style="flex:none;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:500;color:#B4451F;background:#FBEFEA;border-radius:99px;padding:2px 7px">{{ it.badge }}</span>
+</sc-if>
+</button>
+</sc-for>
+</div>
+</div>
+</sc-for>
+</div>
+<div style="flex:none;padding:12px 14px;border-top:1px solid #E2E1DA;display:flex;align-items:center;gap:9px">
+<div style="flex:none;width:28px;height:28px;border-radius:50%;background:#E3E1D8;display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:700;color:#5C6560">AB</div>
+<div style="min-width:0;flex:1"><div style="font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Amina Bello</div><div style="font-size:11px;color:#8A928C">Preparer</div></div>
+<i class="ph ph-caret-up-down" style="font-size:13px;color:#B9B6AB"></i>
+</div>
+</div>
+</sc-if>
+
+<div style="flex:1;min-width:0;display:flex;flex-direction:column">
+
+<sc-if value="{{ mob }}" hint-placeholder-val="{{ false }}">
+<div style="flex:none;display:flex;align-items:center;gap:10px;padding:6px 18px 12px;border-bottom:1px solid #E2E1DA">
+<div style="flex:none;width:28px;height:28px;border-radius:8px;background:#046A38;display:flex;align-items:center;justify-content:center"><i class="ph-fill ph-shield-check" style="font-size:16px;color:#F7F6F2"></i></div>
+<div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ sponsorOrg }}</div><div style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.1em;color:#046A38">{{ sponsorTag }} SPONSOR</div></div>
+<div style="flex:none;width:28px;height:28px;border-radius:50%;background:#E3E1D8;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#5C6560">AB</div>
+</div>
+</sc-if>
+
+<div style="flex:1;min-height:0;overflow-y:auto;padding:{{ pad }};animation:rise .22s ease">
+
+<sc-if value="{{ s_dash }}" hint-placeholder-val="{{ true }}">
+<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap">
+<div>
+<div style="font-size:23px;font-weight:700;letter-spacing:-.02em">{{ dashTitle }}</div>
+<div style="font-size:13.5px;line-height:1.5;color:#5C6560;margin-top:4px">{{ dashSub }}</div>
+</div>
+<div style="display:flex;align-items:center;gap:8px;padding:9px 14px;border:1px solid {{ cycleBc }};border-radius:10px;background:{{ cycleBg }}">
+<i class="{{ cycleIcon }}" style="font-size:17px;color:{{ cycleIc }}"></i>
+<div><div style="font-size:12.5px;font-weight:700;color:{{ cycleFg }}">{{ cycleState }}</div><div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#8A928C">AUGUST 2026 CYCLE</div></div>
+</div>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));gap:10px;margin-top:20px">
+<sc-for list="{{ stats }}" as="st" hint-placeholder-count="4">
+<div style="padding:15px 16px;border:1px solid #E2E1DA;border-radius:12px;background:#FFFFFF">
+<div style="display:flex;align-items:center;gap:6px"><i class="{{ st.icon }}" style="font-size:14px;color:{{ st.fg }}"></i><span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.1em;color:#8A928C">{{ st.tag }}</span></div>
+<div style="font-size:27px;font-weight:700;letter-spacing:-.03em;color:{{ st.fg }};margin-top:8px">{{ st.v }}</div>
+<div style="font-size:12.5px;line-height:1.35;color:#5C6560;margin-top:2px">{{ st.k }}</div>
+</div>
+</sc-for>
+</div>
+
+<div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:#8A928C;margin-top:26px">NEEDS YOU THIS WEEK</div>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:9px;margin-top:9px">
+<sc-for list="{{ tasks }}" as="tk" hint-placeholder-count="3">
+<button type="button" onClick="{{ tk.go }}" style="display:flex;align-items:center;gap:12px;text-align:left;padding:14px 15px;border:1px solid {{ tk.bc }};border-radius:12px;background:#FFFFFF;cursor:pointer;transition:border-color .12s" style-hover="border-color:#046A38">
+<i class="{{ tk.icon }}" style="flex:none;font-size:20px;color:{{ tk.ic }}"></i>
+<span style="flex:1;min-width:0"><span style="display:block;font-size:14px;font-weight:600">{{ tk.title }}</span><span style="display:block;font-size:12px;line-height:1.4;color:#5C6560;margin-top:2px">{{ tk.sub }}</span></span>
+<span style="flex:none;font-size:17px;font-weight:700;color:{{ tk.ic }}">{{ tk.count }}</span>
+</button>
+</sc-for>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-top:26px;align-items:start">
+<div>
+<div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:#8A928C">{{ cycleHeading }}</div>
+<div style="margin-top:9px;padding:16px;border:1px solid #E2E1DA;border-radius:12px;background:#FFFFFF">
+<sc-for list="{{ cycle }}" as="cy" hint-placeholder-count="4">
+<div style="display:grid;grid-template-columns:24px 1fr auto;gap:11px;align-items:start">
+<div style="display:flex;flex-direction:column;align-items:center;height:100%">
+<i class="{{ cy.icon }}" style="font-size:19px;color:{{ cy.ic }};line-height:1"></i>
+<div style="width:2px;flex:1;min-height:{{ cy.lineH }};background:{{ cy.line }};border-radius:1px"></div>
+</div>
+<div style="padding-bottom:{{ cy.pad }}">
+<div style="font-size:14px;font-weight:600">{{ cy.title }}</div>
+<div style="font-size:12.5px;line-height:1.45;color:#8A928C;margin-top:2px">{{ cy.sub }}</div>
+</div>
+<div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#8A928C;white-space:nowrap">{{ cy.when }}</div>
+</div>
+</sc-for>
+<div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap">
+<button type="button" onClick="{{ goRemit }}" style="flex:1;min-width:130px;display:flex;align-items:center;justify-content:center;gap:7px;flex-shrink:0;height:44px;padding:0 14px;border:1.5px solid #D3D1C6;border-radius:999px;background:#FFFFFF;color:#14181B;font-size:14px;font-weight:600;cursor:pointer;transition:background .15s,border-color .15s" style-hover="border-color:#046A38;color:#046A38"><i class="ph ph-receipt" style="font-size:16px"></i>Remittances</button>
+<button type="button" onClick="{{ cycleGo }}" style="flex:1;min-width:150px;display:flex;align-items:center;justify-content:center;gap:7px;flex-shrink:0;height:44px;padding:0 16px;border:0;border-radius:999px;background:#046A38;color:#F7F6F2;font-size:14px;font-weight:600;box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 6px 14px -9px rgba(4,106,56,.65);cursor:pointer;transition:background .15s,transform .12s" style-hover="background:#03502A" style-active="background:#023F21;transform:translateY(1px)"><i class="{{ cycleCtaIcon }}" style="font-size:16px"></i>{{ cycleCta }}</button>
+</div>
+<div style="font-size:12px;line-height:1.5;color:#8A928C;margin-top:11px">{{ cycleNote }}</div>
+</div>
+</div>
+<div>
+<div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:#8A928C">MEMBERSHIP MOVEMENT · AUGUST</div>
+<div style="margin-top:9px;padding:4px 16px;border:1px solid #E2E1DA;border-radius:12px;background:#FFFFFF">
+<sc-for list="{{ movement }}" as="mv" hint-placeholder-count="4">
+<div style="display:flex;align-items:center;gap:11px;padding:12px 0;border-bottom:1px solid {{ mv.rule }}">
+<i class="{{ mv.icon }}" style="flex:none;font-size:17px;color:{{ mv.ic }}"></i>
+<span style="flex:1;font-size:13.5px;font-weight:500">{{ mv.k }}</span>
+<span style="font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:500;color:{{ mv.ic }}">{{ mv.v }}</span>
+</div>
+</sc-for>
+<div style="padding:12px 0 14px;font-size:12px;line-height:1.5;color:#8A928C">Movement changes next month's schedule total. Leavers keep cover for 60 days on direct debit unless you close it.</div>
+</div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ s_upload }}" hint-placeholder-val="{{ false }}">
+<div style="font-size:23px;font-weight:700;letter-spacing:-.02em">Monthly deduction schedule</div>
+<div style="font-size:13.5px;line-height:1.55;color:#5C6560;margin-top:4px;max-width:640px">{{ schedIntro }}</div>
+
+<sc-if value="{{ selfpay }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;gap:11px;align-items:flex-start;margin-top:18px;padding:14px 15px;border:1.5px solid #E0CFA6;border-radius:12px;background:#FBF4E4">
+<i class="ph-fill ph-info" style="flex:none;font-size:19px;color:#8A5A00"></i>
+<div><div style="font-size:13.5px;font-weight:700;color:#6B4C08">Self-paying sponsors have no schedule to send</div><div style="font-size:12.5px;line-height:1.5;color:#8A5A00;margin-top:3px">There is no payroll office in this rail. Money is collected by direct debit — use the <a href="#" onClick="{{ goDebit }}">collection run</a> instead.</div></div>
+</div>
+</sc-if>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:14px;margin-top:20px;align-items:start">
+<div style="padding:18px;border:1px solid #E2E1DA;border-radius:12px;background:#FFFFFF">
+<div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:#8A928C">STEP 1 · WHAT GOES OUT</div>
+<div style="font-size:16px;font-weight:700;margin-top:8px">September 2026 schedule</div>
+<div style="display:flex;flex-direction:column;gap:0;margin-top:12px">
+<div style="display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid #EFEDE6"><span style="font-size:13px;color:#5C6560">Members on the file</span><span style="font-family:'IBM Plex Mono',monospace;font-size:13.5px;font-weight:500">8,440</span></div>
+<div style="display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid #EFEDE6"><span style="font-size:13px;color:#5C6560">Total to deduct</span><span style="font-family:'IBM Plex Mono',monospace;font-size:13.5px;font-weight:500">₦21,144,000</span></div>
+<div style="display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid #EFEDE6"><span style="font-size:13px;color:#5C6560">Changed since August</span><span style="font-family:'IBM Plex Mono',monospace;font-size:13.5px;font-weight:500;color:#046A38">+37 · −9 · 14 tier</span></div>
+<div style="display:flex;justify-content:space-between;gap:12px;padding:10px 0"><span style="font-size:13px;color:#5C6560">Payroll cut-off</span><span style="font-family:'IBM Plex Mono',monospace;font-size:13.5px;font-weight:500;color:#B4451F">05.09 · 3 days</span></div>
+</div>
+<div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:#8A928C;margin-top:18px">FILE FORMAT</div>
+<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
+<sc-for list="{{ formats }}" as="fm" hint-placeholder-count="3">
+<button type="button" onClick="{{ fm.go }}" style="padding:8px 13px;border:1.5px solid {{ fm.bc }};border-radius:999px;background:{{ fm.bg }};color:{{ fm.fg }};font-size:12.5px;font-weight:{{ fm.fw }};cursor:pointer" style-hover="border-color:#046A38">{{ fm.name }}</button>
+</sc-for>
+</div>
+<div style="font-size:12px;line-height:1.5;color:#8A928C;margin-top:9px">{{ formatNote }}</div>
+</div>
+
+<div style="padding:18px;border:1px solid #E2E1DA;border-radius:12px;background:#FFFFFF">
+<div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:#8A928C">STEP 2 · WHERE IT GOES</div>
+<div style="font-size:16px;font-weight:700;margin-top:8px">{{ destName }}</div>
+<div style="font-size:13px;line-height:1.55;color:#5C6560;margin-top:6px">{{ destNote }}</div>
+<div style="margin-top:14px;padding:13px 14px;border:1px solid #C9DDD2;border-radius:11px;background:#F1F6F3">
+<div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em;color:#046A38">DEDUCTION CODE</div>
+<div style="font-family:'IBM Plex Mono',monospace;font-size:17px;font-weight:500;margin-top:3px">{{ deductionCode }}</div>
+<div style="font-size:12px;line-height:1.5;color:#5C6560;margin-top:5px">{{ codeNote }}</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:8px;margin-top:16px">
+<button type="button" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;flex-shrink:0;height:50px;padding:0 18px;border:0;border-radius:999px;background:#046A38;color:#F7F6F2;font-size:15px;font-weight:600;box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 8px 18px -10px rgba(4,106,56,.7);cursor:pointer;transition:background .15s,transform .12s" style-hover="background:#03502A" style-active="background:#023F21;transform:translateY(1px)"><i class="ph ph-paper-plane-tilt" style="font-size:17px"></i>{{ sendLabel }}</button>
+<button type="button" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;flex-shrink:0;height:46px;padding:0 18px;border:1.5px solid #D3D1C6;border-radius:999px;background:#FFFFFF;color:#14181B;font-size:14px;font-weight:600;cursor:pointer;transition:background .15s,border-color .15s" style-hover="border-color:#046A38;color:#046A38"><i class="ph ph-download-simple" style="font-size:16px"></i>Download to check first</button>
+</div>
+<div style="font-size:12px;line-height:1.5;color:#8A928C;margin-top:10px">Sending needs a second approver. Amina prepares, Musa approves — no single person can change what payroll deducts.</div>
+</div>
+</div>
+
+<div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:#8A928C;margin-top:26px">STEP 3 · WHAT CAME BACK · LAST SIX CYCLES</div>
+<div style="margin-top:9px;padding:4px 16px;border:1px solid #E2E1DA;border-radius:12px;background:#FFFFFF">
+<sc-for list="{{ sendLog }}" as="lg" hint-placeholder-count="5">
+<div style="display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid {{ lg.rule }};flex-wrap:wrap">
+<span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:#8A928C;min-width:64px">{{ lg.period }}</span>
+<span style="flex:1;min-width:150px;font-size:13.5px;font-weight:500">{{ lg.what }}</span>
+<span style="font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:#5C6560;min-width:96px;text-align:right">{{ lg.amount }}</span>
+<span style="display:flex;align-items:center;gap:5px;min-width:132px"><i class="{{ lg.icon }}" style="font-size:14px;color:{{ lg.ic }}"></i><span style="font-size:12.5px;font-weight:500;color:{{ lg.ic }}">{{ lg.state }}</span></span>
+</div>
+</sc-for>
+<div style="padding:12px 0 14px;font-size:12px;line-height:1.5;color:#8A928C">A cycle is only closed when the return file has been reconciled — not when the money lands. One credit covers thousands of members, so the file is the only thing that says who is actually covered.</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ s_recon }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap">
+<sc-if value="{{ payroll }}" hint-placeholder-val="{{ true }}">
+<div>
+<div style="font-size:23px;font-weight:700;letter-spacing:-.02em">Return file · August 2026</div>
+<div style="font-size:13.5px;line-height:1.5;color:#5C6560;margin-top:4px">Received 28.08 · 8,381 rows · matched against 8,412 scheduled members.</div>
+</div>
+<button type="button" style="display:flex;align-items:center;gap:8px;flex-shrink:0;height:44px;padding:0 18px;border:1.5px solid #D3D1C6;border-radius:999px;background:#FFFFFF;color:#14181B;font-size:14px;font-weight:600;cursor:pointer;transition:background .15s,border-color .15s" style-hover="border-color:#046A38;color:#046A38"><i class="ph ph-upload-simple" style="font-size:16px"></i>Replace file</button>
+</sc-if>
+<sc-if value="{{ selfpay }}" hint-placeholder-val="{{ false }}">
+<div>
+<div style="font-size:23px;font-weight:700;letter-spacing:-.02em">Debit results · August 2026</div>
+<div style="font-size:13.5px;line-height:1.5;color:#5C6560;margin-top:4px">Answered 28.08 · 1,240 mandates presented · settled the same day.</div>
+</div>
+<button type="button" onClick="{{ goDebit }}" style="display:flex;align-items:center;gap:8px;flex-shrink:0;height:44px;padding:0 18px;border:1.5px solid #D3D1C6;border-radius:999px;background:#FFFFFF;color:#14181B;font-size:14px;font-weight:600;cursor:pointer;transition:background .15s,border-color .15s" style-hover="border-color:#046A38;color:#046A38"><i class="ph ph-arrows-clockwise" style="font-size:16px"></i>The debit run</button>
+</sc-if>
+</div>
+<sc-if value="{{ selfpay }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;gap:11px;align-items:flex-start;margin-top:18px;padding:14px 15px;border:1.5px solid #E0CFA6;border-radius:12px;background:#FBF4E4">
+<i class="ph-fill ph-info" style="flex:none;font-size:19px;color:#8A5A00"></i>
+<div><div style="font-size:13.5px;font-weight:700;color:#6B4C08">There is no return file on this rail</div><div style="font-size:12.5px;line-height:1.5;color:#8A5A00;margin-top:3px">Self-paying members are answered by their bank the same day, so reconciliation is only ever about failed debits — never a payroll office. The exceptions below are bank responses.</div></div>
+</div>
+</sc-if>
+
+<div style="margin-top:20px;padding:18px;border:1px solid #E2E1DA;border-radius:12px;background:#FFFFFF">
+<div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap">
+<div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:#8A928C">MATCH RESULT</div>
+<div style="font-size:12.5px;color:#5C6560">{{ matchCaption }}</div>
+</div>
+<div style="display:flex;height:12px;border-radius:6px;overflow:hidden;margin-top:12px;background:#EFEDE6">
+<sc-for list="{{ matchBar }}" as="mb" hint-placeholder-count="4">
+<div style="flex:{{ mb.flex }};background:{{ mb.bg }}"></div>
+</sc-for>
+</div>
+<div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:11px">
+<sc-for list="{{ matchLegend }}" as="ml" hint-placeholder-count="4">
+<div style="display:flex;align-items:center;gap:6px"><span style="width:9px;height:9px;border-radius:3px;background:{{ ml.bg }}"></span><span style="font-size:12.5px;color:#5C6560">{{ ml.label }}</span><span style="font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-weight:500">{{ ml.n }}</span></div>
+</sc-for>
+</div>
+</div>
+
+<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:22px">
+<sc-for list="{{ reconFilters }}" as="rf" hint-placeholder-count="5">
+<button type="button" onClick="{{ rf.go }}" style="display:flex;align-items:center;gap:6px;padding:8px 13px;border:1.5px solid {{ rf.bc }};border-radius:999px;background:{{ rf.bg }};color:{{ rf.fg }};font-size:12.5px;font-weight:{{ rf.fw }};cursor:pointer" style-hover="border-color:#046A38">{{ rf.label }}<span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:{{ rf.nfg }}">{{ rf.n }}</span></button>
+</sc-for>
+</div>
+
+<div style="margin-top:12px;display:flex;flex-direction:column;gap:8px">
+<sc-for list="{{ reconRows }}" as="rr" hint-placeholder-count="6">
+<button type="button" onClick="{{ rr.go }}" style="display:flex;align-items:center;gap:13px;text-align:left;padding:14px 15px;border:1px solid {{ rr.bc }};border-radius:11px;background:#FFFFFF;cursor:pointer;transition:border-color .12s;flex-wrap:wrap" style-hover="border-color:#046A38">
+<i class="{{ rr.icon }}" style="flex:none;font-size:19px;color:{{ rr.ic }}"></i>
+<span style="flex:1;min-width:170px"><span style="display:block;font-size:14px;font-weight:600">{{ rr.name }}</span><span style="display:block;font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:#8A928C;margin-top:2px">{{ rr.ref }}</span></span>
+<span style="flex:none;min-width:140px"><span style="display:block;font-size:12.5px;font-weight:600;color:{{ rr.ic }}">{{ rr.kind }}</span><span style="display:block;font-size:12px;color:#5C6560;margin-top:1px">{{ rr.detail }}</span></span>
+<span style="flex:none;font-family:'IBM Plex Mono',monospace;font-size:13px;min-width:82px;text-align:right">{{ rr.amount }}</span>
+<i class="ph ph-caret-right" style="flex:none;font-size:15px;color:#B9B6AB"></i>
+</button>
+</sc-for>
+</div>
+
+<div style="display:flex;gap:9px;margin-top:16px;flex-wrap:wrap">
+<button type="button" style="display:flex;align-items:center;gap:7px;flex-shrink:0;height:46px;padding:0 18px;border:1.5px solid #D3D1C6;border-radius:999px;background:#FFFFFF;color:#14181B;font-size:14px;font-weight:600;cursor:pointer;transition:background .15s,border-color .15s" style-hover="border-color:#046A38;color:#046A38"><i class="ph ph-download-simple" style="font-size:16px"></i>Export exceptions</button>
+<button type="button" style="display:flex;align-items:center;gap:7px;flex-shrink:0;height:46px;padding:0 20px;border:0;border-radius:999px;background:#046A38;color:#F7F6F2;font-size:14.5px;font-weight:600;box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 8px 18px -10px rgba(4,106,56,.7);cursor:pointer;transition:background .15s,transform .12s" style-hover="background:#03502A" style-active="background:#023F21;transform:translateY(1px)"><i class="ph ph-check-circle" style="font-size:16px"></i>Close the cycle</button>
+</div>
+<sc-if value="{{ payroll }}" hint-placeholder-val="{{ true }}">
+<div style="font-size:12.5px;line-height:1.55;color:#8A928C;margin-top:10px;max-width:620px">Closing the cycle tells 8,324 members their August contribution cleared, and starts the 7-day card fallback for the 12 who were not deducted. It stays blocked while any row above is undecided.</div>
+</sc-if>
+<sc-if value="{{ selfpay }}" hint-placeholder-val="{{ false }}">
+<div style="font-size:12.5px;line-height:1.55;color:#8A928C;margin-top:10px;max-width:620px">Closing the run tells 1,189 members their August contribution cleared, and puts the 51 failed debits on the retry ladder. It stays blocked while any row above is undecided.</div>
+</sc-if>
+</sc-if>
+
+<sc-if value="{{ s_exception }}" hint-placeholder-val="{{ false }}">
+<button type="button" onClick="{{ goRecon }}" style="align-self:flex-start;display:flex;align-items:center;gap:6px;background:transparent;border:0;color:#5C6560;font-size:14px;font-weight:500;cursor:pointer;padding:2px 0 10px" style-hover="color:#14181B"><i class="ph ph-arrow-left" style="font-size:16px"></i>Reconciliation queue</button>
+<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+<span style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em;color:#B4451F;border:1px solid #E7C8B8;border-radius:5px;padding:3px 8px">{{ excBadge }}</span>
+<span style="font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:#8A928C">{{ excRef }}</span>
+</div>
+<sc-if value="{{ payroll }}" hint-placeholder-val="{{ true }}">
+<div style="font-size:23px;font-weight:700;letter-spacing:-.02em;margin-top:8px;text-wrap:balance">₦2,500 was deducted from someone we cannot identify</div>
+<div style="font-size:13.5px;line-height:1.55;color:#5C6560;margin-top:6px;max-width:660px">The payroll file has a deduction under this name and service number, but nothing in our member list matches it. Until it is resolved the money sits unallocated and nobody gets credited for August.</div>
+</sc-if>
+<sc-if value="{{ selfpay }}" hint-placeholder-val="{{ false }}">
+<div style="font-size:23px;font-weight:700;letter-spacing:-.02em;margin-top:8px;text-wrap:balance">₦2,500 was refused by the member's bank</div>
+<div style="font-size:13.5px;line-height:1.55;color:#5C6560;margin-top:6px;max-width:660px">The mandate is valid but the account had no funds on presentation day. Nothing has been collected for August yet, and her 60-day grace clock started the moment the debit failed.</div>
+</sc-if>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(272px,1fr));gap:12px;margin-top:20px;align-items:start">
+<div style="padding:17px;border:1.5px solid #E7C8B8;border-radius:12px;background:#FFFFFF">
+<div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:#B4451F">{{ excPanelA }}</div>
+<sc-for list="{{ excFile }}" as="ef" hint-placeholder-count="6">
+<div style="display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid #EFEDE6">
+<span style="font-size:12.5px;color:#5C6560">{{ ef.k }}</span>
+<span style="font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:500;color:{{ ef.fg }};text-align:right">{{ ef.v }}</span>
+</div>
+</sc-for>
+<div style="font-size:12px;line-height:1.5;color:#8A928C;margin-top:11px">{{ excPanelANote }}</div>
+</div>
+<div style="padding:17px;border:1px solid #C9DDD2;border-radius:12px;background:#FFFFFF">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+<div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:#046A38">{{ excPanelB }}</div>
+<span style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:#046A38;background:#F1F6F3;border:1px solid #C9DDD2;border-radius:99px;padding:2px 8px">{{ excPanelBTag }}</span>
+</div>
+<sc-for list="{{ excMember }}" as="em" hint-placeholder-count="6">
+<div style="display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid #EFEDE6">
+<span style="font-size:12.5px;color:#5C6560">{{ em.k }}</span>
+<span style="font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:500;color:{{ em.fg }};text-align:right">{{ em.v }}</span>
+</div>
+</sc-for>
+<div style="font-size:12px;line-height:1.5;color:#5C6560;margin-top:11px">{{ excPanelBNote }}</div>
+</div>
+</div>
+
+<div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:#8A928C;margin-top:24px">WHAT DO YOU WANT TO DO</div>
+<div style="display:flex;flex-direction:column;gap:8px;margin-top:9px">
+<sc-for list="{{ excActions }}" as="ea" hint-placeholder-count="4">
+<button type="button" onClick="{{ ea.go }}" style="display:flex;align-items:flex-start;gap:12px;text-align:left;padding:14px 15px;border:1.5px solid {{ ea.bc }};border-radius:11px;background:{{ ea.bg }};cursor:pointer;transition:border-color .12s" style-hover="border-color:#046A38">
+<i class="{{ ea.icon }}" style="flex:none;font-size:19px;color:{{ ea.ic }};margin-top:1px"></i>
+<span style="flex:1"><span style="display:block;font-size:14px;font-weight:600;color:{{ ea.fg }}">{{ ea.title }}</span><span style="display:block;font-size:12.5px;line-height:1.45;color:#5C6560;margin-top:2px">{{ ea.sub }}</span></span>
+</button>
+</sc-for>
+</div>
+
+<div style="margin-top:16px;padding:15px 16px;border:1px solid #E2E1DA;border-radius:12px;background:#FFFFFF">
+<div style="font-size:13px;font-weight:600">Why did this happen? <span style="font-weight:400;color:#8A928C">(kept on the audit trail)</span></div>
+<textarea rows="2" placeholder="{{ excNotePh }}" style="width:100%;box-sizing:border-box;margin-top:9px;padding:11px 12px;border:1px solid #D7D5CC;border-radius:9px;background:#FDFDFB;font-size:13px;line-height:1.5;color:#14181B;resize:vertical"></textarea>
+<div style="display:flex;gap:9px;margin-top:11px;flex-wrap:wrap">
+<button type="button" onClick="{{ goRecon }}" style="flex-shrink:0;height:44px;padding:0 18px;border:1.5px solid #D3D1C6;border-radius:999px;background:#FFFFFF;color:#5C6560;font-size:14px;font-weight:600;cursor:pointer;transition:background .15s,border-color .15s" style-hover="border-color:#14181B;color:#14181B">Skip for now</button>
+<button type="button" onClick="{{ goRecon }}" style="flex-shrink:0;height:44px;padding:0 20px;border:0;border-radius:999px;background:#046A38;color:#F7F6F2;font-size:14px;font-weight:600;box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 6px 14px -9px rgba(4,106,56,.65);cursor:pointer;transition:background .15s,transform .12s" style-hover="background:#03502A" style-active="background:#023F21;transform:translateY(1px)">Resolve and go to next</button>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ s_roster }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap">
+<div>
+<div style="font-size:23px;font-weight:700;letter-spacing:-.02em">Members</div>
+<div style="font-size:13.5px;line-height:1.5;color:#5C6560;margin-top:4px">{{ rosterCount }} on this sponsor · {{ rosterSub }}</div>
+</div>
+<div style="display:flex;gap:8px;flex-wrap:wrap">
+<button type="button" onClick="{{ goMembers }}" style="display:flex;align-items:center;gap:7px;flex-shrink:0;height:44px;padding:0 18px;border:0;border-radius:999px;background:#046A38;color:#F7F6F2;font-size:14px;font-weight:600;box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 6px 14px -9px rgba(4,106,56,.65);cursor:pointer;transition:background .15s,transform .12s" style-hover="background:#03502A" style-active="background:#023F21;transform:translateY(1px)"><i class="ph ph-user-plus" style="font-size:16px"></i>Add members</button>
+</div>
+</div>
+
+<div style="display:flex;align-items:center;gap:9px;margin-top:18px;padding:0 14px;height:48px;border:1px solid #D7D5CC;border-radius:999px;background:#FFFFFF">
+<i class="ph ph-magnifying-glass" style="font-size:17px;color:#8A928C"></i>
+<input type="text" placeholder="Name, service number, NIN or CSP-ID" style="flex:1;min-width:0;border:0;background:transparent;font-size:14px;color:#14181B;outline:none">
+<span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#B9B6AB">8,440 records</span>
+</div>
+
+<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:12px">
+<sc-for list="{{ rosterFilters }}" as="rf" hint-placeholder-count="5">
+<button type="button" onClick="{{ rf.go }}" style="display:flex;align-items:center;gap:6px;padding:8px 13px;border:1.5px solid {{ rf.bc }};border-radius:999px;background:{{ rf.bg }};color:{{ rf.fg }};font-size:12.5px;font-weight:{{ rf.fw }};cursor:pointer" style-hover="border-color:#046A38">{{ rf.label }}<span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:{{ rf.nfg }}">{{ rf.n }}</span></button>
+</sc-for>
+</div>
+
+<div style="margin-top:12px;display:flex;flex-direction:column;gap:7px">
+<sc-for list="{{ roster }}" as="m" hint-placeholder-count="7">
+<div style="display:flex;align-items:center;gap:13px;padding:13px 15px;border:1px solid #E2E1DA;border-radius:11px;background:#FFFFFF;flex-wrap:wrap">
+<div style="flex:none;width:32px;height:32px;border-radius:50%;background:{{ m.avBg }};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:{{ m.avFg }}">{{ m.initials }}</div>
+<div style="flex:1;min-width:160px"><div style="font-size:14px;font-weight:600">{{ m.name }}</div><div style="font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:#8A928C;margin-top:2px">{{ m.ref }}</div></div>
+<div style="flex:none;min-width:88px"><div style="font-size:12.5px;font-weight:500">{{ m.tier }}</div><div style="font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:#8A928C;margin-top:2px">{{ m.price }}</div></div>
+<div style="flex:none;display:flex;align-items:center;gap:6px;min-width:150px"><i class="{{ m.icon }}" style="font-size:14px;color:{{ m.ic }}"></i><span style="font-size:12.5px;font-weight:500;color:{{ m.ic }}">{{ m.state }}</span></div>
+<button type="button" style="flex:none;display:flex;align-items:center;justify-content:center;width:32px;height:32px;border:1px solid #E2E1DA;border-radius:50%;background:#FFFFFF;color:#8A928C;cursor:pointer;transition:border-color .12s,color .12s" style-hover="border-color:#046A38;color:#046A38"><i class="ph ph-dots-three" style="font-size:16px"></i></button>
+</div>
+</sc-for>
+</div>
+
+<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:14px;flex-wrap:wrap">
+<div style="font-size:12.5px;color:#8A928C">Showing 1–7 of 8,440</div>
+<div style="display:flex;gap:6px">
+<button type="button" style="display:flex;align-items:center;justify-content:center;width:38px;height:38px;border:1.5px solid #D3D1C6;border-radius:50%;background:#FFFFFF;color:#B9B6AB;cursor:pointer"><i class="ph ph-caret-left" style="font-size:15px"></i></button>
+<button type="button" style="display:flex;align-items:center;justify-content:center;width:38px;height:38px;border:1.5px solid #D3D1C6;border-radius:50%;background:#FFFFFF;color:#14181B;cursor:pointer;transition:border-color .12s,color .12s" style-hover="border-color:#046A38;color:#046A38"><i class="ph ph-caret-right" style="font-size:15px"></i></button>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ s_members }}" hint-placeholder-val="{{ false }}">
+<button type="button" onClick="{{ goRoster }}" style="align-self:flex-start;display:flex;align-items:center;gap:6px;background:transparent;border:0;color:#5C6560;font-size:14px;font-weight:500;cursor:pointer;padding:2px 0 10px" style-hover="color:#14181B"><i class="ph ph-arrow-left" style="font-size:16px"></i>Members</button>
+<div style="font-size:23px;font-weight:700;letter-spacing:-.02em">Add and remove members</div>
+<div style="font-size:13.5px;line-height:1.55;color:#5C6560;margin-top:4px;max-width:640px">Changes here take effect on the next schedule, not today. Anyone added after the payroll cut-off starts on the following month unless you collect their first contribution by card.</div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(292px,1fr));gap:14px;margin-top:20px;align-items:start">
+<div style="padding:18px;border:1px solid #C9DDD2;border-radius:12px;background:#FFFFFF">
+<div style="display:flex;align-items:center;gap:8px"><i class="ph ph-user-plus" style="font-size:18px;color:#046A38"></i><div style="font-size:16px;font-weight:700">Add new starters</div></div>
+<div style="display:flex;gap:6px;margin-top:14px">
+<sc-for list="{{ addModes }}" as="am" hint-placeholder-count="2">
+<button type="button" onClick="{{ am.go }}" style="flex:1;padding:9px 12px;border:1.5px solid {{ am.bc }};border-radius:999px;background:{{ am.bg }};color:{{ am.fg }};font-size:12.5px;font-weight:{{ am.fw }};cursor:pointer" style-hover="border-color:#046A38">{{ am.name }}</button>
+</sc-for>
+</div>
+
+<sc-if value="{{ addOne }}" hint-placeholder-val="{{ true }}">
+<div style="display:flex;flex-direction:column;gap:11px;margin-top:16px">
+<sc-for list="{{ addFields }}" as="af" hint-placeholder-count="4">
+<div style="display:flex;flex-direction:column;gap:5px">
+<div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em;color:#8A928C">{{ af.label }}</div>
+<input type="text" placeholder="{{ af.ph }}" style="width:100%;box-sizing:border-box;padding:12px 13px;border:1px solid #D7D5CC;border-radius:9px;background:#FDFDFB;font-size:14px;color:#14181B;outline:none">
+</div>
+</sc-for>
+<div style="display:flex;flex-direction:column;gap:5px">
+<div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em;color:#8A928C">STARTING PLAN</div>
+<div style="display:flex;gap:5px;flex-wrap:wrap">
+<sc-for list="{{ tierPicks }}" as="tp" hint-placeholder-count="4">
+<button type="button" onClick="{{ tp.go }}" style="flex:1;min-width:66px;padding:9px 8px;border:1.5px solid {{ tp.bc }};border-radius:9px;background:{{ tp.bg }};color:{{ tp.fg }};font-size:12px;font-weight:{{ tp.fw }};cursor:pointer" style-hover="border-color:#046A38">{{ tp.name }}<span style="display:block;font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:#8A928C;margin-top:2px">{{ tp.price }}</span></button>
+</sc-for>
+</div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ addBulk }}" hint-placeholder-val="{{ false }}">
+<div style="margin-top:16px;padding:22px 18px;border:1.5px solid #C3D9CD;border-radius:11px;background:#F1F6F3;text-align:center">
+<i class="ph ph-file-arrow-up" style="font-size:30px;color:#046A38"></i>
+<div style="font-size:14.5px;font-weight:600;margin-top:8px">Drop a staff list here</div>
+<div style="font-size:12.5px;line-height:1.5;color:#5C6560;margin-top:4px">CSV or XLSX with service number, NIN, name, grade level and plan. We validate every NIN before anyone is added.</div>
+<button type="button" style="margin-top:12px;flex-shrink:0;height:42px;padding:0 18px;border:1.5px solid #046A38;border-radius:999px;background:#FFFFFF;color:#046A38;font-size:13.5px;font-weight:600;cursor:pointer;transition:background .15s" style-hover="background:#E7F0EB">Choose a file</button>
+</div>
+<div style="font-size:12px;line-height:1.5;color:#8A928C;margin-top:10px">Last upload: 37 rows, 35 added, 2 held for a NIN mismatch.</div>
+</sc-if>
+
+<button type="button" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin-top:16px;flex-shrink:0;height:50px;padding:0 18px;border:0;border-radius:999px;background:#046A38;color:#F7F6F2;font-size:15px;font-weight:600;box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 8px 18px -10px rgba(4,106,56,.7);cursor:pointer;transition:background .15s,transform .12s" style-hover="background:#03502A" style-active="background:#023F21;transform:translateY(1px)">{{ addCta }}</button>
+</div>
+
+<div style="padding:18px;border:1px solid #E7C8B8;border-radius:12px;background:#FFFFFF">
+<div style="display:flex;align-items:center;gap:8px"><i class="ph ph-user-minus" style="font-size:18px;color:#B4451F"></i><div style="font-size:16px;font-weight:700">Remove from the schedule</div></div>
+<div style="font-size:13px;line-height:1.55;color:#5C6560;margin-top:7px">Removing someone stops the payroll deduction. It does <strong>not</strong> cancel their cover — what happens next depends on why they left.</div>
+<div style="display:flex;flex-direction:column;gap:8px;margin-top:14px">
+<sc-for list="{{ leavers }}" as="lv" hint-placeholder-count="3">
+<div style="padding:13px 14px;border:1px solid #E2E1DA;border-radius:11px;background:#FDFDFB">
+<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+<div style="flex:1;min-width:150px"><div style="font-size:13.5px;font-weight:600">{{ lv.name }}</div><div style="font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:#8A928C;margin-top:2px">{{ lv.ref }}</div></div>
+<span style="flex:none;font-size:12px;font-weight:600;color:{{ lv.ic }};background:{{ lv.bg }};border:1px solid {{ lv.bc }};border-radius:99px;padding:3px 9px">{{ lv.reason }}</span>
+</div>
+<div style="display:flex;align-items:flex-start;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid #EFEDE6">
+<i class="{{ lv.icon }}" style="flex:none;font-size:15px;color:{{ lv.ic }};margin-top:1px"></i>
+<div style="font-size:12.5px;line-height:1.5;color:#5C6560">{{ lv.outcome }}</div>
+</div>
+</div>
+</sc-for>
+</div>
+<div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+<button type="button" style="flex:1;min-width:130px;flex-shrink:0;height:46px;padding:0 16px;border:1.5px solid #D3D1C6;border-radius:999px;background:#FFFFFF;color:#14181B;font-size:14px;font-weight:600;cursor:pointer;transition:background .15s,border-color .15s" style-hover="border-color:#046A38;color:#046A38">Notify all three</button>
+<button type="button" style="flex:1;min-width:150px;flex-shrink:0;height:46px;padding:0 16px;border:1.5px solid #B4451F;border-radius:999px;background:#FFFFFF;color:#B4451F;font-size:14px;font-weight:600;cursor:pointer;transition:background .15s" style-hover="background:#FBEFEA">Remove from September</button>
+</div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ s_debit }}" hint-placeholder-val="{{ false }}">
+<div style="font-size:23px;font-weight:700;letter-spacing:-.02em">Direct-debit run</div>
+<div style="font-size:13.5px;line-height:1.55;color:#5C6560;margin-top:4px;max-width:660px">The only rail that answers the same day. Mandates are presented through NIBSS with the card on file as fallback, so you know who paid within hours rather than weeks.</div>
+
+<sc-if value="{{ payroll }}" hint-placeholder-val="{{ true }}">
+<div style="display:flex;gap:11px;align-items:flex-start;margin-top:18px;padding:14px 15px;border:1.5px solid #E0CFA6;border-radius:12px;background:#FBF4E4">
+<i class="ph-fill ph-info" style="flex:none;font-size:19px;color:#8A5A00"></i>
+<div><div style="font-size:13.5px;font-weight:700;color:#6B4C08">This sponsor collects through payroll</div><div style="font-size:12.5px;line-height:1.5;color:#8A5A00;margin-top:3px">Debits here only cover members who left service or were missed by the file — {{ fallbackCount }} people this month. The main collection is the <a href="#" onClick="{{ goUpload }}">monthly schedule</a>.</div></div>
+</div>
+</sc-if>
+
+<div style="margin-top:20px;padding:18px;border:1px solid #E2E1DA;border-radius:12px;background:#FFFFFF">
+<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap">
+<div>
+<div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:#8A928C">RUN MND-2608 · PRESENTED 28.08 06:00</div>
+<div style="font-size:19px;font-weight:700;letter-spacing:-.02em;margin-top:5px">{{ debitTotal }} across {{ debitCount }} mandates</div>
+</div>
+<button type="button" style="display:flex;align-items:center;gap:7px;flex-shrink:0;height:44px;padding:0 18px;border:0;border-radius:999px;background:#046A38;color:#F7F6F2;font-size:14px;font-weight:600;box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 6px 14px -9px rgba(4,106,56,.65);cursor:pointer;transition:background .15s,transform .12s" style-hover="background:#03502A" style-active="background:#023F21;transform:translateY(1px)"><i class="ph ph-arrows-clockwise" style="font-size:16px"></i>Retry failed now</button>
+</div>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:10px;margin-top:16px">
+<sc-for list="{{ debitStats }}" as="ds" hint-placeholder-count="4">
+<div style="padding:13px 14px;border:1px solid {{ ds.bc }};border-radius:11px;background:{{ ds.bg }}">
+<div style="font-size:22px;font-weight:700;letter-spacing:-.025em;color:{{ ds.fg }}">{{ ds.v }}</div>
+<div style="font-size:12px;line-height:1.35;color:#5C6560;margin-top:2px">{{ ds.k }}</div>
+</div>
+</sc-for>
+</div>
+</div>
+
+<div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:#8A928C;margin-top:24px">WHY DEBITS FAILED</div>
+<div style="margin-top:9px;display:flex;flex-direction:column;gap:8px">
+<sc-for list="{{ debitFails }}" as="df" hint-placeholder-count="4">
+<div style="display:flex;align-items:center;gap:13px;padding:14px 15px;border:1px solid {{ df.bc }};border-radius:11px;background:#FFFFFF;flex-wrap:wrap">
+<span style="flex:none;font-family:'IBM Plex Mono',monospace;font-size:17px;font-weight:500;color:{{ df.ic }};min-width:34px">{{ df.n }}</span>
+<span style="flex:1;min-width:180px"><span style="display:block;font-size:14px;font-weight:600">{{ df.title }}</span><span style="display:block;font-size:12.5px;line-height:1.4;color:#5C6560;margin-top:2px">{{ df.sub }}</span></span>
+<span style="flex:none;font-size:12.5px;font-weight:600;color:{{ df.ic }};background:{{ df.bg }};border:1px solid {{ df.bc }};border-radius:99px;padding:4px 11px">{{ df.action }}</span>
+</div>
+</sc-for>
+</div>
+
+<div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:#8A928C;margin-top:24px">RETRY LADDER</div>
+<div style="margin-top:9px;padding:17px;border:1px solid #E2E1DA;border-radius:12px;background:#FFFFFF">
+<div style="display:flex;gap:4px;height:12px;border-radius:6px;overflow:hidden;background:#EFEDE6">
+<sc-for list="{{ retryBar }}" as="rb" hint-placeholder-count="4">
+<div style="flex:{{ rb.flex }};background:{{ rb.bg }};border-radius:3px"></div>
+</sc-for>
+</div>
+<div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:11px">
+<sc-for list="{{ retrySteps }}" as="rs" hint-placeholder-count="4">
+<div style="flex:1;min-width:118px"><div style="font-size:12.5px;font-weight:600;color:{{ rs.fg }}">{{ rs.label }}</div><div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#8A928C;margin-top:2px">{{ rs.when }}</div></div>
+</sc-for>
+</div>
+<div style="font-size:12.5px;line-height:1.55;color:#5C6560;margin-top:13px">After the second retry the member is on the 60-day grace clock and gets an SMS with a USSD string, so they can pay without a smartphone. Cover only lapses when the grace period runs out.</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ s_remit }}" hint-placeholder-val="{{ false }}">
+<div style="font-size:23px;font-weight:700;letter-spacing:-.02em">Remittances and receipts</div>
+<div style="font-size:13.5px;line-height:1.55;color:#5C6560;margin-top:4px;max-width:660px">{{ remitIntro }}</div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:20px">
+<sc-for list="{{ remitStats }}" as="rs" hint-placeholder-count="3">
+<div style="padding:15px 16px;border:1px solid #E2E1DA;border-radius:12px;background:#FFFFFF">
+<div style="font-size:24px;font-weight:700;letter-spacing:-.03em;color:{{ rs.fg }}">{{ rs.v }}</div>
+<div style="font-size:12.5px;line-height:1.35;color:#5C6560;margin-top:3px">{{ rs.k }}</div>
+</div>
+</sc-for>
+</div>
+
+<div style="margin-top:22px;padding:18px;border:1.5px solid #C9DDD2;border-radius:12px;background:#FFFFFF">
+<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap">
+<div>
+<div style="display:flex;align-items:center;gap:7px"><i class="ph-fill ph-check-circle" style="font-size:16px;color:#046A38"></i><span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:#046A38">FULLY ALLOCATED · AUGUST 2026</span></div>
+<div style="font-size:26px;font-weight:700;letter-spacing:-.03em;margin-top:7px">₦20,952,500</div>
+<div style="font-size:13px;color:#5C6560;margin-top:2px">Credited 29.08 · allocated to 8,324 members</div>
+</div>
+<button type="button" style="display:flex;align-items:center;gap:7px;flex-shrink:0;height:44px;padding:0 18px;border:1.5px solid #046A38;border-radius:999px;background:#FFFFFF;color:#046A38;font-size:14px;font-weight:600;cursor:pointer;transition:background .15s" style-hover="background:#E7F0EB"><i class="ph ph-file-pdf" style="font-size:16px"></i>Receipt</button>
+</div>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:0 20px;margin-top:16px;padding-top:14px;border-top:1px solid #EFEDE6">
+<sc-for list="{{ remitDetail }}" as="rd" hint-placeholder-count="6">
+<div style="display:flex;justify-content:space-between;gap:10px;padding:8px 0"><span style="font-size:12.5px;color:#5C6560">{{ rd.k }}</span><span style="font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-weight:500;text-align:right">{{ rd.v }}</span></div>
+</sc-for>
+</div>
+<div style="font-size:12px;line-height:1.5;color:#8A928C;margin-top:12px">The credit and the return file are reconciled separately. ₦77,500 of this payment stayed unallocated until the 31 unmatched rows were cleared.</div>
+</div>
+
+<div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:#8A928C;margin-top:24px">EARLIER PAYMENTS</div>
+<div style="margin-top:9px;display:flex;flex-direction:column;gap:7px">
+<sc-for list="{{ remitRows }}" as="rr" hint-placeholder-count="5">
+<div style="display:flex;align-items:center;gap:13px;padding:13px 15px;border:1px solid #E2E1DA;border-radius:11px;background:#FFFFFF;flex-wrap:wrap">
+<span style="flex:none;font-family:'IBM Plex Mono',monospace;font-size:12px;color:#8A928C;min-width:62px">{{ rr.period }}</span>
+<span style="flex:none;font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:500;min-width:104px">{{ rr.amount }}</span>
+<span style="flex:1;min-width:130px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:#8A928C">{{ rr.ref }}</span>
+<span style="flex:none;display:flex;align-items:center;gap:6px;min-width:126px"><i class="{{ rr.icon }}" style="font-size:14px;color:{{ rr.ic }}"></i><span style="font-size:12.5px;font-weight:500;color:{{ rr.ic }}">{{ rr.state }}</span></span>
+<button type="button" style="flex:none;display:flex;align-items:center;justify-content:center;width:32px;height:32px;border:1px solid #E2E1DA;border-radius:50%;background:#FFFFFF;color:#8A928C;cursor:pointer;transition:border-color .12s,color .12s" style-hover="border-color:#046A38;color:#046A38"><i class="ph ph-download-simple" style="font-size:15px"></i></button>
+</div>
+</sc-for>
+</div>
+</sc-if>
+
+<sc-if value="{{ s_claims }}" hint-placeholder-val="{{ false }}">
+<div style="font-size:23px;font-weight:700;letter-spacing:-.02em">Claims</div>
+<div style="font-size:13.5px;line-height:1.55;color:#5C6560;margin-top:4px;max-width:660px">Claims are between the member's family and the insurer. You see enough to confirm cover was in force and to support the family — nothing more.</div>
+
+<div style="display:flex;gap:11px;align-items:flex-start;margin-top:18px;padding:14px 15px;border:1px solid #C9DDD2;border-radius:12px;background:#F1F6F3">
+<i class="ph-fill ph-eye-slash" style="flex:none;font-size:19px;color:#046A38"></i>
+<div><div style="font-size:13.5px;font-weight:700;color:#03502A">What is hidden from you</div><div style="font-size:12.5px;line-height:1.5;color:#5C6560;margin-top:3px">Cause of death, medical documents, hospital names, diagnoses and beneficiary bank details are never shown to a sponsor. Members are told this during enrolment — it is why they trust the scheme with a NIN.</div></div>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:18px">
+<sc-for list="{{ claimStats }}" as="cs" hint-placeholder-count="3">
+<div style="padding:15px 16px;border:1px solid #E2E1DA;border-radius:12px;background:#FFFFFF">
+<div style="font-size:24px;font-weight:700;letter-spacing:-.03em;color:{{ cs.fg }}">{{ cs.v }}</div>
+<div style="font-size:12.5px;line-height:1.35;color:#5C6560;margin-top:3px">{{ cs.k }}</div>
+</div>
+</sc-for>
+</div>
+
+<div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:#8A928C;margin-top:24px">OPEN CLAIMS ON YOUR MEMBERS</div>
+<div style="margin-top:9px;display:flex;flex-direction:column;gap:8px">
+<sc-for list="{{ claims }}" as="cl" hint-placeholder-count="4">
+<div style="padding:15px;border:1px solid {{ cl.bc }};border-radius:11px;background:#FFFFFF">
+<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+<span style="flex:none;font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:#8A928C;min-width:110px">{{ cl.ref }}</span>
+<span style="flex:1;min-width:150px"><span style="display:block;font-size:14px;font-weight:600">{{ cl.member }}</span><span style="display:block;font-size:12px;color:#8A928C;margin-top:1px">{{ cl.kind }}</span></span>
+<span style="flex:none;font-family:'IBM Plex Mono',monospace;font-size:13.5px;font-weight:500;min-width:100px">{{ cl.amount }}</span>
+<span style="flex:none;display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:{{ cl.ic }};background:{{ cl.bg }};border:1px solid {{ cl.bc }};border-radius:99px;padding:4px 11px"><i class="{{ cl.icon }}" style="font-size:13px"></i>{{ cl.state }}</span>
+</div>
+<sc-if value="{{ cl.ask }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;align-items:flex-start;gap:9px;margin-top:11px;padding-top:11px;border-top:1px solid #EFEDE6">
+<i class="ph-fill ph-hand-waving" style="flex:none;font-size:16px;color:#8A5A00;margin-top:1px"></i>
+<div style="flex:1;min-width:160px"><div style="font-size:12.5px;font-weight:600;color:#6B4C08">{{ cl.askTitle }}</div><div style="font-size:12.5px;line-height:1.5;color:#5C6560;margin-top:2px">{{ cl.askSub }}</div></div>
+<button type="button" style="flex:none;flex-shrink:0;height:38px;padding:0 15px;border:1.5px solid #046A38;border-radius:999px;background:#FFFFFF;color:#046A38;font-size:13px;font-weight:600;cursor:pointer;transition:background .15s" style-hover="background:#E7F0EB">{{ cl.askCta }}</button>
+</div>
+</sc-if>
+</div>
+</sc-for>
+</div>
+<div style="margin-top:14px;font-size:12.5px;line-height:1.55;color:#8A928C;max-width:640px">Employer confirmation is the one thing only you can give: whether the person was in service on the date of the incident. That single answer is what turns a stuck claim into a payment.</div>
+</sc-if>
+
+<sc-if value="{{ s_settings }}" hint-placeholder-val="{{ false }}">
+<div style="font-size:23px;font-weight:700;letter-spacing:-.02em">Sponsor settings</div>
+<div style="font-size:13.5px;line-height:1.55;color:#5C6560;margin-top:4px;max-width:640px">Who can act on behalf of {{ sponsorOrg }}, and the details that decide how money is collected.</div>
+
+<div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:#8A928C;margin-top:22px">PEOPLE WITH ACCESS</div>
+<div style="margin-top:9px;display:flex;flex-direction:column;gap:7px">
+<sc-for list="{{ users }}" as="u" hint-placeholder-count="4">
+<div style="display:flex;align-items:center;gap:13px;padding:13px 15px;border:1px solid #E2E1DA;border-radius:11px;background:#FFFFFF;flex-wrap:wrap">
+<div style="flex:none;width:32px;height:32px;border-radius:50%;background:{{ u.avBg }};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:{{ u.avFg }}">{{ u.initials }}</div>
+<div style="flex:1;min-width:150px"><div style="font-size:14px;font-weight:600">{{ u.name }}</div><div style="font-size:12px;color:#8A928C;margin-top:1px">{{ u.email }}</div></div>
+<span style="flex:none;font-size:12.5px;font-weight:600;color:{{ u.ic }};background:{{ u.bg }};border:1px solid {{ u.bc }};border-radius:99px;padding:4px 11px;min-width:78px;text-align:center">{{ u.role }}</span>
+<span style="flex:none;font-size:12px;color:#8A928C;min-width:104px">{{ u.last }}</span>
+<button type="button" style="flex:none;display:flex;align-items:center;justify-content:center;width:32px;height:32px;border:1px solid #E2E1DA;border-radius:50%;background:#FFFFFF;color:#8A928C;cursor:pointer;transition:border-color .12s,color .12s" style-hover="border-color:#046A38;color:#046A38"><i class="ph ph-dots-three" style="font-size:16px"></i></button>
+</div>
+</sc-for>
+<button type="button" style="display:flex;align-items:center;justify-content:center;gap:8px;flex-shrink:0;height:50px;padding:0 18px;border:1.5px solid #C3D9CD;border-radius:999px;background:#F1F6F3;color:#046A38;font-size:14px;font-weight:600;cursor:pointer;transition:background .15s,border-color .15s" style-hover="background:#E7F0EB;border-color:#046A38"><i class="ph ph-user-plus" style="font-size:16px"></i>Invite someone</button>
+</div>
+
+<div style="margin-top:14px;padding:15px 16px;border:1px solid #C9DDD2;border-radius:12px;background:#FFFFFF">
+<div style="display:flex;align-items:center;gap:8px"><i class="ph ph-users-three" style="font-size:17px;color:#046A38"></i><div style="font-size:13.5px;font-weight:700">Two people, always</div></div>
+<div style="font-size:12.5px;line-height:1.55;color:#5C6560;margin-top:5px">A preparer builds the schedule, an approver releases it. Nobody can change what payroll deducts on their own — this is the control an internal auditor will ask about first.</div>
+</div>
+
+<div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:#8A928C;margin-top:26px">COLLECTION DETAILS</div>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(258px,1fr));gap:12px;margin-top:9px;align-items:start">
+<div style="padding:4px 16px;border:1px solid #E2E1DA;border-radius:12px;background:#FFFFFF">
+<sc-for list="{{ settingRows }}" as="sr" hint-placeholder-count="5">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid {{ sr.rule }}">
+<div style="min-width:0"><div style="font-size:13px;font-weight:500">{{ sr.k }}</div><div style="font-size:11.5px;line-height:1.4;color:#8A928C;margin-top:1px">{{ sr.note }}</div></div>
+<div style="flex:none;display:flex;align-items:center;gap:8px"><span style="font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-weight:500;text-align:right">{{ sr.v }}</span><i class="ph ph-pencil-simple" style="font-size:13px;color:#B9B6AB"></i></div>
+</div>
+</sc-for>
+</div>
+<div style="padding:17px;border:1px solid #E2E1DA;border-radius:12px;background:#FFFFFF">
+<div style="font-size:14px;font-weight:700">Who to chase when the file is late</div>
+<div style="font-size:12.5px;line-height:1.55;color:#5C6560;margin-top:6px">{{ chaseNote }}</div>
+<div style="display:flex;flex-direction:column;gap:9px;margin-top:13px">
+<sc-for list="{{ contacts }}" as="ct" hint-placeholder-count="2">
+<div style="display:flex;align-items:center;gap:10px;padding:11px 12px;border:1px solid #EFEDE6;border-radius:10px;background:#FDFDFB">
+<i class="{{ ct.icon }}" style="flex:none;font-size:16px;color:#046A38"></i>
+<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600">{{ ct.name }}</div><div style="font-size:11.5px;color:#8A928C;margin-top:1px">{{ ct.role }}</div></div>
+</div>
+</sc-for>
+</div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ s_reports }}" hint-placeholder-val="{{ false }}">
+<div style="font-size:23px;font-weight:700;letter-spacing:-.02em">Reports</div>
+<div style="font-size:13.5px;line-height:1.55;color:#5C6560;margin-top:4px;max-width:660px">Everything a finance officer gets asked for at year end, and the one report nobody asks for until it is too late.</div>
+
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:20px;align-items:center">
+<span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:#8A928C">PERIOD</span>
+<sc-for list="{{ periods }}" as="pd" hint-placeholder-count="4">
+<button type="button" onClick="{{ pd.go }}" style="padding:8px 13px;border:1.5px solid {{ pd.bc }};border-radius:999px;background:{{ pd.bg }};color:{{ pd.fg }};font-size:12.5px;font-weight:{{ pd.fw }};cursor:pointer" style-hover="border-color:#046A38">{{ pd.name }}</button>
+</sc-for>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(268px,1fr));gap:10px;margin-top:14px">
+<sc-for list="{{ reports }}" as="rp" hint-placeholder-count="5">
+<div style="display:flex;flex-direction:column;padding:17px;border:1px solid {{ rp.bc }};border-radius:12px;background:#FFFFFF">
+<div style="display:flex;align-items:center;gap:9px">
+<i class="{{ rp.icon }}" style="flex:none;font-size:19px;color:{{ rp.ic }}"></i>
+<div style="flex:1;font-size:14.5px;font-weight:700">{{ rp.title }}</div>
+</div>
+<div style="flex:1;font-size:12.5px;line-height:1.5;color:#5C6560;margin-top:7px">{{ rp.sub }}</div>
+<div style="display:flex;gap:7px;margin-top:13px;flex-wrap:wrap">
+<sc-for list="{{ rp.formats }}" as="ff" hint-placeholder-count="2">
+<button type="button" style="flex:1;min-width:78px;flex-shrink:0;height:40px;padding:0 13px;border:1.5px solid #D3D1C6;border-radius:999px;background:#FFFFFF;color:#14181B;font-size:13px;font-weight:600;cursor:pointer;transition:background .15s,border-color .15s" style-hover="border-color:#046A38;color:#046A38">{{ ff.label }}</button>
+</sc-for>
+</div>
+</div>
+</sc-for>
+</div>
+
+<div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:#8A928C;margin-top:26px">RECENT EXPORTS</div>
+<div style="margin-top:9px;padding:4px 16px;border:1px solid #E2E1DA;border-radius:12px;background:#FFFFFF">
+<sc-for list="{{ exports }}" as="ex" hint-placeholder-count="4">
+<div style="display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid {{ ex.rule }};flex-wrap:wrap">
+<i class="{{ ex.icon }}" style="flex:none;font-size:16px;color:#8A928C"></i>
+<span style="flex:1;min-width:170px;font-size:13.5px;font-weight:500">{{ ex.name }}</span>
+<span style="flex:none;font-size:12px;color:#8A928C;min-width:112px">{{ ex.who }}</span>
+<span style="flex:none;font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:#8A928C;min-width:74px">{{ ex.when }}</span>
+<button type="button" style="flex:none;display:flex;align-items:center;justify-content:center;width:32px;height:32px;border:1px solid #E2E1DA;border-radius:50%;background:#FFFFFF;color:#8A928C;cursor:pointer;transition:border-color .12s,color .12s" style-hover="border-color:#046A38;color:#046A38"><i class="ph ph-download-simple" style="font-size:15px"></i></button>
+</div>
+</sc-for>
+<div style="padding:12px 0 14px;font-size:12px;line-height:1.5;color:#8A928C">Every export is logged with the person who ran it. Member-level files carry NINs, so downloads are traceable by design.</div>
+</div>
+</sc-if>
+
+</div>
+
+<sc-if value="{{ mob }}" hint-placeholder-val="{{ false }}">
+<div style="flex:none;display:flex;justify-content:space-around;gap:2px;padding:9px 10px 24px;background:rgba(247,246,242,.96);border-top:1px solid #E2E1DA">
+<sc-for list="{{ tabs }}" as="tb" hint-placeholder-count="4">
+<button type="button" onClick="{{ tb.go }}" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:5px 2px;border:0;background:transparent;cursor:pointer">
+<i class="{{ tb.icon }}" style="font-size:22px;line-height:1;color:{{ tb.color }}"></i>
+<span style="font-size:10.5px;font-weight:{{ tb.fw }};color:{{ tb.color }}">{{ tb.label }}</span>
+</button>
+</sc-for>
+</div>
+</sc-if>
+
+</div>
+</div>
+</div>
+
+<div style="display:flex;gap:8px;flex-wrap:wrap">
+<button type="button" onClick="{{ toggleLate }}" style="flex:1;min-width:150px;padding:10px;border:1px solid {{ lateBc }};border-radius:8px;background:#FFFFFF;color:{{ lateFg }};font-size:12.5px;font-weight:500;cursor:pointer" style-hover="border-color:#046A38">{{ lateLabel }}</button>
+<button type="button" onClick="{{ goDash }}" style="flex:1;min-width:150px;padding:10px;border:1px solid #D7D5CC;border-radius:8px;background:#FFFFFF;color:#5C6560;font-size:12.5px;font-weight:500;cursor:pointer" style-hover="border-color:#046A38;color:#046A38">Back to the dashboard</button>
+</div>
+</div>
+
+<div style="flex:1;min-width:225px;max-width:305px;position:sticky;top:30px;display:flex;flex-direction:column;gap:15px">
+<div>
+<div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:#8A928C">HOW THE MONEY ACTUALLY ARRIVES</div>
+<div style="display:flex;flex-direction:column;gap:12px;margin-top:11px">
+<sc-for list="{{ notes }}" as="n" hint-placeholder-count="5">
+<div style="display:flex;gap:9px">
+<span style="flex:none;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#046A38;padding-top:2px">{{ n.n }}</span>
+<span><span style="display:block;font-size:13.5px;font-weight:600;color:#046A38">{{ n.t }}</span><span style="display:block;font-size:13px;line-height:1.55;color:#5C6560;margin-top:2px">{{ n.b }}</span></span>
+</div>
+</sc-for>
+</div>
+</div>
+<div style="height:1px;background:#DAD8CE"></div>
+<div>
+<div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:#8A928C">THIS SPONSOR</div>
+<div style="font-size:19px;font-weight:700;letter-spacing:-.02em;margin-top:4px">{{ sponsorOrg }}</div>
+<div style="font-size:13px;line-height:1.6;color:#5C6560;margin-top:6px">{{ sponsorNote }}</div>
+</div>
+</div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1660,&quot;height&quot;:980},&quot;startScreen&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;dash&quot;,&quot;upload&quot;,&quot;recon&quot;,&quot;exception&quot;,&quot;roster&quot;,&quot;members&quot;,&quot;debit&quot;,&quot;remit&quot;,&quot;claims&quot;,&quot;settings&quot;,&quot;reports&quot;],&quot;default&quot;:&quot;dash&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Prototype&quot;},&quot;startSponsor&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;federal&quot;,&quot;state&quot;,&quot;employer&quot;,&quot;self&quot;],&quot;default&quot;:&quot;federal&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Prototype&quot;},&quot;device&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;desktop&quot;,&quot;mobile&quot;],&quot;default&quot;:&quot;desktop&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Prototype&quot;},&quot;fileLate&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Prototype&quot;}}">
+const G = "#046A38", GD = "#03502A", TINT = "#F1F6F3", LINE = "#E2E1DA", INK = "#14181B", MUT = "#5C6560", FAINT = "#8A928C", CLAY = "#B4451F", AMB = "#8A5A00", AMB_L = "#E0CFA6", AMB_BG = "#FBF4E4", CLAY_L = "#E7C8B8", CLAY_BG = "#FBEFEA", WHITE = "#FFFFFF", GREEN_L = "#C9DDD2";
+
+const NAV = [
+  ["dash", "Dashboard", "COLLECT", "ph ph-squares-four", ""],
+  ["upload", "Monthly schedule", "COLLECT", "ph ph-upload-simple", ""],
+  ["recon", "Reconciliation", "COLLECT", "ph ph-git-diff", "recon"],
+  ["exception", "Exception detail", "COLLECT", "ph ph-warning-diamond", ""],
+  ["debit", "Direct-debit run", "COLLECT", "ph ph-arrows-clockwise", ""],
+  ["remit", "Remittances", "COLLECT", "ph ph-receipt", ""],
+  ["roster", "Members", "PEOPLE", "ph ph-users-three", ""],
+  ["members", "Add / remove", "PEOPLE", "ph ph-user-plus", ""],
+  ["claims", "Claims", "PEOPLE", "ph ph-first-aid-kit", "claims"],
+  ["settings", "Settings and roles", "ADMIN", "ph ph-sliders-horizontal", ""],
+  ["reports", "Reports", "ADMIN", "ph ph-chart-bar", ""]
+];
+
+const SPONSORS = [
+  { name: "Federal", tag: "FEDERAL", org: "Fed. Min. of Education", rail: "IPPIS deduction code CSP-114 · OAGF approved",
+    dest: "IPPIS deduction unit, OAGF", destShort: "the IPPIS unit", code: "CSP-114",
+    codeNote: "Issued by the Office of the Accountant-General. Every row on the file must quote it or the deduction is rejected.",
+    formats: ["IPPIS fixed-width", "CSV", "XLSX"], payroll: true, count: "8,440",
+    note: "A federal MDA cannot be invoiced. The schedule goes to the IPPIS deduction unit, the deduction is applied at source, and one consolidated credit follows weeks later.",
+    chase: "When the return file is late, it is almost never the bank — it is a desk in the payroll unit. Keep a named person, not a generic email." },
+  { name: "State", tag: "STATE", org: "Lagos State Head of Service", rail: "Schedule CSP-LA-07 · State Accountant-General",
+    dest: "Office of the State Accountant-General", destShort: "the AG's office", code: "CSP-LA-07",
+    codeNote: "State schedule reference. Lagos re-issues it each financial year, so check it every January before the first run.",
+    formats: ["State template", "CSV", "XLSX"], payroll: true, count: "6,180",
+    note: "State payroll runs on its own calendar and its own file format. Expect the return file two to five weeks after the salary run, and build the grace period around that — not around the bank.",
+    chase: "State files slip most often in January and after a change of government. Two named contacts, not one." },
+  { name: "Employer", tag: "EMPLOYER", org: "Nightingale Hospital, Ikeja", rail: "Schedule CSP-EM-2214 · monthly CSV + invoice",
+    dest: "Your own payroll and finance team", destShort: "your payroll team", code: "CSP-EM-2214",
+    codeNote: "Your scheme reference. Quote it on the transfer so finance can reconcile the credit without calling us.",
+    formats: ["CSV", "XLSX", "Payroll API"], payroll: true, count: "412",
+    note: "A private employer is both the sponsor and the payroll office, so the loop closes in days rather than weeks. The exceptions queue is the same one a ministry sees.",
+    chase: "You are chasing your own finance team here, which is faster — but the same 60-day grace applies to members if the transfer is missed." },
+  { name: "Self-pay", tag: "SELF", org: "Self-paying members", rail: "NIBSS e-mandate MND-88214 · card on file",
+    dest: "No payroll office — direct debit", destShort: "the bank", code: "MND-88214",
+    codeNote: "NIBSS e-mandate reference. Each member authorises it once at their bank; card on file is the fallback.",
+    formats: ["Debit run CSV", "XLSX", "NIBSS batch"], payroll: false, count: "1,240",
+    note: "No employer, no schedule, no waiting. Debits are presented and answered the same day, so this console spends its time on failed debits rather than on a ministry.",
+    chase: "Nobody to chase but the member. Failed debits become SMS and USSD prompts, then the grace clock." }
+];
+
+const TIERS = [["Basic", "₦1,500"], ["Standard", "₦2,500"], ["Enhanced", "₦4,000"], ["Executive", "₦6,000"]];
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = Object.assign({}, this.state, {
+      screen: props.startScreen || "dash",
+      sponsor: Math.max(0, ["federal", "state", "employer", "self"].indexOf(props.startSponsor || "federal")),
+      device: props.device === "mobile" ? "mobile" : "desktop",
+      late: !!props.fileLate
+    });
+  }
+  componentDidUpdate(prev) {
+    const p = this.props;
+    if (prev.startSponsor !== p.startSponsor && p.startSponsor) {
+      const i = ["federal", "state", "employer", "self"].indexOf(p.startSponsor);
+      if (i > -1 && i !== this.state.sponsor) this.setState({ sponsor: i });
+    }
+    if (prev.device !== p.device && p.device) {
+      const d = p.device === "mobile" ? "mobile" : "desktop";
+      if (d !== this.state.device) this.setState({ device: d });
+    }
+  }
+  state = { screen: "dash", sponsor: 0, device: "desktop", late: false, format: 0, addMode: 0, tier: 1, filter: 0, rfilter: 0, period: 1 };
+  go = (s) => this.setState({ screen: s });
+
+  renderVals() {
+    const s = this.state, v = {};
+    const sp = SPONSORS[s.sponsor], pr = sp.payroll;
+    NAV.forEach(([id]) => { v["s_" + id] = s.screen === id; });
+    v.payroll = pr; v.selfpay = !pr;
+    v.desk = s.device === "desktop"; v.mob = s.device === "mobile";
+    v.fw = v.desk ? "1084px" : "390px";
+    v.fh = v.desk ? "812px" : "844px";
+    v.fborder = v.desk ? "1px solid #DAD8CE" : "10px solid #22262A";
+    v.fradius = v.desk ? "14px" : "44px";
+    v.pad = v.desk ? "26px 30px 40px" : "16px 18px 30px";
+
+    v.sponsorTag = sp.tag; v.sponsorOrg = sp.org; v.sponsorRail = sp.rail;
+    v.sponsorNote = sp.note; v.destShort = sp.destShort;
+    v.destName = sp.dest; v.deductionCode = sp.code; v.codeNote = sp.codeNote;
+    v.destNote = pr
+      ? "The schedule leaves our system as a file and arrives on someone's desk. There is no live endpoint anywhere in this rail — that single fact shapes every timeline in the app."
+      : "Nothing is sent to an employer. Mandates go straight to the banks through NIBSS and answer the same day.";
+    v.sendLabel = pr ? "Send to " + sp.destShort : "Present the debit run";
+    v.schedIntro = pr
+      ? "One row per member: service number, NIN, name, amount and the deduction code. It goes out before the payroll cut-off, and the money follows weeks later as a single credit."
+      : "Self-paying members are collected by direct debit, so there is no schedule to prepare — this screen only shows the run that replaces it.";
+
+    v.sponsorPicks = SPONSORS.map((x, i) => ({
+      name: x.name, icon: ["ph ph-bank", "ph ph-map-trifold", "ph ph-buildings", "ph ph-user"][i],
+      go: () => this.setState({ sponsor: i }),
+      bc: s.sponsor === i ? G : "#DAD8CE", bg: s.sponsor === i ? TINT : "transparent",
+      fg: s.sponsor === i ? GD : MUT, fw: s.sponsor === i ? 600 : 500
+    }));
+    v.devicePicks = [["Desktop", "desktop", "ph ph-monitor"], ["Phone", "mobile", "ph ph-device-mobile"]].map(([name, id, icon]) => ({
+      name, icon, go: () => this.setState({ device: id }),
+      bc: s.device === id ? G : "#DAD8CE", bg: s.device === id ? TINT : "transparent",
+      fg: s.device === id ? GD : MUT, fw: s.device === id ? 600 : 500
+    }));
+    v.navItems = NAV.map(([id, label, group]) => ({
+      label, group, go: () => this.go(id),
+      bg: s.screen === id ? "#E3E1D8" : "transparent",
+      fg: s.screen === id ? INK : MUT, fw: s.screen === id ? 600 : 400
+    }));
+
+    const groups = ["COLLECT", "PEOPLE", "ADMIN"];
+    v.sideGroups = groups.map(name => ({
+      name,
+      items: NAV.filter(n => n[2] === name).map(([id, label, g, icon, badge]) => ({
+        label, icon, badge: badge === "recon" ? (pr ? "57" : "51") : (badge === "claims" ? "4" : ""), go: () => this.go(id),
+        bg: s.screen === id ? TINT : "transparent",
+        fg: s.screen === id ? GD : MUT,
+        ic: s.screen === id ? G : "#A9A69B",
+        fw: s.screen === id ? 600 : 500
+      }))
+    }));
+
+    v.tabs = [["Home", "dash", "squares-four"], ["Collect", "recon", "git-diff"], ["Members", "roster", "users-three"], ["More", "settings", "dots-three-circle"]].map(([label, id, icon]) => ({
+      label, go: () => this.go(id),
+      icon: (s.screen === id ? "ph-fill ph-" : "ph ph-") + icon,
+      color: s.screen === id ? G : FAINT, fw: s.screen === id ? 600 : 500
+    }));
+
+    v.goDash = () => this.go("dash"); v.goRecon = () => this.go("recon");
+    v.goRoster = () => this.go("roster"); v.goMembers = () => this.go("members");
+    v.goRemit = () => this.go("remit"); v.goDebit = () => this.go("debit");
+    v.goUpload = () => this.go("upload");
+    v.toggleLate = () => this.setState({ late: !s.late });
+    v.lateLabel = s.late ? (pr ? "Return file has arrived" : "Debits have settled") : (pr ? "Simulate a late return file" : "Simulate failed debits");
+    v.lateBc = s.late ? AMB_L : "#D7D5CC";
+    v.lateFg = s.late ? AMB : MUT;
+
+    v.dashTitle = pr ? "August deduction cycle" : "August collection run";
+    v.dashSub = pr
+      ? "Schedule sent 02.08 · return file " + (s.late ? "still outstanding" : "received 28.08")
+      : "1,240 mandates presented 28.08 · settled the same day";
+    const blocked = pr ? (s.late ? "File overdue" : "Reconciling") : "Retrying";
+    v.cycleState = blocked;
+    v.cycleIcon = s.late ? "ph-fill ph-warning-circle" : "ph-fill ph-circle-notch";
+    v.cycleIc = s.late ? CLAY : AMB; v.cycleFg = s.late ? CLAY : "#6B4C08";
+    v.cycleBc = s.late ? CLAY_L : AMB_L; v.cycleBg = s.late ? CLAY_BG : AMB_BG;
+
+    v.stats = pr
+      ? [
+        { v: sp.count, k: "Members on this sponsor", tag: "ROSTER", icon: "ph ph-users-three", fg: INK },
+        { v: "₦21.0m", k: "Scheduled for August", tag: "SCHEDULED", icon: "ph ph-arrow-up-right", fg: INK },
+        { v: s.late ? "—" : "99.6%", k: s.late ? "No file returned yet" : "Returned in the August file", tag: "RETURNED", icon: "ph ph-file-text", fg: s.late ? CLAY : INK },
+        { v: s.late ? "8,412" : "57", k: s.late ? "Members waiting on the file" : "Exceptions to clear", tag: "EXCEPTIONS", icon: "ph ph-warning-diamond", fg: CLAY }
+      ]
+      : [
+        { v: sp.count, k: "Self-paying members", tag: "ROSTER", icon: "ph ph-users-three", fg: INK },
+        { v: "₦3.1m", k: "Presented on 28 August", tag: "PRESENTED", icon: "ph ph-arrow-up-right", fg: INK },
+        { v: "96.0%", k: "Settled the same day", tag: "SETTLED", icon: "ph ph-check-circle", fg: INK },
+        { v: "51", k: "Failed debits to work", tag: "FAILED", icon: "ph ph-warning-diamond", fg: CLAY }
+      ];
+
+    v.tasks = [
+      { title: pr ? "Clear the exceptions queue" : "Retry the failed debits", sub: pr ? "Blocks the next payroll run" : "Second attempt due 04.09", count: pr ? "57" : "51", icon: "ph ph-git-diff", ic: CLAY, bc: CLAY_L, go: () => this.go(pr ? "recon" : "debit") },
+      { title: "Members with no beneficiary", sub: "Chase before annual confirmation", count: "203", icon: "ph ph-user-minus", ic: AMB, bc: AMB_L, go: () => this.go("roster") },
+      { title: "New starters to enrol", sub: "Joined in the last 30 days", count: "37", icon: "ph ph-user-plus", ic: G, bc: LINE, go: () => this.go("members") }
+    ];
+
+    const CYCLE_PAYROLL = [
+      { title: "Schedule sent", sub: "8,412 members · ₦21,030,000", when: "02.08", st: "done" },
+      { title: "With " + sp.destShort, sub: "No API — the file sits on a desk for the month", when: "02–26.08", st: "done" },
+      { title: s.late ? "Return file overdue" : "Return file received", sub: s.late ? "Expected 28.08 · chased twice" : "8,381 deductions · 31 with no matching member", when: s.late ? "overdue" : "28.08", st: s.late ? "now" : "done" },
+      { title: "Reconciled and members told", sub: s.late ? "Cannot start until the file arrives" : "Blocked until the 57 exceptions are cleared", when: "pending", st: "now" }
+    ];
+    const CYCLE_SELF = [
+      { title: "Mandate batch queued", sub: "1,240 members · ₦3,100,000", when: "26.08", st: "done" },
+      { title: "Debits presented", sub: "NIBSS direct debit, card as fallback", when: "28.08", st: "done" },
+      { title: "Results returned", sub: "Same day — the one rail that answers live", when: "28.08", st: "done" },
+      { title: "Retries and dunning", sub: "41 insufficient funds · retry 04.09", when: "running", st: "now" }
+    ];
+    const cyc = pr ? CYCLE_PAYROLL : CYCLE_SELF;
+    v.cycle = cyc.map((c, i) => ({
+      title: c.title, sub: c.sub, when: c.when,
+      icon: c.st === "done" ? "ph-fill ph-check-circle" : "ph-fill ph-circle-notch",
+      ic: c.st === "done" ? G : AMB,
+      line: i === cyc.length - 1 ? "transparent" : GREEN_L,
+      lineH: i === cyc.length - 1 ? "0" : "12px",
+      pad: i === cyc.length - 1 ? "12px" : "18px"
+    }));
+    v.cycleHeading = pr ? "DEDUCTION CYCLE · AUGUST" : "COLLECTION RUN · AUGUST";
+    v.cycleNote = pr
+      ? "Federal MDAs send this to the IPPIS unit, states to the Accountant-General, employers to their own finance team. Same file, three doors, one exceptions queue."
+      : "Self-paying members reconcile the same day, so this console only ever chases failed debits — never a ministry.";
+    v.cycleCta = pr ? "Open reconciliation" : "Open the debit run";
+    v.cycleCtaIcon = pr ? "ph ph-git-diff" : "ph ph-arrows-clockwise";
+    v.cycleGo = () => this.go(pr ? "recon" : "debit");
+
+    v.movement = [
+      { k: "New starters enrolled", v: "+37", icon: "ph ph-user-plus", ic: G, rule: "#EFEDE6" },
+      { k: "Left service or transferred", v: "−9", icon: "ph ph-user-minus", ic: CLAY, rule: "#EFEDE6" },
+      { k: "Plan upgrades approved", v: "14", icon: "ph ph-arrow-fat-up", ic: G, rule: "#EFEDE6" },
+      { k: "Moved to direct debit", v: "6", icon: "ph ph-arrows-left-right", ic: AMB, rule: "transparent" }
+    ];
+
+    v.formats = sp.formats.map((name, i) => ({
+      name, go: () => this.setState({ format: i }),
+      bc: s.format === i ? G : "#D7D5CC", bg: s.format === i ? TINT : WHITE,
+      fg: s.format === i ? GD : INK, fw: s.format === i ? 600 : 500
+    }));
+    v.formatNote = [
+      "Fixed-width is what the IPPIS unit will actually accept. The others are for your own records.",
+      "CSV imports cleanly into most state payroll bureaux; check the column order every January.",
+      "XLSX is easier to read but easier to break. Send the machine format, keep the spreadsheet."
+    ][Math.min(s.format, 2)];
+
+    v.sendLog = [
+      { period: "AUG 26", what: "Schedule sent, file returned, reconciling", amount: "₦21,030,000", state: "57 exceptions", icon: "ph-fill ph-circle-notch", ic: AMB, rule: "#EFEDE6" },
+      { period: "JUL 26", what: "Closed · all members credited", amount: "₦20,880,000", state: "Reconciled", icon: "ph-fill ph-check-circle", ic: G, rule: "#EFEDE6" },
+      { period: "JUN 26", what: "Closed · 4 moved to direct debit", amount: "₦20,745,000", state: "Reconciled", icon: "ph-fill ph-check-circle", ic: G, rule: "#EFEDE6" },
+      { period: "MAY 26", what: "File arrived 19 days late", amount: "₦20,700,000", state: "Closed late", icon: "ph ph-clock-countdown", ic: AMB, rule: "#EFEDE6" },
+      { period: "APR 26", what: "Closed · deduction code re-issued", amount: "₦20,610,000", state: "Reconciled", icon: "ph-fill ph-check-circle", ic: G, rule: "transparent" }
+    ];
+
+    v.matchCaption = pr
+      ? "8,324 of 8,412 members reconciled — 57 need a decision"
+      : "1,189 of 1,240 members reconciled — 51 need a decision";
+    v.matchBar = pr
+      ? [{ flex: 8324, bg: G }, { flex: 31, bg: CLAY }, { flex: 12, bg: AMB }, { flex: 5, bg: "#E0CFA6" }, { flex: 9, bg: "#D98F6A" }]
+      : [{ flex: 1189, bg: G }, { flex: 41, bg: AMB }, { flex: 7, bg: CLAY }, { flex: 3, bg: "#E0CFA6" }];
+    v.matchLegend = pr
+      ? [
+        { label: "Matched", n: "8,324", bg: G }, { label: "Unmatched", n: "31", bg: CLAY },
+        { label: "No deduction", n: "12", bg: AMB }, { label: "Wrong amount", n: "5", bg: "#E0CFA6" },
+        { label: "Left service", n: "9", bg: "#D98F6A" }
+      ]
+      : [
+        { label: "Settled", n: "1,189", bg: G }, { label: "No funds", n: "41", bg: AMB },
+        { label: "Mandate revoked", n: "7", bg: CLAY }, { label: "Card expired", n: "3", bg: "#E0CFA6" }
+      ];
+    const RF = pr
+      ? [["All", "57"], ["Unmatched", "31"], ["No deduction", "12"], ["Wrong amount", "5"], ["Left service", "9"]]
+      : [["All", "51"], ["No funds", "41"], ["Mandate revoked", "7"], ["Card expired", "3"]];
+    v.reconFilters = RF.map(([label, n], i) => ({
+      label, n, go: () => this.setState({ filter: i }),
+      bc: s.filter === i ? G : "#D7D5CC", bg: s.filter === i ? TINT : WHITE,
+      fg: s.filter === i ? GD : INK, fw: s.filter === i ? 600 : 500,
+      nfg: s.filter === i ? G : FAINT
+    }));
+    const ROWS = [
+      { name: "ADAEZE N OKAFOR", ref: "SVC 4471209 · not in our list", kind: "Unmatched", detail: "Closest match 94% likely", amount: "₦2,500", ic: CLAY, bc: CLAY_L, icon: "ph-fill ph-warning-diamond", f: 1 },
+      { name: "Musa Ibrahim", ref: "CSP 8812-4409 · GL 09", kind: "No deduction", detail: "Card fallback attempted 08.09", amount: "₦0", ic: AMB, bc: AMB_L, icon: "ph ph-clock-countdown", f: 2 },
+      { name: "Folake Adeyemi", ref: "CSP 7741-2280 · GL 14", kind: "Wrong amount", detail: "₦1,500 against a ₦2,500 plan", amount: "₦1,500", ic: AMB, bc: AMB_L, icon: "ph ph-scales", f: 3 },
+      { name: "Chinedu Eze", ref: "CSP 5510-8842 · retired 31.07", kind: "Left service", detail: "Convert to direct debit or close", amount: "₦0", ic: CLAY, bc: CLAY_L, icon: "ph ph-sign-out", f: 4 },
+      { name: "IBRAHIM M SANI", ref: "SVC 9920117 · NIN matches nobody", kind: "Unmatched", detail: "No candidate found", amount: "₦4,000", ic: CLAY, bc: CLAY_L, icon: "ph-fill ph-warning-diamond", f: 1 },
+      { name: "Grace Attah", ref: "CSP 3391-7745 · GL 08", kind: "No deduction", detail: "Third month running", amount: "₦0", ic: AMB, bc: AMB_L, icon: "ph ph-clock-countdown", f: 2 }
+    ];
+    const ROWS_SELF = [
+      { name: "Adaeze Nkiru Okafor", ref: "CSP 4471-2098 · GTB ••4471", kind: "No funds", detail: "Retry due 04.09 · first failure", amount: "₦2,500", ic: AMB, bc: AMB_L, icon: "ph ph-clock-countdown", f: 1 },
+      { name: "Musa Ibrahim", ref: "CSP 8812-4409 · Zenith ••8812", kind: "No funds", detail: "Second failure this quarter", amount: "₦1,500", ic: AMB, bc: AMB_L, icon: "ph ph-clock-countdown", f: 1 },
+      { name: "Grace Attah", ref: "CSP 3391-7745 · UBA ••3391", kind: "Mandate revoked", detail: "Cancelled at the branch 21.08", amount: "₦0", ic: CLAY, bc: CLAY_L, icon: "ph-fill ph-warning-diamond", f: 2 },
+      { name: "Folake Adeyemi", ref: "CSP 7741-2280 · card ••2280", kind: "Card expired", detail: "Two SMS sent · in-app prompt live", amount: "₦0", ic: AMB, bc: AMB_L, icon: "ph ph-credit-card", f: 3 },
+      { name: "Halima Yusuf", ref: "CSP 2204-9917 · First ••2204", kind: "No funds", detail: "Retry due 04.09", amount: "₦6,000", ic: AMB, bc: AMB_L, icon: "ph ph-clock-countdown", f: 1 },
+      { name: "Sadiq Aliyu", ref: "CSP 1182-6640 · account closed", kind: "Mandate revoked", detail: "Needs a new bank account", amount: "₦0", ic: CLAY, bc: CLAY_L, icon: "ph-fill ph-warning-diamond", f: 2 }
+    ];
+    v.reconRows = (pr ? ROWS : ROWS_SELF).filter(r => s.filter === 0 || r.f === s.filter).map(r => Object.assign({}, r, { go: () => this.go("exception") }));
+
+    v.excBadge = pr ? "UNMATCHED DEDUCTION" : "FAILED DEBIT";
+    v.excRef = pr ? "EXC-2608-0031 · 1 of 31" : "EXC-2608-0041 · 1 of 41";
+    v.excPanelA = pr ? "FROM THE PAYROLL FILE" : "FROM THE BANK RESPONSE";
+    v.excPanelANote = pr
+      ? "Row 4,208 of the August return file, exactly as sent by " + sp.destShort + "."
+      : "NIBSS response code 51 against mandate " + sp.code + ", returned within the hour.";
+    v.excPanelB = pr ? "CLOSEST MEMBER MATCH" : "THE MEMBER AND HER MANDATE";
+    v.excPanelBTag = pr ? "94% LIKELY" : "MANDATE VALID";
+    v.excPanelBNote = pr
+      ? "Same NIN, same grade level, name spelled differently and one digit out on the service number — almost certainly a payroll typo, not a different person."
+      : "The mandate itself is fine, so nothing needs re-authorising. This is a timing problem: she is paid on the 30th and we presented on the 28th.";
+    v.excNotePh = pr ? "e.g. name corrected on payroll in July, our record not updated" : "e.g. member says salary now lands on the 30th";
+    v.excFile = pr ? [
+      { k: "Name as written", v: "ADAEZE N OKAFOR", fg: CLAY },
+      { k: "Service number", v: "4471209", fg: CLAY },
+      { k: "NIN", v: "•••• •••• 4471", fg: INK },
+      { k: "Grade level", v: "GL 12", fg: INK },
+      { k: "Amount deducted", v: "₦2,500", fg: INK },
+      { k: "Deduction code", v: sp.code, fg: INK }
+    ] : [
+      { k: "Response", v: "51 · INSUFFICIENT FUNDS", fg: CLAY },
+      { k: "Presented", v: "28.08.2026 06:00", fg: INK },
+      { k: "Bank", v: "GTBank ••4471", fg: INK },
+      { k: "Amount requested", v: "₦2,500", fg: INK },
+      { k: "Collected", v: "₦0", fg: CLAY },
+      { k: "Mandate", v: sp.code, fg: INK }
+    ];
+    v.excMember = pr ? [
+      { k: "Name on our record", v: "Adaeze Nkiru Okafor", fg: G },
+      { k: "Service number", v: "4471208", fg: CLAY },
+      { k: "NIN", v: "•••• •••• 4471", fg: G },
+      { k: "Grade level", v: "GL 12", fg: G },
+      { k: "Plan amount", v: "₦2,500", fg: G },
+      { k: "CSP-ID", v: "4471-2098", fg: INK }
+    ] : [
+      { k: "Member", v: "Adaeze Nkiru Okafor", fg: G },
+      { k: "CSP-ID", v: "4471-2098", fg: INK },
+      { k: "Mandate authorised", v: "04.03.2024", fg: G },
+      { k: "Paid on time", v: "28 of 30 months", fg: G },
+      { k: "Plan amount", v: "₦2,500", fg: G },
+      { k: "Grace ends", v: "27.10.2026", fg: CLAY }
+    ];
+    v.excActions = pr ? [
+      { title: "Link this deduction to Adaeze Nkiru Okafor", sub: "Credits her August contribution and corrects the service number on our record. She gets an SMS today.", icon: "ph-fill ph-link", ic: G, fg: GD, bc: "#C3D9CD", bg: TINT, go: () => this.go("recon") },
+      { title: "Create a new member from the file row", sub: "Use only if this really is a different person. Enrolment still needs their NIN verified and a beneficiary named.", icon: "ph ph-user-plus", ic: INK, fg: INK, bc: LINE, bg: WHITE, go: () => this.go("members") },
+      { title: "Return the money to payroll", sub: "₦2,500 goes back on next month's schedule as a credit. Use when nobody should have been deducted.", icon: "ph ph-arrow-u-up-left", ic: AMB, fg: "#6B4C08", bc: AMB_L, bg: WHITE, go: () => this.go("recon") },
+      { title: "Hold and ask " + sp.destShort, sub: "Parks the row and drafts a query with the file reference. The cycle stays open until it comes back.", icon: "ph ph-chat-circle-text", ic: MUT, fg: INK, bc: LINE, bg: WHITE, go: () => this.go("recon") }
+    ] : [
+      { title: "Retry on 4 September", sub: "The standard second attempt, after salaries land. Most no-funds failures clear here and she is never told anything went wrong.", icon: "ph ph-arrows-clockwise", ic: G, fg: GD, bc: "#C3D9CD", bg: TINT, go: () => this.go("recon") },
+      { title: "Move her collection date to the 30th", sub: "Permanent fix if her salary date has changed. Needs no new mandate — only the presentation day changes.", icon: "ph ph-calendar-dot", ic: INK, fg: INK, bc: LINE, bg: WHITE, go: () => this.go("recon") },
+      { title: "Try the card on file instead", sub: "Card ••4471 is on file as the backup. It costs more to collect, so it is the second choice, not the first.", icon: "ph ph-credit-card", ic: AMB, fg: "#6B4C08", bc: AMB_L, bg: WHITE, go: () => this.go("recon") },
+      { title: "Send the USSD prompt", sub: "SMS with a string she can dial without a smartphone. Use when two retries have already failed.", icon: "ph ph-device-mobile", ic: MUT, fg: INK, bc: LINE, bg: WHITE, go: () => this.go("recon") }
+    ];
+
+    v.rosterCount = sp.count;
+    v.rosterSub = pr ? "203 with no beneficiary named · 12 not deducted in August" : "51 failed debits · 7 revoked mandates";
+    const ROSF = [["All", sp.count], ["Active", "8,196"], ["Not deducted", "12"], ["No beneficiary", "203"], ["Leaving", "9"]];
+    v.rosterFilters = ROSF.map(([label, n], i) => ({
+      label, n, go: () => this.setState({ rfilter: i }),
+      bc: s.rfilter === i ? G : "#D7D5CC", bg: s.rfilter === i ? TINT : WHITE,
+      fg: s.rfilter === i ? GD : INK, fw: s.rfilter === i ? 600 : 500,
+      nfg: s.rfilter === i ? G : FAINT
+    }));
+    v.roster = [
+      { name: "Adaeze Nkiru Okafor", ref: "CSP 4471-2098 · SVC 4471208", tier: "Standard", price: "₦2,500", state: "Paid to August", icon: "ph-fill ph-check-circle", ic: G, initials: "AO", avBg: TINT, avFg: GD },
+      { name: "Musa Ibrahim", ref: "CSP 8812-4409 · SVC 8812441", tier: "Basic", price: "₦1,500", state: "Not in August file", icon: "ph ph-clock-countdown", ic: AMB, initials: "MI", avBg: AMB_BG, avFg: AMB },
+      { name: "Folake Adeyemi", ref: "CSP 7741-2280 · SVC 7741228", tier: "Enhanced", price: "₦4,000", state: "Underpaid ₦1,000", icon: "ph ph-scales", ic: AMB, initials: "FA", avBg: AMB_BG, avFg: AMB },
+      { name: "Grace Attah", ref: "CSP 3391-7745 · SVC 3391774", tier: "Basic", price: "₦1,500", state: "In 60-day grace", icon: "ph-fill ph-warning-circle", ic: CLAY, initials: "GA", avBg: CLAY_BG, avFg: CLAY },
+      { name: "Chinedu Eze", ref: "CSP 5510-8842 · retired 31.07", tier: "Standard", price: "₦2,500", state: "Moving to direct debit", icon: "ph ph-arrows-left-right", ic: AMB, initials: "CE", avBg: AMB_BG, avFg: AMB },
+      { name: "Halima Yusuf", ref: "CSP 2204-9917 · SVC 2204991", tier: "Executive", price: "₦6,000", state: "No beneficiary named", icon: "ph ph-user-minus", ic: AMB, initials: "HY", avBg: AMB_BG, avFg: AMB },
+      { name: "Tunde Bakare", ref: "CSP 6628-3310 · SVC 6628331", tier: "Standard", price: "₦2,500", state: "Paid to August", icon: "ph-fill ph-check-circle", ic: G, initials: "TB", avBg: TINT, avFg: GD }
+    ];
+
+    v.addModes = [["One person", 0], ["Upload a list", 1]].map(([name, i]) => ({
+      name, go: () => this.setState({ addMode: i }),
+      bc: s.addMode === i ? G : "#D7D5CC", bg: s.addMode === i ? TINT : WHITE,
+      fg: s.addMode === i ? GD : INK, fw: s.addMode === i ? 600 : 500
+    }));
+    v.addOne = s.addMode === 0; v.addBulk = s.addMode === 1;
+    v.addFields = [
+      { label: "FULL NAME AS ON PAYROLL", ph: "Adaeze Nkiru Okafor" },
+      { label: pr ? "SERVICE / IPPIS NUMBER" : "PHONE NUMBER", ph: pr ? "4471208" : "0803 000 0000" },
+      { label: "NIN", ph: "11 digits" },
+      { label: "GRADE LEVEL", ph: "GL 12" }
+    ];
+    v.tierPicks = TIERS.map(([name, price], i) => ({
+      name, price, go: () => this.setState({ tier: i }),
+      bc: s.tier === i ? G : "#D7D5CC", bg: s.tier === i ? TINT : WHITE,
+      fg: s.tier === i ? GD : INK, fw: s.tier === i ? 600 : 500
+    }));
+    v.addCta = s.addMode === 0 ? "Add to the September schedule" : "Validate and add 37 people";
+    v.leavers = [
+      { name: "Chinedu Eze", ref: "CSP 5510-8842", reason: "Retired", ic: G, bg: TINT, bc: GREEN_L, icon: "ph ph-arrows-left-right", outcome: "Cover continues on direct debit at the same price, keeping his CSP-ID and start date. Twenty-two years of contribution history is not lost." },
+      { name: "Blessing Umoh", ref: "CSP 9930-2214", reason: "Transferred out", ic: AMB, bg: AMB_BG, bc: AMB_L, icon: "ph ph-buildings", outcome: "Moves to her new MDA's schedule if they run the scheme; otherwise direct debit. She keeps her CSP-ID either way." },
+      { name: "Sadiq Aliyu", ref: "CSP 1182-6640", reason: "Dismissed", ic: CLAY, bg: CLAY_BG, bc: CLAY_L, icon: "ph ph-sign-out", outcome: "Sixty days of grace, then cover lapses unless he sets up a direct debit himself. Contributions already made are not refundable." }
+    ];
+
+    v.debitTotal = pr ? "₦146,000" : "₦3,100,000";
+    v.debitCount = pr ? "58" : "1,240";
+    v.fallbackCount = "58";
+    v.debitStats = pr
+      ? [
+        { v: "58", k: "Fallback mandates", fg: INK, bc: LINE, bg: WHITE },
+        { v: "44", k: "Settled", fg: GD, bc: GREEN_L, bg: TINT },
+        { v: "11", k: "Insufficient funds", fg: AMB, bc: AMB_L, bg: AMB_BG },
+        { v: "3", k: "Mandate revoked", fg: CLAY, bc: CLAY_L, bg: CLAY_BG }
+      ]
+      : [
+        { v: "1,240", k: "Presented", fg: INK, bc: LINE, bg: WHITE },
+        { v: "1,189", k: "Settled same day", fg: GD, bc: GREEN_L, bg: TINT },
+        { v: "41", k: "Insufficient funds", fg: AMB, bc: AMB_L, bg: AMB_BG },
+        { v: "10", k: "Revoked or expired", fg: CLAY, bc: CLAY_L, bg: CLAY_BG }
+      ];
+    v.debitFails = [
+      { n: pr ? "11" : "41", title: "Insufficient funds", sub: "Most clear on the second attempt, after salaries land", action: "Retry 04.09", ic: AMB, bc: AMB_L, bg: AMB_BG },
+      { n: pr ? "2" : "7", title: "Mandate revoked at the bank", sub: "Member must re-authorise — we cannot do it for them", action: "SMS sent", ic: CLAY, bc: CLAY_L, bg: CLAY_BG },
+      { n: pr ? "1" : "3", title: "Card expired", sub: "In-app prompt live, two SMS sent", action: "Awaiting member", ic: AMB, bc: AMB_L, bg: AMB_BG },
+      { n: pr ? "0" : "1", title: "Account closed", sub: "Needs a new bank account before the grace runs out", action: "Call them", ic: CLAY, bc: CLAY_L, bg: CLAY_BG }
+    ];
+    v.retryBar = [{ flex: 3, bg: G }, { flex: 2, bg: "#8ABBA1" }, { flex: 2, bg: AMB_L }, { flex: 5, bg: "#EDD9CE" }];
+    v.retrySteps = [
+      { label: "First attempt", when: "28.08 · settled 96%", fg: GD },
+      { label: "Second attempt", when: "04.09 · after salaries", fg: GD },
+      { label: "Card fallback", when: "11.09 · card on file", fg: AMB },
+      { label: "60-day grace", when: "until 27.10", fg: CLAY }
+    ];
+
+    v.remitIntro = pr
+      ? "One transfer covers thousands of members, so the credit alone tells you nothing. It only becomes real cover once it is matched to the return file, member by member."
+      : "Every debit settles against a named member, so allocation is automatic. Receipts are issued the same day.";
+    v.remitStats = [
+      { v: pr ? "₦20.95m" : "₦2.98m", k: "Received in August", fg: INK },
+      { v: pr ? "99.6%" : "96.0%", k: "Allocated to members", fg: GD },
+      { v: pr ? "₦77,500" : "₦124,000", k: "Still unallocated", fg: CLAY }
+    ];
+    v.remitDetail = [
+      { k: "Value date", v: "29.08.2026" },
+      { k: "Bank reference", v: "NIBSS/8842119" },
+      { k: "From", v: pr ? sp.dest : "1,189 member banks" },
+      { k: "Scheduled", v: "₦21,030,000" },
+      { k: "Variance", v: "−₦77,500" },
+      { k: "Members credited", v: "8,324" }
+    ];
+    v.remitRows = [
+      { period: "JUL 26", amount: "₦20,880,000", ref: "NIBSS/8712004", state: "Fully allocated", icon: "ph-fill ph-check-circle", ic: G },
+      { period: "JUN 26", amount: "₦20,745,000", ref: "NIBSS/8590117", state: "Fully allocated", icon: "ph-fill ph-check-circle", ic: G },
+      { period: "MAY 26", amount: "₦20,700,000", ref: "NIBSS/8471882", state: "Paid 19 days late", icon: "ph ph-clock-countdown", ic: AMB },
+      { period: "APR 26", amount: "₦20,610,000", ref: "NIBSS/8330441", state: "Fully allocated", icon: "ph-fill ph-check-circle", ic: G },
+      { period: "MAR 26", amount: "₦20,412,000", ref: "NIBSS/8214773", state: "₦12,500 written off", icon: "ph ph-scales", ic: AMB }
+    ];
+
+    v.claimStats = [
+      { v: "4", k: "Open on your members", fg: INK },
+      { v: "11", k: "Paid this year", fg: GD },
+      { v: "₦18.4m", k: "Paid to families this year", fg: GD }
+    ];
+    v.claims = [
+      { ref: "CLM-2026-0084", member: "Late Adaeze N. Okafor", kind: "Death benefit · family claiming", amount: "₦5,000,000", state: "Awaiting you", icon: "ph-fill ph-hand-waving", ic: AMB, bc: AMB_L, bg: AMB_BG, ask: true, askTitle: "Confirm she was in service on 14.08.2026", askSub: "The insurer needs one line from the employer. Nothing medical is asked of you.", askCta: "Confirm service" },
+      { ref: "CLM-2026-0079", member: "Musa Ibrahim", kind: "Accident · hospital cash", amount: "₦150,000", state: "Assessing", icon: "ph-fill ph-circle-notch", ic: AMB, bc: LINE, bg: WHITE, ask: false },
+      { ref: "CLM-2026-0071", member: "Folake Adeyemi", kind: "Permanent disability", amount: "₦2,500,000", state: "Paid 18.08", icon: "ph-fill ph-check-circle", ic: G, bc: GREEN_L, bg: TINT, ask: false },
+      { ref: "CLM-2026-0066", member: "Late Sadiq Aliyu", kind: "Death benefit · cover lapsed", amount: "—", state: "Declined", icon: "ph-fill ph-x-circle", ic: CLAY, bc: CLAY_L, bg: CLAY_BG, ask: true, askTitle: "Cover had lapsed 11 days before the date of death", askSub: "August and September deductions never reached us. The family has been told, and can appeal within 30 days.", askCta: "See the record" }
+    ];
+
+    v.users = [
+      { name: "Amina Bello", email: "a.bello@education.gov.ng", role: "Preparer", initials: "AB", avBg: TINT, avFg: GD, ic: GD, bg: TINT, bc: GREEN_L, last: "Active now" },
+      { name: "Musa Danjuma", email: "m.danjuma@education.gov.ng", role: "Approver", initials: "MD", avBg: TINT, avFg: GD, ic: GD, bg: TINT, bc: GREEN_L, last: "2 days ago" },
+      { name: "Ngozi Eze", email: "n.eze@education.gov.ng", role: "Viewer", initials: "NE", avBg: "#E3E1D8", avFg: MUT, ic: MUT, bg: WHITE, bc: LINE, last: "3 weeks ago" },
+      { name: "Ibrahim Sule", email: "i.sule@education.gov.ng", role: "Admin", initials: "IS", avBg: AMB_BG, avFg: AMB, ic: AMB, bg: AMB_BG, bc: AMB_L, last: "Never signed in" }
+    ];
+    v.settingRows = [
+      { k: "Deduction code", v: sp.code, note: "Quoted on every row of the schedule", rule: "#EFEDE6" },
+      { k: "Payroll cut-off", v: pr ? "5th" : "28th", note: pr ? "Schedule must be with them by this date" : "Debits presented on this date", rule: "#EFEDE6" },
+      { k: "Expected return", v: pr ? "28th" : "same day", note: pr ? "When the file should come back" : "Direct debit answers immediately", rule: "#EFEDE6" },
+      { k: "Grace period", v: "60 days", note: "Before cover lapses for non-payment", rule: "#EFEDE6" },
+      { k: "Collections account", v: "GTB ••4471", note: "Where the remittance lands", rule: "transparent" }
+    ];
+    v.chaseNote = sp.chase;
+    v.contacts = pr
+      ? [{ name: "Mrs O. Adeleke", role: sp.dest + " · deduction desk", icon: "ph ph-user-circle" }, { name: "Payroll helpdesk", role: "Escalation after 7 days overdue", icon: "ph ph-phone" }]
+      : [{ name: "NIBSS support", role: "Mandate and settlement queries", icon: "ph ph-bank" }, { name: "CSP operations", role: "Failed debit escalation", icon: "ph ph-headset" }];
+
+    v.periods = [["August 2026", 0], ["Q3 2026", 1], ["Year to date", 2], ["2025 full year", 3]].map(([name, i]) => ({
+      name, go: () => this.setState({ period: i }),
+      bc: s.period === i ? G : "#D7D5CC", bg: s.period === i ? TINT : WHITE,
+      fg: s.period === i ? GD : INK, fw: s.period === i ? 600 : 500
+    }));
+    const F2 = [{ label: "CSV" }, { label: "PDF" }];
+    v.reports = [
+      { title: "Deduction schedule", sub: "What you asked payroll to deduct, per member, for the period.", icon: "ph ph-list-numbers", ic: G, bc: LINE, formats: F2 },
+      { title: "Remittance reconciliation", sub: "Credits received against the file, with every variance and how it was resolved. This is the one auditors ask for.", icon: "ph ph-git-diff", ic: G, bc: GREEN_L, formats: F2 },
+      { title: "Membership movement", sub: "Starters, leavers, transfers and tier changes, with effective dates.", icon: "ph ph-users-three", ic: G, bc: LINE, formats: F2 },
+      { title: "Claims summary", sub: "Counts, amounts and outcomes. No medical detail, no cause of death.", icon: "ph ph-first-aid-kit", ic: G, bc: LINE, formats: F2 },
+      { title: "Lapse risk", sub: "Members inside the 60-day grace window, ordered by days remaining. Nobody asks for this until a family is refused.", icon: "ph ph-warning-diamond", ic: CLAY, bc: CLAY_L, formats: F2 }
+    ];
+    v.exports = [
+      { name: "Remittance reconciliation · Aug 2026", who: "Musa Danjuma", when: "29.08", icon: "ph ph-file-csv", rule: "#EFEDE6" },
+      { name: "Deduction schedule · Sep 2026", who: "Amina Bello", when: "01.09", icon: "ph ph-file-csv", rule: "#EFEDE6" },
+      { name: "Lapse risk · Aug 2026", who: "Amina Bello", when: "28.08", icon: "ph ph-file-pdf", rule: "#EFEDE6" },
+      { name: "Membership movement · Q2 2026", who: "Ngozi Eze", when: "12.07", icon: "ph ph-file-xls", rule: "transparent" }
+    ];
+
+    v.notes = [
+      { n: "01", t: "Schedule out", b: "One row per member goes to the payroll office before the cut-off. Federal to the IPPIS unit, state to the Accountant-General, employer to their own finance team." },
+      { n: "02", t: "Deducted at source", b: "Payroll applies it when salaries run. No money has moved to us yet — the employer is holding it." },
+      { n: "03", t: "One lump sum arrives", b: "A single transfer covers every member for the month. Hundreds of people, one credit, days or weeks after the salary run." },
+      { n: "04", t: "The return file decides cover", b: "Only the reconciled schedule says who was actually deducted. The bank credit cannot tell you that, which is why the app says 'waiting for file' rather than 'paid'." },
+      { n: "05", t: "Exceptions are the product", b: "Unmatched, missing, wrong amount, left service. Clearing them is what turns money into cover — and what unblocks the next run." }
+    ];
+
+    return v;
+  }
+}
+</script>
+</body>
+</html>

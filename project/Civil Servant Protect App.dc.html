@@ -1,0 +1,1091 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics><link rel="stylesheet" href="_ds/nocturne-e1e81eed-3a61-4c4d-b872-dd7aba35b5fe/styles.css"><script src="_ds/nocturne-e1e81eed-3a61-4c4d-b872-dd7aba35b5fe/_ds_bundle.js"></script><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap"><link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css"><link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css"><style>
+body{margin:0;background:#161826;color:#e9e9ed;font-family:Inter,system-ui,sans-serif}
+a{color:#b5abfc}a:hover{color:#d2cefd}
+button{font-family:inherit;-webkit-tap-highlight-color:transparent}
+::-webkit-scrollbar{width:0;height:0}
+@keyframes pulseRing{0%,100%{opacity:1}50%{opacity:.35}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+</style></helmet>
+
+<div style="display:flex;gap:34px;padding:30px 34px 44px;align-items:flex-start;min-height:100vh;background:radial-gradient(120% 80% at 20% 0%,#1c1f30 0%,#161826 60%)">
+
+<div style="flex:none;width:206px;position:sticky;top:30px;display:flex;flex-direction:column;gap:14px">
+<div style="display:flex;flex-direction:column;gap:3px">
+<div style="font-size:11px;letter-spacing:.14em;color:#75798c;font-weight:600">CIVIL SERVANT PROTECT</div>
+<div style="font-size:17px;font-weight:500;letter-spacing:-.01em">Prototype index</div>
+<div style="font-size:12.5px;line-height:1.5;color:#9397ab">Every screen is live. Jump anywhere, or drive it from inside the phone.</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:2px">
+<sc-for list="{{ navItems }}" as="it" hint-placeholder-count="14">
+<button type="button" onClick="{{ it.go }}" style="display:flex;justify-content:space-between;align-items:center;gap:8px;text-align:left;padding:6px 9px;border:0;border-radius:8px;background:{{ it.bg }};color:{{ it.fg }};font-size:12.5px;font-weight:{{ it.fw }};cursor:pointer" style-hover="background:#232532">{{ it.label }}<span style="font-size:10px;color:#595d6c;letter-spacing:.06em">{{ it.group }}</span></button>
+</sc-for>
+</div>
+<div style="margin-top:6px;padding-top:12px;border-top:1px solid #292b31;display:flex;flex-direction:column;gap:7px">
+<div style="font-size:10.5px;letter-spacing:.13em;color:#75798c;font-weight:600">NOTES</div>
+<div style="font-size:12px;line-height:1.55;color:#75798c">Nocturne is a mono palette, so nothing here is signalled by red or green — urgency is carried by weight, outline and the blurple accent alone.</div>
+<div style="font-size:12px;line-height:1.55;color:#75798c">All naira figures are illustrative and pre-underwriting.</div>
+</div>
+</div>
+
+<div style="flex:none;display:flex;flex-direction:column;gap:12px">
+<div style="width:390px;height:844px;background:#161826;border:1px solid #595d6c;border-radius:42px;box-shadow:0 16px 40px rgba(0,0,0,.65);overflow:hidden;position:relative;display:flex;flex-direction:column">
+
+<div style="flex:none;display:flex;justify-content:space-between;align-items:center;padding:14px 26px 6px;font-size:12.5px;font-weight:600;color:#e9e9ed;letter-spacing:.02em"><span>09:41</span><span style="display:flex;gap:6px;align-items:center;color:#b2b6ca"><span style="font-size:11px">{{ netLabel }}</span><span style="letter-spacing:.1em">▮▮▯</span><span>􀋨</span></span></div>
+
+<div style="flex:1;overflow:hidden;position:relative">
+
+<sc-if value="{{ s_splash }}" hint-placeholder-val="{{ false }}">
+<div style="height:100%;display:flex;flex-direction:column;padding:0 24px 26px;animation:fadeUp .25s ease">
+<div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:16px">
+<div style="width:56px;height:56px;border-radius:14px;border:1px solid #5d5294;background:linear-gradient(160deg,#2b2741,#232532);display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:600;color:#b5abfc;letter-spacing:-.02em">CSP</div>
+<div>
+<div style="font-size:30px;line-height:1.15;font-weight:500;letter-spacing:-.02em;text-wrap:balance">Civil Servant<br>Protect Plan</div>
+<div style="font-size:15px;line-height:1.5;color:#9397ab;margin-top:8px;max-width:280px">Protection for you and your family, paid from your payslip. Choose your language to begin.</div>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px">
+<sc-for list="{{ langs }}" as="l" hint-placeholder-count="4">
+<button type="button" onClick="{{ l.go }}" style="padding:15px 12px;border:1px solid {{ l.bc }};border-radius:8px;background:{{ l.bg }};color:{{ l.fg }};font-size:15px;font-weight:500;cursor:pointer;text-align:left" style-hover="border-color:#9184d9">{{ l.name }}</button>
+</sc-for>
+</div>
+</div>
+<button type="button" onClick="{{ goAuth }}" style="width:100%;padding:17px;border:1px solid #9184d9;border-radius:8px;background:transparent;color:#d2cefd;font-size:16px;font-weight:500;cursor:pointer" style-hover="background:#2b2741">Continue in {{ lang }}</button>
+<div style="text-align:center;margin-top:12px;font-size:13px;color:#75798c">Works on a basic connection · 4.1 MB</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ s_auth }}" hint-placeholder-val="{{ false }}">
+<div style="height:100%;overflow-y:auto;padding:8px 24px 26px;animation:fadeUp .25s ease">
+<div style="font-size:26px;font-weight:500;letter-spacing:-.02em;margin-top:14px">Sign in</div>
+<div style="font-size:14.5px;line-height:1.5;color:#9397ab;margin-top:6px">Use whichever one you know. They all reach the same record.</div>
+<div style="display:flex;flex-direction:column;gap:9px;margin-top:20px">
+<sc-for list="{{ authModes }}" as="m" hint-placeholder-count="3">
+<button type="button" onClick="{{ m.go }}" style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left;padding:16px;border:1px solid {{ m.bc }};border-radius:8px;background:{{ m.bg }};cursor:pointer" style-hover="border-color:#9184d9">
+<span style="font-size:16px;font-weight:500;color:#e9e9ed">{{ m.title }}</span>
+<span style="font-size:13px;line-height:1.4;color:#9397ab">{{ m.sub }}</span>
+</button>
+</sc-for>
+</div>
+<div style="margin-top:22px;padding-top:18px;border-top:1px solid #292b31;display:flex;flex-direction:column;gap:10px">
+<div style="font-size:11px;letter-spacing:.13em;color:#75798c;font-weight:600">NOT A MEMBER YOURSELF?</div>
+<button type="button" onClick="{{ goBeneficiary }}" style="text-align:left;padding:14px 15px;border:1px dashed #595d6c;border-radius:8px;background:transparent;cursor:pointer" style-hover="border-color:#9184d9">
+<div style="font-size:15px;font-weight:500;color:#e9e9ed">Claim for someone who has died</div>
+<div style="font-size:13px;line-height:1.4;color:#9397ab;margin-top:2px">No account needed. You need their CSP-ID or service number.</div>
+</button>
+<button type="button" onClick="{{ goHr }}" style="text-align:left;padding:14px 15px;border:1px solid #292b31;border-radius:8px;background:transparent;cursor:pointer" style-hover="border-color:#595d6c">
+<div style="font-size:15px;font-weight:500;color:#e9e9ed">I am an HR / welfare officer</div>
+<div style="font-size:13px;line-height:1.4;color:#9397ab;margin-top:2px">Sign in with your MDA email address</div>
+</button>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ s_identify }}" hint-placeholder-val="{{ false }}">
+<div style="height:100%;display:flex;flex-direction:column;padding:8px 24px 26px;animation:fadeUp .25s ease">
+<button type="button" onClick="{{ goAuth }}" style="align-self:flex-start;background:transparent;border:0;color:#9397ab;font-size:14px;cursor:pointer;padding:6px 0" style-hover="color:#e9e9ed">← Back</button>
+<div style="font-size:26px;font-weight:500;letter-spacing:-.02em;margin-top:10px">{{ identTitle }}</div>
+<div style="font-size:14.5px;line-height:1.5;color:#9397ab;margin-top:6px;max-width:300px">{{ identHelp }}</div>
+<div style="margin-top:22px;display:flex;flex-direction:column;gap:7px">
+<label style="font-size:12px;letter-spacing:.1em;color:#75798c;font-weight:600">{{ identLabel }}</label>
+<div style="display:flex;align-items:center;gap:10px;padding:16px 15px;border:1px solid #5d5294;border-radius:8px;background:#1c1f2e">
+<span style="font-size:15px;color:#9397ab">{{ identPrefix }}</span>
+<span style="font-size:19px;font-weight:500;letter-spacing:.04em">{{ identValue }}</span>
+<span style="width:1.5px;height:22px;background:#9184d9;animation:pulseRing 1.1s steps(1) infinite"></span>
+</div>
+<div style="font-size:13px;line-height:1.45;color:#75798c">{{ identNote }}</div>
+</div>
+<div style="flex:1"></div>
+<div style="display:flex;align-items:flex-start;gap:10px;padding:13px 14px;border:1px solid #292b31;border-radius:8px;background:#1b1e2c;margin-bottom:14px">
+<div style="width:7px;height:7px;border-radius:50%;background:#9184d9;margin-top:6px;flex:none"></div>
+<div style="font-size:13px;line-height:1.5;color:#b2b6ca">This phone will be tied to your record. Signing in on a new phone needs a fresh code and tells your HR officer.</div>
+</div>
+<button type="button" onClick="{{ goOtp }}" style="width:100%;padding:17px;border:1px solid #9184d9;border-radius:8px;background:transparent;color:#d2cefd;font-size:16px;font-weight:500;cursor:pointer" style-hover="background:#2b2741">Send me a code</button>
+</div>
+</sc-if>
+
+<sc-if value="{{ s_otp }}" hint-placeholder-val="{{ false }}">
+<div style="height:100%;display:flex;flex-direction:column;padding:8px 24px 20px;animation:fadeUp .25s ease">
+<button type="button" onClick="{{ goIdentify }}" style="align-self:flex-start;background:transparent;border:0;color:#9397ab;font-size:14px;cursor:pointer;padding:6px 0" style-hover="color:#e9e9ed">← Back</button>
+<div style="font-size:26px;font-weight:500;letter-spacing:-.02em;margin-top:10px">Enter the 6 digits</div>
+<div style="font-size:14.5px;line-height:1.5;color:#9397ab;margin-top:6px">Sent by SMS to <span style="color:#e9e9ed">0803 •• •• 214</span>. It can take a minute on a slow network.</div>
+
+<div style="display:flex;gap:8px;margin-top:22px">
+<sc-for list="{{ otpCells }}" as="c" hint-placeholder-count="6">
+<div style="flex:1;height:58px;border:1px solid {{ c.bc }};border-radius:8px;background:{{ c.bg }};display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:500;color:#e9e9ed">{{ c.ch }}</div>
+</sc-for>
+</div>
+
+<div style="min-height:40px;margin-top:12px">
+<sc-if value="{{ otpError }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;gap:9px;align-items:flex-start;padding:11px 13px;border:1px solid #9184d9;border-radius:8px;background:#2b2741">
+<span style="font-size:15px;color:#b5abfc;line-height:1.2">!</span>
+<div style="font-size:13.5px;line-height:1.45;color:#d2cefd">That code is wrong or has expired. Two attempts left before we lock this phone for 15 minutes.</div>
+</div>
+</sc-if>
+<sc-if value="{{ otpIdle }}" hint-placeholder-val="{{ true }}">
+<div style="display:flex;justify-content:space-between;align-items:center;font-size:13.5px;color:#75798c"><span>Resend in 0:24</span><button type="button" onClick="{{ failOtp }}" style="background:transparent;border:0;color:#75798c;font-size:13px;cursor:pointer;text-decoration:underline" style-hover="color:#b2b6ca">demo: wrong code</button></div>
+</sc-if>
+</div>
+
+<div style="flex:1"></div>
+<div style="font-size:13px;color:#75798c;text-align:center;margin-bottom:10px">No SMS after 2 minutes? Dial <span style="color:#b5abfc">*347*55#</span> to get it by voice call.</div>
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+<sc-for list="{{ keys }}" as="k" hint-placeholder-count="12">
+<button type="button" onClick="{{ k.go }}" style="padding:15px 0;border:1px solid #292b31;border-radius:8px;background:#1c1f2e;color:#e9e9ed;font-size:21px;font-weight:500;cursor:pointer" style-hover="border-color:#9184d9;background:#232532">{{ k.label }}</button>
+</sc-for>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ s_pin }}" hint-placeholder-val="{{ false }}">
+<div style="height:100%;display:flex;flex-direction:column;padding:8px 24px 20px;animation:fadeUp .25s ease">
+<div style="font-size:26px;font-weight:500;letter-spacing:-.02em;margin-top:24px">{{ pinTitle }}</div>
+<div style="font-size:14.5px;line-height:1.5;color:#9397ab;margin-top:6px;max-width:300px">{{ pinHelp }}</div>
+<div style="display:flex;gap:13px;margin-top:30px;justify-content:center">
+<sc-for list="{{ pinDots }}" as="d" hint-placeholder-count="6">
+<div style="width:15px;height:15px;border-radius:50%;border:1px solid {{ d.bc }};background:{{ d.bg }}"></div>
+</sc-for>
+</div>
+<div style="flex:1"></div>
+<button type="button" onClick="{{ goBiometric }}" style="align-self:center;background:transparent;border:0;color:#9397ab;font-size:14px;cursor:pointer;margin-bottom:14px;text-decoration:underline" style-hover="color:#e9e9ed">Skip — I will use my fingerprint</button>
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+<sc-for list="{{ pinKeys }}" as="k" hint-placeholder-count="12">
+<button type="button" onClick="{{ k.go }}" style="padding:15px 0;border:1px solid #292b31;border-radius:8px;background:#1c1f2e;color:#e9e9ed;font-size:21px;font-weight:500;cursor:pointer" style-hover="border-color:#9184d9;background:#232532">{{ k.label }}</button>
+</sc-for>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ s_biometric }}" hint-placeholder-val="{{ false }}">
+<div style="height:100%;display:flex;flex-direction:column;padding:8px 24px 26px;animation:fadeUp .25s ease">
+<div style="flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:20px;text-align:center">
+<div style="width:96px;height:96px;border-radius:50%;border:1px solid #5d5294;background:#1e2130;display:flex;align-items:center;justify-content:center;animation:pulseRing 2.4s ease-in-out infinite">
+<div style="width:52px;height:66px;border:2px solid #9184d9;border-radius:26px 26px 22px 22px"></div>
+</div>
+<div>
+<div style="font-size:24px;font-weight:500;letter-spacing:-.02em">Use your fingerprint</div>
+<div style="font-size:14.5px;line-height:1.5;color:#9397ab;margin-top:7px;max-width:270px">Faster than the PIN, and it never leaves this phone. Your PIN still works as a backup.</div>
+</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:9px">
+<button type="button" onClick="{{ goEnrol }}" style="width:100%;padding:17px;border:1px solid #9184d9;border-radius:8px;background:transparent;color:#d2cefd;font-size:16px;font-weight:500;cursor:pointer" style-hover="background:#2b2741">Turn on fingerprint</button>
+<button type="button" onClick="{{ goEnrol }}" style="width:100%;padding:15px;border:0;background:transparent;color:#9397ab;font-size:15px;cursor:pointer" style-hover="color:#e9e9ed">Not now</button>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ s_lock }}" hint-placeholder-val="{{ false }}">
+<div style="height:100%;display:flex;flex-direction:column;padding:8px 24px 26px;background:linear-gradient(180deg,#191c2b,#161826)">
+<div style="flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:14px;text-align:center">
+<div style="width:44px;height:44px;border-radius:12px;border:1px solid #5d5294;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:#b5abfc">CSP</div>
+<div style="font-size:20px;font-weight:500">Welcome back, Adaeze</div>
+<div style="font-size:14px;color:#9397ab">Enter your 6-digit PIN</div>
+<div style="display:flex;gap:13px;margin-top:6px">
+<sc-for list="{{ pinDots }}" as="d" hint-placeholder-count="6">
+<div style="width:15px;height:15px;border-radius:50%;border:1px solid {{ d.bc }};background:{{ d.bg }}"></div>
+</sc-for>
+</div>
+<button type="button" onClick="{{ goHome }}" style="margin-top:12px;background:transparent;border:0;color:#b5abfc;font-size:14.5px;cursor:pointer;text-decoration:underline" style-hover="color:#d2cefd">Use fingerprint instead</button>
+</div>
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+<sc-for list="{{ lockKeys }}" as="k" hint-placeholder-count="12">
+<button type="button" onClick="{{ k.go }}" style="padding:15px 0;border:1px solid #292b31;border-radius:8px;background:#1c1f2e;color:#e9e9ed;font-size:21px;font-weight:500;cursor:pointer" style-hover="border-color:#9184d9;background:#232532">{{ k.label }}</button>
+</sc-for>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ s_enrol }}" hint-placeholder-val="{{ false }}">
+<div style="height:100%;display:flex;flex-direction:column;padding:8px 24px 22px;animation:fadeUp .25s ease">
+<div style="display:flex;gap:5px;margin-top:8px">
+<sc-for list="{{ enrolBars }}" as="b" hint-placeholder-count="3">
+<div style="flex:1;height:3px;border-radius:2px;background:{{ b.bg }}"></div>
+</sc-for>
+</div>
+<div style="font-size:11px;letter-spacing:.13em;color:#75798c;font-weight:600;margin-top:14px">SETTING UP · STEP {{ enrolNo }} OF 3</div>
+
+<sc-if value="{{ e0 }}" hint-placeholder-val="{{ true }}">
+<div style="flex:1;overflow-y:auto;margin-top:8px">
+<div style="font-size:25px;font-weight:500;letter-spacing:-.02em">Is this you?</div>
+<div style="font-size:14.5px;line-height:1.5;color:#9397ab;margin-top:6px">Pulled from the IPPIS payroll record for service number 3320114.</div>
+<div style="margin-top:18px;border:1px solid #3f424d;border-radius:8px;background:#1c1f2e;overflow:hidden">
+<sc-for list="{{ record }}" as="r" hint-placeholder-count="5">
+<div style="display:flex;justify-content:space-between;gap:14px;padding:13px 15px;border-bottom:1px solid #23263400"><span style="font-size:13px;color:#75798c">{{ r.k }}</span><span style="font-size:14.5px;font-weight:500;text-align:right">{{ r.v }}</span></div>
+</sc-for>
+</div>
+<button type="button" style="margin-top:12px;width:100%;padding:13px;border:1px dashed #595d6c;border-radius:8px;background:transparent;color:#9397ab;font-size:14px;cursor:pointer" style-hover="border-color:#9184d9;color:#e9e9ed">Something is wrong — report it to HR</button>
+</div>
+</sc-if>
+
+<sc-if value="{{ e1 }}" hint-placeholder-val="{{ false }}">
+<div style="flex:1;overflow-y:auto;margin-top:8px">
+<div style="font-size:25px;font-weight:500;letter-spacing:-.02em">Choose your cover</div>
+<div style="font-size:14.5px;line-height:1.5;color:#9397ab;margin-top:6px">Taken from your salary each month. You can change it later.</div>
+<div style="display:flex;flex-direction:column;gap:9px;margin-top:16px">
+<sc-for list="{{ tiers }}" as="t" hint-placeholder-count="4">
+<button type="button" onClick="{{ t.go }}" style="text-align:left;padding:15px;border:1px solid {{ t.bc }};border-radius:8px;background:{{ t.bg }};cursor:pointer" style-hover="border-color:#9184d9">
+<div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:16.5px;font-weight:500;color:{{ t.fg }}">{{ t.name }}</span><span style="font-size:16.5px;font-weight:500;color:{{ t.fg }}">{{ t.price }}</span></div>
+<div style="font-size:13px;line-height:1.45;color:#9397ab;margin-top:4px">{{ t.detail }}</div>
+<div style="font-size:12px;color:#75798c;margin-top:3px">{{ t.tagline }}</div>
+</button>
+</sc-for>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ e2 }}" hint-placeholder-val="{{ false }}">
+<div style="flex:1;overflow-y:auto;margin-top:8px">
+<div style="font-size:25px;font-weight:500;letter-spacing:-.02em">Who should be paid?</div>
+<div style="font-size:14.5px;line-height:1.5;color:#9397ab;margin-top:6px">This is the single most important thing in the app. Name at least two people, so a claim is never held up by one missing person.</div>
+<div style="display:flex;flex-direction:column;gap:9px;margin-top:16px">
+<sc-for list="{{ benes }}" as="b" hint-placeholder-count="2">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 15px;border:1px solid #3f424d;border-radius:8px;background:#1c1f2e">
+<div><div style="font-size:15.5px;font-weight:500">{{ b.name }}</div><div style="font-size:13px;color:#9397ab;margin-top:1px">{{ b.rel }} · {{ b.phone }}</div></div>
+<div style="font-size:18px;font-weight:500;color:#b5abfc">{{ b.share }}</div>
+</div>
+</sc-for>
+<button type="button" onClick="{{ addBene }}" style="padding:14px;border:1px dashed #5d5294;border-radius:8px;background:transparent;color:#d2cefd;font-size:14.5px;font-weight:500;cursor:pointer" style-hover="background:#2b2741">+ Add another person</button>
+</div>
+<div style="margin-top:14px;padding:12px 14px;border:1px solid #292b31;border-radius:8px;font-size:13px;line-height:1.5;color:#9397ab">We will ask you to confirm these names once a year, and every time your payroll record changes.</div>
+</div>
+</sc-if>
+
+<div style="display:flex;gap:9px;padding-top:14px">
+<button type="button" onClick="{{ enrolBack }}" style="padding:16px 20px;border:1px solid #3f424d;border-radius:8px;background:transparent;color:#b2b6ca;font-size:15px;cursor:pointer" style-hover="border-color:#9397ab">Back</button>
+<button type="button" onClick="{{ enrolNext }}" style="flex:1;padding:16px;border:1px solid #9184d9;border-radius:8px;background:transparent;color:#d2cefd;font-size:16px;font-weight:500;cursor:pointer" style-hover="background:#2b2741">{{ enrolCta }}</button>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ s_enroldone }}" hint-placeholder-val="{{ false }}">
+<div style="height:100%;display:flex;flex-direction:column;padding:8px 24px 26px;animation:fadeUp .25s ease">
+<div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:18px">
+<div style="width:52px;height:52px;border-radius:50%;border:1px solid #9184d9;display:flex;align-items:center;justify-content:center;font-size:22px;color:#b5abfc">✓</div>
+<div>
+<div style="font-size:28px;line-height:1.15;font-weight:500;letter-spacing:-.02em">You are covered from<br>1 October 2026.</div>
+<div style="font-size:15px;line-height:1.55;color:#9397ab;margin-top:10px">Your first ₦2,500 comes out of the September payslip. Nothing to pay today.</div>
+</div>
+<div style="border:1px solid #3f424d;border-radius:8px;background:#1c1f2e;padding:16px">
+<div style="font-size:11px;letter-spacing:.13em;color:#75798c;font-weight:600">YOUR CSP-ID</div>
+<div style="font-size:27px;font-weight:500;letter-spacing:.06em;margin-top:4px">4471-2098</div>
+<div style="font-size:13px;line-height:1.5;color:#9397ab;margin-top:6px">Tell this number to your family. Anyone claiming for you will be asked for it.</div>
+</div>
+</div>
+<button type="button" onClick="{{ goHome }}" style="width:100%;padding:17px;border:1px solid #9184d9;border-radius:8px;background:transparent;color:#d2cefd;font-size:16px;font-weight:500;cursor:pointer" style-hover="background:#2b2741">Go to my cover</button>
+</div>
+</sc-if>
+
+<sc-if value="{{ s_home }}" hint-placeholder-val="{{ true }}">
+<div style="height:100%;overflow-y:auto;padding:6px 22px 96px;animation:fadeUp .25s ease">
+<div style="display:flex;justify-content:space-between;align-items:flex-start;padding-top:8px">
+<div><div style="font-size:12.5px;color:#75798c">Good morning</div><div style="font-size:20px;font-weight:500;letter-spacing:-.01em">Adaeze Okafor</div></div>
+<button type="button" onClick="{{ goMore }}" style="width:38px;height:38px;border-radius:50%;border:1px solid #3f424d;background:#1c1f2e;color:#b2b6ca;font-size:13px;font-weight:500;cursor:pointer" style-hover="border-color:#9184d9">AO</button>
+</div>
+
+<sc-if value="{{ offline }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;align-items:center;gap:10px;margin-top:14px;padding:11px 13px;border:1px solid #5d5294;border-radius:8px;background:#1e2130">
+<div style="width:7px;height:7px;border-radius:50%;background:#9184d9;flex:none;animation:pulseRing 1.8s ease-in-out infinite"></div>
+<div style="font-size:13px;line-height:1.45;color:#b2b6ca">No network. Showing what we saved at 08:12 — your cover is still valid.</div>
+</div>
+</sc-if>
+
+<div style="margin-top:20px;padding:18px;border:1px solid #3f424d;border-radius:14px;background:linear-gradient(155deg,#232538,#1a1d2b)">
+<div style="font-size:11px;letter-spacing:.13em;color:#9397ab;font-weight:600">IF YOU DIE, YOUR FAMILY RECEIVES</div>
+<div style="font-size:38px;font-weight:500;letter-spacing:-.03em;margin-top:4px;color:#e9e9ed">₦5,500,000</div>
+<div style="font-size:14px;line-height:1.5;color:#b2b6ca;margin-top:4px">Paid to <span style="color:#e9e9ed">Chinedu Okafor</span> and 1 other person you named.</div>
+<div style="height:1px;background:linear-gradient(90deg,transparent,#3f424d 20%,#3f424d 80%,transparent);margin:15px 0"></div>
+<div style="display:flex;justify-content:space-between;align-items:center">
+<div><div style="font-size:12.5px;color:#9397ab">If an accident causes it</div><div style="font-size:21px;font-weight:500;color:#d2cefd;margin-top:1px">₦10,500,000</div></div>
+<button type="button" onClick="{{ goBenefits }}" style="padding:9px 13px;border:1px solid #5d5294;border-radius:8px;background:transparent;color:#d2cefd;font-size:13.5px;font-weight:500;cursor:pointer" style-hover="background:#2b2741">See all cover</button>
+</div>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:9px;margin-top:16px">
+<button type="button" onClick="{{ goAccident }}" style="display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;padding:19px 17px;border:1px solid #9184d9;border-radius:8px;background:#1f2133;cursor:pointer;text-align:left" style-hover="background:#2b2741">
+<span><span style="display:block;font-size:18px;font-weight:500;color:#e9e9ed">Report an accident</span><span style="display:block;font-size:13px;color:#9397ab;margin-top:2px">Any hour. Works with no network.</span></span>
+<span style="font-size:19px;color:#b5abfc">→</span>
+</button>
+<button type="button" onClick="{{ goClaim }}" style="display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;padding:19px 17px;border:1px solid #3f424d;border-radius:8px;background:#1c1f2e;cursor:pointer;text-align:left" style-hover="border-color:#9184d9">
+<span><span style="display:block;font-size:18px;font-weight:500;color:#e9e9ed">Make a claim</span><span style="display:block;font-size:13px;color:#9397ab;margin-top:2px">Someone died, or I was hurt</span></span>
+<span style="font-size:19px;color:#9397ab">→</span>
+</button>
+</div>
+
+<button type="button" onClick="{{ goTrack }}" style="display:flex;gap:12px;align-items:flex-start;width:100%;margin-top:16px;padding:15px;border:1px solid #3f424d;border-radius:8px;background:#1c1f2e;cursor:pointer;text-align:left" style-hover="border-color:#9184d9">
+<div style="width:9px;height:9px;border-radius:50%;background:#9184d9;margin-top:5px;flex:none;animation:pulseRing 1.8s ease-in-out infinite"></div>
+<div style="flex:1">
+<div style="display:flex;justify-content:space-between;gap:8px"><span style="font-size:15.5px;font-weight:500">Claim CLM-0084 is being checked</span><span style="font-size:12px;color:#75798c">day 3</span></div>
+<div style="font-size:13px;line-height:1.45;color:#9397ab;margin-top:2px">Funeral assistance, ₦250,000. Nothing needed from you.</div>
+</div>
+</button>
+
+<div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:24px"><span style="font-size:11px;letter-spacing:.13em;color:#75798c;font-weight:600">NEEDS YOUR ATTENTION</span></div>
+<button type="button" onClick="{{ goBenes }}" style="display:flex;justify-content:space-between;align-items:center;width:100%;margin-top:9px;padding:15px;border:1px dashed #5d5294;border-radius:8px;background:transparent;cursor:pointer;text-align:left" style-hover="background:#2b2741">
+<span><span style="display:block;font-size:15.5px;font-weight:500;color:#e9e9ed">Confirm who gets paid</span><span style="display:block;font-size:13px;color:#9397ab;margin-top:2px">Last confirmed 14 months ago</span></span>
+<span style="font-size:17px;color:#b5abfc">→</span>
+</button>
+
+<div style="margin-top:22px;padding-top:16px;border-top:1px solid #292b31;font-size:13px;line-height:1.55;color:#75798c">No data or airtime? Dial <span style="color:#b5abfc">*347*55#</span>, or message <span style="color:#b5abfc">0700 277 7836</span> on WhatsApp. Both do everything this app does.</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ s_id }}" hint-placeholder-val="{{ false }}">
+<div style="height:100%;overflow-y:auto;padding:6px 22px 96px;animation:fadeUp .25s ease">
+<div style="font-size:22px;font-weight:500;letter-spacing:-.01em;padding-top:10px">My protection card</div>
+<div style="font-size:13.5px;line-height:1.5;color:#9397ab;margin-top:4px">Saved on this phone. Opens without network.</div>
+
+<div style="margin-top:16px;border:1px solid #5d5294;border-radius:14px;background:linear-gradient(150deg,#272a42,#191c2b 65%);padding:18px 17px;position:relative;overflow:hidden">
+<div style="position:absolute;right:-40px;top:-40px;width:150px;height:150px;border-radius:50%;background:radial-gradient(circle,#423a6a 0%,transparent 70%)"></div>
+<div style="display:flex;justify-content:space-between;align-items:flex-start;position:relative">
+<div style="font-size:10.5px;letter-spacing:.16em;color:#b2b6ca;font-weight:600">CIVIL SERVANT PROTECT PLAN</div>
+<div style="font-size:10.5px;letter-spacing:.1em;color:#d2cefd;font-weight:600;border:1px solid #5d5294;border-radius:4px;padding:2px 6px">STANDARD</div>
+</div>
+<div style="font-size:23px;font-weight:500;margin-top:16px;letter-spacing:-.01em">Adaeze N. Okafor</div>
+<div style="font-size:13.5px;line-height:1.45;color:#9397ab;margin-top:2px">Principal Education Officer<br>Federal Ministry of Education</div>
+<div style="display:flex;gap:26px;margin-top:16px">
+<div><div style="font-size:10.5px;letter-spacing:.12em;color:#75798c;font-weight:600">CSP-ID</div><div style="font-size:16px;font-weight:500;letter-spacing:.05em;margin-top:2px">4471-2098</div></div>
+<div><div style="font-size:10.5px;letter-spacing:.12em;color:#75798c;font-weight:600">IN FORCE SINCE</div><div style="font-size:16px;font-weight:500;letter-spacing:.05em;margin-top:2px">16.07.2025</div></div>
+</div>
+<div style="display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin-top:18px">
+<div style="font-size:12.5px;line-height:1.45;color:#9397ab;max-width:160px">Any officer can scan this offline to confirm you are covered.</div>
+<div style="width:76px;height:76px;border-radius:6px;background:repeating-conic-gradient(#e9e9ed 0 25%,#161826 0 50%) 0 0/9.5px 9.5px;border:3px solid #e9e9ed"></div>
+</div>
+</div>
+
+<div style="display:flex;gap:9px;margin-top:12px">
+<button type="button" style="flex:1;padding:14px;border:1px solid #9184d9;border-radius:8px;background:transparent;color:#d2cefd;font-size:14.5px;font-weight:500;cursor:pointer" style-hover="background:#2b2741">Save to phone</button>
+<button type="button" style="flex:1;padding:14px;border:1px solid #3f424d;border-radius:8px;background:transparent;color:#b2b6ca;font-size:14.5px;font-weight:500;cursor:pointer" style-hover="border-color:#9397ab">Share with HR</button>
+</div>
+
+<div style="margin-top:26px;font-size:11px;letter-spacing:.13em;color:#75798c;font-weight:600">DEVICE</div>
+<div style="margin-top:9px;border:1px solid #292b31;border-radius:8px;background:#1c1f2e;padding:14px 15px">
+<div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:14.5px">Tecno Spark 10 · this phone</span><span style="font-size:12px;color:#b5abfc">Trusted</span></div>
+<div style="font-size:12.5px;line-height:1.5;color:#75798c;margin-top:5px">Bound on 16 Jul 2025. If you lose this phone, call the line and we will untrust it in minutes.</div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ s_benefits }}" hint-placeholder-val="{{ false }}">
+<div style="height:100%;overflow-y:auto;padding:6px 22px 96px;animation:fadeUp .25s ease">
+<div style="font-size:22px;font-weight:500;letter-spacing:-.01em;padding-top:10px">What you are covered for</div>
+<div style="font-size:13.5px;line-height:1.5;color:#9397ab;margin-top:4px">Standard plan · ₦2,500 a month from your payslip</div>
+<div style="margin-top:16px;display:flex;flex-direction:column">
+<sc-for list="{{ schedule }}" as="s" hint-placeholder-count="7">
+<div style="display:flex;justify-content:space-between;align-items:baseline;gap:14px;padding:13px 0;border-bottom:1px solid #23262f">
+<div><div style="font-size:15px;font-weight:500">{{ s.k }}</div><div style="font-size:12.5px;line-height:1.4;color:#75798c;margin-top:2px">{{ s.note }}</div></div>
+<div style="font-size:15.5px;font-weight:500;white-space:nowrap;color:#d2cefd">{{ s.v }}</div>
+</div>
+</sc-for>
+</div>
+
+<div style="margin-top:24px;font-size:11px;letter-spacing:.13em;color:#75798c;font-weight:600">MOVE TO ANOTHER PLAN</div>
+<div style="display:flex;flex-direction:column;gap:9px;margin-top:10px">
+<sc-for list="{{ tiers }}" as="t" hint-placeholder-count="4">
+<button type="button" onClick="{{ t.go }}" style="text-align:left;padding:15px;border:1px solid {{ t.bc }};border-radius:8px;background:{{ t.bg }};cursor:pointer" style-hover="border-color:#9184d9">
+<div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:16.5px;font-weight:500;color:{{ t.fg }}">{{ t.name }}</span><span style="font-size:16.5px;font-weight:500;color:{{ t.fg }}">{{ t.price }}</span></div>
+<div style="font-size:13px;line-height:1.45;color:#9397ab;margin-top:4px">{{ t.detail }}</div>
+</button>
+</sc-for>
+</div>
+<div style="margin-top:14px;padding:13px 14px;border:1px solid #292b31;border-radius:8px;font-size:13px;line-height:1.55;color:#9397ab">Changing plan needs your HR officer to approve the new deduction. It starts the month after they do.</div>
+<button type="button" style="margin-top:12px;width:100%;padding:16px;border:1px solid #9184d9;border-radius:8px;background:transparent;color:#d2cefd;font-size:15.5px;font-weight:500;cursor:pointer" style-hover="background:#2b2741">Request {{ tier }} through HR</button>
+<div style="margin-top:20px;font-size:12px;line-height:1.55;color:#595d6c">Illustrative benefits, subject to actuarial, legal and underwriting validation. Full exclusions are listed in your policy document.</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ s_benes }}" hint-placeholder-val="{{ false }}">
+<div style="height:100%;overflow-y:auto;padding:6px 22px 96px;animation:fadeUp .25s ease">
+<div style="font-size:22px;font-weight:500;letter-spacing:-.01em;padding-top:10px">Who gets paid</div>
+<div style="font-size:13.5px;line-height:1.5;color:#9397ab;margin-top:4px">If these names are wrong or out of date, a claim can take months instead of days.</div>
+<div style="display:flex;flex-direction:column;gap:9px;margin-top:16px">
+<sc-for list="{{ benes }}" as="b" hint-placeholder-count="2">
+<div style="padding:15px;border:1px solid #3f424d;border-radius:8px;background:#1c1f2e">
+<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+<div><div style="font-size:16px;font-weight:500">{{ b.name }}</div><div style="font-size:13px;color:#9397ab;margin-top:2px">{{ b.rel }} · {{ b.phone }}</div></div>
+<div style="font-size:20px;font-weight:500;color:#b5abfc">{{ b.share }}</div>
+</div>
+<div style="height:4px;border-radius:2px;background:#292b31;margin-top:12px;overflow:hidden"><div style="height:100%;width:{{ b.share }};background:#796cbf"></div></div>
+</div>
+</sc-for>
+<button type="button" onClick="{{ addBene }}" style="padding:15px;border:1px dashed #5d5294;border-radius:8px;background:transparent;color:#d2cefd;font-size:15px;font-weight:500;cursor:pointer" style-hover="background:#2b2741">+ Add another person</button>
+</div>
+<div style="margin-top:16px;padding:14px;border:1px solid #292b31;border-radius:8px;background:#1b1e2c">
+<div style="font-size:14.5px;font-weight:500">Shares must add up to 100%</div>
+<div style="font-size:13px;line-height:1.5;color:#9397ab;margin-top:3px">Currently {{ shareTotal }}. {{ shareNote }}</div>
+</div>
+<button type="button" onClick="{{ goHome }}" style="margin-top:14px;width:100%;padding:16px;border:1px solid #9184d9;border-radius:8px;background:transparent;color:#d2cefd;font-size:15.5px;font-weight:500;cursor:pointer" style-hover="background:#2b2741">Confirm these are correct</button>
+<div style="margin-top:10px;text-align:center;font-size:12.5px;color:#75798c">We will ask again in 12 months.</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ s_accident }}" hint-placeholder-val="{{ false }}">
+<div style="height:100%;display:flex;flex-direction:column;padding:6px 22px 22px;animation:fadeUp .25s ease">
+<div style="display:flex;justify-content:space-between;align-items:center;padding-top:10px"><span style="font-size:19px;font-weight:500">Report an accident</span><span style="font-size:12px;color:#75798c;letter-spacing:.08em">{{ accNo }} OF 4</span></div>
+<div style="display:flex;gap:4px;margin-top:11px">
+<sc-for list="{{ accBars }}" as="b" hint-placeholder-count="4">
+<div style="flex:1;height:3px;border-radius:2px;background:{{ b.bg }}"></div>
+</sc-for>
+</div>
+
+<div style="flex:1;overflow-y:auto;margin-top:20px">
+<div style="font-size:24px;font-weight:500;letter-spacing:-.02em;text-wrap:balance">{{ accQ }}</div>
+<div style="font-size:14px;line-height:1.5;color:#9397ab;margin-top:6px">{{ accHelp }}</div>
+<div style="display:flex;flex-direction:column;gap:9px;margin-top:18px">
+<sc-for list="{{ accOptions }}" as="o" hint-placeholder-count="3">
+<button type="button" onClick="{{ o.go }}" style="display:flex;align-items:center;gap:13px;text-align:left;padding:17px 15px;border:1px solid {{ o.bc }};border-radius:8px;background:{{ o.bg }};cursor:pointer" style-hover="border-color:#9184d9">
+<span style="width:20px;height:20px;border-radius:50%;border:2px solid {{ o.dot }};background:{{ o.fill }};flex:none;box-shadow:{{ o.ring }}"></span>
+<span style="font-size:16.5px;font-weight:500;color:#e9e9ed">{{ o.label }}</span>
+</button>
+</sc-for>
+</div>
+<div style="margin-top:18px;display:flex;gap:10px;padding:13px 14px;border:1px solid #292b31;border-radius:8px;background:#1b1e2c">
+<div style="width:7px;height:7px;border-radius:50%;background:#9184d9;margin-top:5px;flex:none"></div>
+<div style="font-size:13px;line-height:1.5;color:#b2b6ca">Saved on this phone as you go. It sends itself when you get network — you can close the app.</div>
+</div>
+</div>
+
+<div style="display:flex;gap:9px;padding-top:12px">
+<button type="button" onClick="{{ accBack }}" style="padding:16px 20px;border:1px solid #3f424d;border-radius:8px;background:transparent;color:#b2b6ca;font-size:15px;cursor:pointer" style-hover="border-color:#9397ab">Back</button>
+<button type="button" onClick="{{ accNext }}" style="flex:1;padding:16px;border:1px solid #9184d9;border-radius:8px;background:transparent;color:#d2cefd;font-size:16px;font-weight:500;cursor:pointer" style-hover="background:#2b2741">{{ accCta }}</button>
+</div>
+<button type="button" style="margin-top:10px;background:transparent;border:0;color:#9397ab;font-size:13.5px;cursor:pointer;text-decoration:underline" style-hover="color:#e9e9ed">Too hard right now? Call 0700 277 7836 and we will fill it for you</button>
+</div>
+</sc-if>
+
+<sc-if value="{{ s_claim }}" hint-placeholder-val="{{ false }}">
+<div style="height:100%;display:flex;flex-direction:column;padding:6px 22px 22px;animation:fadeUp .25s ease">
+<div style="display:flex;justify-content:space-between;align-items:center;padding-top:10px"><span style="font-size:19px;font-weight:500">Make a claim</span><span style="font-size:12px;color:#75798c;letter-spacing:.08em">{{ clNo }} OF 5</span></div>
+<div style="display:flex;gap:4px;margin-top:11px">
+<sc-for list="{{ clBars }}" as="b" hint-placeholder-count="5">
+<div style="flex:1;height:3px;border-radius:2px;background:{{ b.bg }}"></div>
+</sc-for>
+</div>
+
+<div style="flex:1;overflow-y:auto;margin-top:20px">
+<div style="font-size:24px;font-weight:500;letter-spacing:-.02em;text-wrap:balance">{{ clQ }}</div>
+<div style="font-size:14px;line-height:1.5;color:#9397ab;margin-top:6px">{{ clHelp }}</div>
+
+<sc-if value="{{ clChoices }}" hint-placeholder-val="{{ true }}">
+<div style="display:flex;flex-direction:column;gap:9px;margin-top:18px">
+<sc-for list="{{ clOptions }}" as="o" hint-placeholder-count="3">
+<button type="button" onClick="{{ o.go }}" style="display:flex;align-items:center;gap:13px;text-align:left;padding:17px 15px;border:1px solid {{ o.bc }};border-radius:8px;background:{{ o.bg }};cursor:pointer" style-hover="border-color:#9184d9">
+<span style="width:20px;height:20px;border-radius:50%;border:2px solid {{ o.dot }};background:{{ o.fill }};flex:none"></span>
+<span><span style="display:block;font-size:16.5px;font-weight:500;color:#e9e9ed">{{ o.label }}</span><span style="display:block;font-size:13px;color:#9397ab;margin-top:2px">{{ o.sub }}</span></span>
+</button>
+</sc-for>
+</div>
+</sc-if>
+
+<sc-if value="{{ clDocs }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;flex-direction:column;gap:9px;margin-top:18px">
+<sc-for list="{{ docs }}" as="d" hint-placeholder-count="4">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:15px;border:1px solid {{ d.bc }};border-radius:8px;background:#1c1f2e">
+<div><div style="font-size:15.5px;font-weight:500">{{ d.name }}</div><div style="font-size:12.5px;color:#9397ab;margin-top:2px">{{ d.state }}</div></div>
+<span style="font-size:13.5px;font-weight:500;color:{{ d.fg }}">{{ d.action }}</span>
+</div>
+</sc-for>
+</div>
+<div style="margin-top:14px;padding:13px 14px;border:1px solid #292b31;border-radius:8px;font-size:13px;line-height:1.5;color:#9397ab">Photograph each paper with your camera. Blurry is fine — a person reads them, not a machine.</div>
+</sc-if>
+
+<sc-if value="{{ clReview }}" hint-placeholder-val="{{ false }}">
+<div style="margin-top:16px;border:1px solid #3f424d;border-radius:8px;background:#1c1f2e;overflow:hidden">
+<sc-for list="{{ clSummary }}" as="r" hint-placeholder-count="5">
+<div style="display:flex;justify-content:space-between;gap:14px;padding:13px 15px"><span style="font-size:13px;color:#75798c">{{ r.k }}</span><span style="font-size:14.5px;font-weight:500;text-align:right">{{ r.v }}</span></div>
+</sc-for>
+</div>
+<div style="margin-top:14px;padding:14px;border:1px solid #5d5294;border-radius:8px;background:#1f2133">
+<div style="font-size:15px;font-weight:500;color:#d2cefd">Funeral money comes first</div>
+<div style="font-size:13px;line-height:1.5;color:#b2b6ca;margin-top:3px">₦250,000 is targeted within 2–5 working days, separately from the ₦5,000,000, so you are not waiting on the full assessment to bury someone.</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ clDone }}" hint-placeholder-val="{{ false }}">
+<div style="margin-top:20px;display:flex;flex-direction:column;gap:16px">
+<div style="width:48px;height:48px;border-radius:50%;border:1px solid #9184d9;display:flex;align-items:center;justify-content:center;font-size:20px;color:#b5abfc">✓</div>
+<div style="font-size:15px;line-height:1.6;color:#b2b6ca">We have it. Your reference is <span style="color:#e9e9ed;font-weight:500">CLM-2026-0091</span>. Write it down or screenshot this.</div>
+<div style="padding:14px;border:1px solid #292b31;border-radius:8px;background:#1b1e2c;font-size:13.5px;line-height:1.55;color:#9397ab">A named assessor is allocated within one working day. You will get an SMS even if you are offline.</div>
+</div>
+</sc-if>
+</div>
+
+<div style="display:flex;gap:9px;padding-top:12px">
+<button type="button" onClick="{{ clBack }}" style="padding:16px 20px;border:1px solid #3f424d;border-radius:8px;background:transparent;color:#b2b6ca;font-size:15px;cursor:pointer" style-hover="border-color:#9397ab">Back</button>
+<button type="button" onClick="{{ clNext }}" style="flex:1;padding:16px;border:1px solid #9184d9;border-radius:8px;background:transparent;color:#d2cefd;font-size:16px;font-weight:500;cursor:pointer" style-hover="background:#2b2741">{{ clCta }}</button>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ s_track }}" hint-placeholder-val="{{ false }}">
+<div style="height:100%;overflow-y:auto;padding:6px 22px 96px;animation:fadeUp .25s ease">
+<div style="padding-top:10px;font-size:12px;letter-spacing:.1em;color:#75798c;font-weight:600">CLM-2026-0084 · FUNERAL ASSISTANCE</div>
+<div style="font-size:34px;font-weight:500;letter-spacing:-.03em;margin-top:4px">₦250,000</div>
+<div style="font-size:14px;line-height:1.5;color:#9397ab;margin-top:3px">Filed by Chinedu Okafor (spouse) on 27 August.</div>
+
+<div style="margin-top:18px;padding:15px;border:1px solid #5d5294;border-radius:8px;background:#1f2133">
+<div style="font-size:11px;letter-spacing:.13em;color:#9397ab;font-weight:600">WHAT IS HAPPENING NOW</div>
+<div style="font-size:18px;font-weight:500;margin-top:5px">An assessor is checking the papers</div>
+<div style="font-size:13.5px;line-height:1.5;color:#b2b6ca;margin-top:5px">A. Bello, Lagos claims office. <span style="color:#e9e9ed">You do not need to do anything.</span> If a paper is unclear we will call 0803 •• •• 214 and it will show here.</div>
+<div style="display:flex;gap:9px;margin-top:13px">
+<button type="button" style="flex:1;padding:12px;border:1px solid #9184d9;border-radius:8px;background:transparent;color:#d2cefd;font-size:14px;font-weight:500;cursor:pointer" style-hover="background:#2b2741">Message assessor</button>
+<button type="button" style="padding:12px 16px;border:1px solid #3f424d;border-radius:8px;background:transparent;color:#b2b6ca;font-size:14px;cursor:pointer" style-hover="border-color:#9397ab">Call</button>
+</div>
+</div>
+
+<div style="margin-top:22px;display:flex;flex-direction:column">
+<sc-for list="{{ stages }}" as="st" hint-placeholder-count="5">
+<div style="display:grid;grid-template-columns:26px 1fr;gap:13px">
+<div style="display:flex;flex-direction:column;align-items:center">
+<div style="width:{{ st.size }};height:{{ st.size }};border-radius:50%;border:2px solid {{ st.ring }};background:{{ st.fill }};margin-top:4px;animation:{{ st.anim }}"></div>
+<div style="width:1px;flex:1;background:{{ st.line }}"></div>
+</div>
+<div style="padding-bottom:20px">
+<div style="font-size:16px;font-weight:500;color:{{ st.fg }}">{{ st.title }}</div>
+<div style="font-size:13px;line-height:1.45;color:#75798c;margin-top:2px">{{ st.when }}</div>
+</div>
+</div>
+</sc-for>
+</div>
+
+<div style="padding:14px;border:1px solid #292b31;border-radius:8px;background:#1b1e2c">
+<div style="font-size:14px;font-weight:500">The ₦5,000,000 death claim is separate</div>
+<div style="font-size:13px;line-height:1.5;color:#9397ab;margin-top:3px">It is already open as CLM-2026-0085 and targets 10–20 working days. <span style="color:#b5abfc">Open it</span></div>
+</div>
+<div style="margin-top:16px;font-size:13px;line-height:1.55;color:#75798c">Every stage above is time-stamped and cannot be edited afterwards. Dial <span style="color:#b5abfc">*347*55*84#</span> to hear this same status out loud.</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ s_contrib }}" hint-placeholder-val="{{ false }}">
+<div style="height:100%;overflow-y:auto;padding:6px 22px 96px;animation:fadeUp .25s ease">
+<div style="font-size:22px;font-weight:500;letter-spacing:-.01em;padding-top:10px">What you have paid</div>
+<div style="font-size:13.5px;line-height:1.5;color:#9397ab;margin-top:4px">Straight from the payroll file. Nothing here can be edited by us.</div>
+<div style="display:flex;align-items:baseline;gap:10px;margin-top:18px"><span style="font-size:34px;font-weight:500;letter-spacing:-.03em">₦35,000</span><span style="font-size:13.5px;color:#9397ab">across 14 months</span></div>
+<div style="display:flex;gap:3px;height:34px;margin-top:14px">
+<sc-for list="{{ months }}" as="m" hint-placeholder-count="15">
+<div style="flex:1;border-radius:2px;background:{{ m.bg }};border:{{ m.border }}"></div>
+</sc-for>
+</div>
+<div style="display:flex;justify-content:space-between;font-size:12px;color:#75798c;margin-top:6px"><span>Jul 2025</span><span>Sep 2026</span></div>
+
+<div style="margin-top:24px;font-size:11px;letter-spacing:.13em;color:#75798c;font-weight:600">RECENT</div>
+<div style="margin-top:8px">
+<sc-for list="{{ ledger }}" as="l" hint-placeholder-count="4">
+<div style="display:flex;justify-content:space-between;align-items:center;padding:13px 0;border-bottom:1px solid #23262f">
+<div><div style="font-size:15px;font-weight:500">{{ l.title }}</div><div style="font-size:12.5px;color:#75798c;margin-top:1px">{{ l.sub }}</div></div>
+<div style="font-size:15px;font-weight:500;color:#d2cefd">{{ l.amt }}</div>
+</div>
+</sc-for>
+</div>
+<button type="button" style="margin-top:16px;width:100%;padding:15px;border:1px solid #3f424d;border-radius:8px;background:transparent;color:#b2b6ca;font-size:14.5px;cursor:pointer" style-hover="border-color:#9184d9;color:#e9e9ed">Download statement (PDF)</button>
+</div>
+</sc-if>
+
+<sc-if value="{{ s_family }}" hint-placeholder-val="{{ false }}">
+<div style="height:100%;overflow-y:auto;padding:6px 22px 96px;animation:fadeUp .25s ease">
+<div style="font-size:22px;font-weight:500;letter-spacing:-.01em;padding-top:10px">Cover for your family</div>
+<div style="font-size:13.5px;line-height:1.5;color:#9397ab;margin-top:4px">Optional and paid by you, on top of the plan your employer runs.</div>
+<div style="display:flex;flex-direction:column;gap:9px;margin-top:16px">
+<sc-for list="{{ family }}" as="f" hint-placeholder-count="3">
+<div style="padding:15px;border:1px solid {{ f.bc }};border-radius:8px;background:{{ f.bg }}">
+<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+<div><div style="font-size:16px;font-weight:500">{{ f.name }}</div><div style="font-size:13px;color:#9397ab;margin-top:2px">{{ f.rel }}</div></div>
+<div style="text-align:right"><div style="font-size:16px;font-weight:500;color:#d2cefd">{{ f.cover }}</div><div style="font-size:12.5px;color:#75798c;margin-top:1px">{{ f.price }}</div></div>
+</div>
+<div style="font-size:12.5px;line-height:1.45;color:#75798c;margin-top:8px">{{ f.note }}</div>
+</div>
+</sc-for>
+<button type="button" style="padding:15px;border:1px dashed #5d5294;border-radius:8px;background:transparent;color:#d2cefd;font-size:15px;font-weight:500;cursor:pointer" style-hover="background:#2b2741">+ Add a family member</button>
+</div>
+<div style="margin-top:18px;padding:15px;border:1px solid #3f424d;border-radius:8px;background:#1c1f2e">
+<div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:14px;color:#9397ab">New monthly total</span><span style="font-size:22px;font-weight:500">₦4,300</span></div>
+<div style="font-size:12.5px;line-height:1.5;color:#75798c;margin-top:5px">₦2,500 employer plan + ₦1,800 family top-up, from your October payslip.</div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ s_hr }}" hint-placeholder-val="{{ false }}">
+<div style="height:100%;overflow-y:auto;padding:6px 22px 96px;animation:fadeUp .25s ease">
+<div style="display:flex;justify-content:space-between;align-items:center;padding-top:10px">
+<div><div style="font-size:11px;letter-spacing:.13em;color:#75798c;font-weight:600">HR / WELFARE OFFICER</div><div style="font-size:20px;font-weight:500;letter-spacing:-.01em">Fed. Min. of Education</div></div>
+<button type="button" onClick="{{ goHome }}" style="padding:7px 11px;border:1px solid #3f424d;border-radius:8px;background:transparent;color:#b2b6ca;font-size:12.5px;cursor:pointer" style-hover="border-color:#9184d9">Switch role</button>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:18px">
+<sc-for list="{{ hrStats }}" as="h" hint-placeholder-count="4">
+<div style="padding:14px;border:1px solid #3f424d;border-radius:8px;background:#1c1f2e">
+<div style="font-size:24px;font-weight:500;letter-spacing:-.02em;color:{{ h.fg }}">{{ h.v }}</div>
+<div style="font-size:12.5px;line-height:1.35;color:#9397ab;margin-top:3px">{{ h.k }}</div>
+</div>
+</sc-for>
+</div>
+
+<div style="margin-top:22px;font-size:11px;letter-spacing:.13em;color:#75798c;font-weight:600">NEEDS YOU THIS WEEK</div>
+<div style="margin-top:9px;display:flex;flex-direction:column;gap:9px">
+<sc-for list="{{ hrTasks }}" as="t" hint-placeholder-count="3">
+<button type="button" style="display:flex;justify-content:space-between;align-items:center;gap:12px;text-align:left;padding:15px;border:1px solid {{ t.bc }};border-radius:8px;background:#1c1f2e;cursor:pointer" style-hover="border-color:#9184d9">
+<span><span style="display:block;font-size:15.5px;font-weight:500">{{ t.title }}</span><span style="display:block;font-size:12.5px;color:#9397ab;margin-top:2px">{{ t.sub }}</span></span>
+<span style="font-size:15px;font-weight:500;color:#b5abfc">{{ t.count }}</span>
+</button>
+</sc-for>
+</div>
+
+<div style="margin-top:22px;font-size:11px;letter-spacing:.13em;color:#75798c;font-weight:600">PAYROLL RECONCILIATION · AUGUST</div>
+<div style="margin-top:9px;border:1px solid #3f424d;border-radius:8px;background:#1c1f2e;overflow:hidden">
+<sc-for list="{{ recon }}" as="r" hint-placeholder-count="4">
+<div style="display:flex;justify-content:space-between;gap:14px;padding:12px 15px"><span style="font-size:13.5px;color:#9397ab">{{ r.k }}</span><span style="font-size:14.5px;font-weight:500">{{ r.v }}</span></div>
+</sc-for>
+</div>
+<div style="margin-top:12px;font-size:12.5px;line-height:1.55;color:#75798c">The 31 unmatched deductions are the whole reason this screen exists — at a million members, a 0.1% mismatch is a thousand people who think they are covered and are not.</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ s_bene }}" hint-placeholder-val="{{ false }}">
+<div style="height:100%;display:flex;flex-direction:column;padding:6px 22px 22px;animation:fadeUp .25s ease">
+<button type="button" onClick="{{ goAuth }}" style="align-self:flex-start;background:transparent;border:0;color:#9397ab;font-size:14px;cursor:pointer;padding:8px 0" style-hover="color:#e9e9ed">← Back</button>
+<div style="font-size:25px;font-weight:500;letter-spacing:-.02em;margin-top:8px;text-wrap:balance">Claiming for someone who has died</div>
+<div style="font-size:14.5px;line-height:1.55;color:#9397ab;margin-top:8px">You do not need an account and you do not need their phone. We will check your name against the people they nominated.</div>
+
+<div style="margin-top:20px;display:flex;flex-direction:column;gap:14px">
+<div style="display:flex;flex-direction:column;gap:6px">
+<label style="font-size:12px;letter-spacing:.1em;color:#75798c;font-weight:600">THEIR CSP-ID OR SERVICE NUMBER</label>
+<div style="padding:15px;border:1px solid #5d5294;border-radius:8px;background:#1c1f2e;font-size:18px;font-weight:500;letter-spacing:.05em">4471-2098</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:6px">
+<label style="font-size:12px;letter-spacing:.1em;color:#75798c;font-weight:600">YOUR PHONE NUMBER</label>
+<div style="padding:15px;border:1px solid #3f424d;border-radius:8px;background:#1c1f2e;font-size:18px;color:#9397ab">0803 000 0000</div>
+</div>
+</div>
+
+<div style="margin-top:18px;padding:14px;border:1px solid #292b31;border-radius:8px;background:#1b1e2c;font-size:13.5px;line-height:1.55;color:#b2b6ca">Do not have the CSP-ID? Their HR officer or the welfare desk can look it up from their name and service number. Call <span style="color:#b5abfc">0700 277 7836</span>.</div>
+
+<div style="flex:1"></div>
+<button type="button" onClick="{{ goClaim }}" style="width:100%;padding:17px;border:1px solid #9184d9;border-radius:8px;background:transparent;color:#d2cefd;font-size:16px;font-weight:500;cursor:pointer" style-hover="background:#2b2741">Start the funeral claim</button>
+<div style="margin-top:11px;text-align:center;font-size:13px;line-height:1.5;color:#75798c">Funeral assistance targets 2–5 working days and is separate from the main death benefit.</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ s_more }}" hint-placeholder-val="{{ false }}">
+<div style="height:100%;overflow-y:auto;padding:6px 22px 96px;animation:fadeUp .25s ease">
+<div style="display:flex;align-items:center;gap:13px;padding-top:12px">
+<div style="width:48px;height:48px;border-radius:50%;border:1px solid #5d5294;background:#1f2133;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:500;color:#d2cefd">AO</div>
+<div><div style="font-size:18px;font-weight:500">Adaeze Okafor</div><div style="font-size:13px;color:#9397ab">CSP-ID 4471-2098 · Standard plan</div></div>
+</div>
+<div style="margin-top:20px;display:flex;flex-direction:column">
+<sc-for list="{{ moreItems }}" as="m" hint-placeholder-count="7">
+<button type="button" onClick="{{ m.go }}" style="display:flex;justify-content:space-between;align-items:center;gap:12px;text-align:left;padding:15px 2px;border:0;border-bottom:1px solid #23262f;background:transparent;cursor:pointer" style-hover="background:#1c1f2e">
+<span><span style="display:block;font-size:15.5px;font-weight:500;color:#e9e9ed">{{ m.title }}</span><span style="display:block;font-size:12.5px;color:#75798c;margin-top:2px">{{ m.sub }}</span></span>
+<span style="font-size:14px;color:#595d6c">›</span>
+</button>
+</sc-for>
+</div>
+<div style="margin-top:20px;font-size:12px;line-height:1.6;color:#595d6c">Civil Servant Protect Plan™ is a proposed supplementary protection programme. Benefits shown are illustrative and subject to actuarial, legal, regulatory and underwriting validation, and to the final policy wording issued by the licensed provider.</div>
+</div>
+</sc-if>
+
+</div>
+
+<sc-if value="{{ showTabs }}" hint-placeholder-val="{{ true }}">
+<div style="flex:none;position:absolute;left:0;right:0;bottom:0;display:flex;justify-content:space-around;gap:2px;padding:11px 12px 26px;background:linear-gradient(180deg,rgba(22,24,38,.6),#161826 45%);backdrop-filter:blur(12px);border-top:1px solid #23262f">
+<sc-for list="{{ tabs }}" as="t" hint-placeholder-count="5">
+<button type="button" onClick="{{ t.go }}" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;padding:4px 2px;border:0;background:transparent;cursor:pointer">
+<i class="{{ t.icon }}" style="font-size:22px;line-height:1;color:{{ t.color }}"></i>
+<span style="font-size:11px;font-weight:500;color:{{ t.color }}">{{ t.label }}</span>
+</button>
+</sc-for>
+</div>
+</sc-if>
+
+</div>
+
+<div style="display:flex;gap:8px;align-items:center">
+<button type="button" onClick="{{ toggleOffline }}" style="flex:1;padding:9px;border:1px solid #3f424d;border-radius:8px;background:transparent;color:#b2b6ca;font-size:12.5px;cursor:pointer" style-hover="border-color:#9184d9;color:#e9e9ed">{{ offlineLabel }}</button>
+<button type="button" onClick="{{ goSplash }}" style="flex:1;padding:9px;border:1px solid #3f424d;border-radius:8px;background:transparent;color:#b2b6ca;font-size:12.5px;cursor:pointer" style-hover="border-color:#9184d9;color:#e9e9ed">Restart from splash</button>
+</div>
+</div>
+
+<div style="flex:1;min-width:250px;max-width:330px;position:sticky;top:30px;display:flex;flex-direction:column;gap:16px">
+<div>
+<div style="font-size:11px;letter-spacing:.14em;color:#75798c;font-weight:600">ON THIS SCREEN</div>
+<div style="font-size:19px;font-weight:500;letter-spacing:-.01em;margin-top:3px">{{ noteTitle }}</div>
+<div style="font-size:13.5px;line-height:1.6;color:#9397ab;margin-top:7px">{{ noteBody }}</div>
+</div>
+<div style="height:1px;background:linear-gradient(90deg,transparent,#292b31 15%,#292b31 85%,transparent)"></div>
+<div style="display:flex;flex-direction:column;gap:11px">
+<div style="font-size:11px;letter-spacing:.14em;color:#75798c;font-weight:600">DECISIONS WORTH ARGUING WITH</div>
+<sc-for list="{{ decisions }}" as="d" hint-placeholder-count="4">
+<div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:13.5px;font-weight:500;color:#d2cefd">{{ d.t }}</span><span style="font-size:13px;line-height:1.55;color:#9397ab">{{ d.b }}</span></div>
+</sc-for>
+</div>
+</div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;offlineDefault&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Prototype&quot;},&quot;startScreen&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;splash&quot;,&quot;auth&quot;,&quot;home&quot;,&quot;track&quot;,&quot;hr&quot;,&quot;bene&quot;],&quot;default&quot;:&quot;home&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Prototype&quot;}}">
+const AC = "#9184d9", AC3 = "#d2cefd", AC4 = "#b5abfc", AC8 = "#423a6a", AC9 = "#2b2741";
+const BORD = "#3f424d", DIM = "#75798c", MUT = "#9397ab", TXT = "#e9e9ed", SURF = "#1c1f2e";
+
+const NAV = [
+  ["splash", "Splash + language", "AUTH"],
+  ["auth", "Sign in — choose", "AUTH"],
+  ["identify", "Identify", "AUTH"],
+  ["otp", "SMS code", "AUTH"],
+  ["pin", "Create PIN", "AUTH"],
+  ["biometric", "Fingerprint", "AUTH"],
+  ["lock", "Locked app", "AUTH"],
+  ["enrol", "Enrolment", "SETUP"],
+  ["enroldone", "Cover starts", "SETUP"],
+  ["home", "Home", "APP"],
+  ["id", "Protection card", "APP"],
+  ["benefits", "Cover + tiers", "APP"],
+  ["benes", "Who gets paid", "APP"],
+  ["accident", "Report accident", "CLAIM"],
+  ["claim", "Make a claim", "CLAIM"],
+  ["track", "Track claim", "CLAIM"],
+  ["contrib", "Contributions", "APP"],
+  ["family", "Family top-up", "APP"],
+  ["more", "Profile", "APP"],
+  ["hr", "HR officer", "ROLE"],
+  ["bene", "Beneficiary", "ROLE"]
+];
+
+const NOTES = {
+  splash: ["Language before anything", "Four languages is a promise about who this is for. Choosing one before sign-in means an officer in Kano never sees an English-only wall."],
+  auth: ["Three doors, one record", "Phone, IPPIS service number or email — people remember different things. The two doors below the line matter more: a grieving relative and an HR officer must never be forced through the member's login."],
+  identify: ["Device binding, stated plainly", "Tying the record to one phone is the main fraud control. It is explained in a sentence rather than buried in terms."],
+  otp: ["The failure state is the design", "Slow SMS is normal here, so the resend timer, the voice-call fallback and a legible lockout warning are on the screen, not behind a help link."],
+  pin: ["PIN before biometric", "Biometric can be skipped; the PIN cannot, because shared phones are common and the app holds a payout instruction."],
+  biometric: ["Opt-in, with a reason", "Says where the fingerprint is stored. Trust in a government benefit app is earned in sentences like that."],
+  lock: ["Re-entry, not sign-in", "Returning members meet six dots, not a form. Fingerprint is one tap away."],
+  enrol: ["Enrolment is three screens", "Confirm the payroll record, pick the cover, name the people. Anything else can wait until after cover starts."],
+  enroldone: ["The CSP-ID is the product", "It is handed over as the one thing to tell your family — the number a beneficiary will be asked for on the worst day."],
+  home: ["One number, two buttons", "The home screen answers 'what do I get' and 'what do I do now'. Everything else is one level down."],
+  id: ["Proof without a network", "The card renders from local storage and scans offline, because the moment it is needed is rarely the moment there is data."],
+  benefits: ["Schedule, then upgrade", "The full schedule reads as plain rows; tiers sit below it, honest that HR must approve the deduction."],
+  benes: ["The quiet failure mode", "Unnominated or stale beneficiaries are what turn a 20-day claim into a year-long dispute. Shares are visible, totals are enforced, re-confirmation is annual."],
+  accident: ["Big targets, saved locally", "Four questions, one per screen, each answerable one-handed at a roadside. Draft persists offline and self-sends."],
+  claim: ["Six steps, save as you go", "Documents are photographed, not scanned. The review step tells the truth about which money arrives first."],
+  track: ["The differentiator", "Time-stamped, non-editable stages with a named assessor. This — not the sum insured — is what a government buyer cannot get elsewhere."],
+  contrib: ["The trust artefact", "Fourteen of fourteen months, straight from payroll, exportable. Cheap to build, disproportionate to how the programme is believed."],
+  family: ["Voluntary and employee-funded", "Kept visually separate from the employer plan so the core programme stays affordable and the two are never confused."],
+  more: ["Where the disclaimer lives", "Pre-underwriting language sits here and on the benefit schedule, not on the home screen."],
+  hr: ["Administration is the sale", "Unmatched deductions, pending upgrades and stale nominations. At a million members a 0.1% mismatch is a thousand people wrongly believing they are covered."],
+  bene: ["No account, no phone", "For the largest benefit the member is dead. If a claim requires the member's login, the product has failed at its main job."]
+};
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = Object.assign({}, this.state, {
+      screen: props.startScreen || "home",
+      offline: props.offlineDefault || false
+    });
+  }
+  state = {
+    screen: "home", lang: "English", authMode: "phone",
+    otp: "", otpError: false, pin: "", enrolStep: 0, accStep: 0, clStep: 0,
+    tier: "Standard", accWho: "Me", accWhen: "Today", clType: "Death of the member",
+    offline: false, benes: 2
+  };
+
+  go = (s) => this.setState({ screen: s, otpError: false });
+
+  key(field, d) {
+    const cur = this.state[field] || "";
+    if (d === "del") return this.setState({ [field]: cur.slice(0, -1), otpError: false });
+    if (cur.length >= 6) return;
+    const next = cur + d;
+    this.setState({ [field]: next, otpError: false });
+    if (next.length === 6) {
+      setTimeout(() => {
+        if (field === "otp") this.setState({ screen: "pin", otp: "" });
+        else this.setState({ screen: this.state.screen === "lock" ? "home" : "biometric", pin: "" });
+      }, 260);
+    }
+  }
+
+  pad(field) {
+    return ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "⌫"].map(l => ({
+      label: l,
+      go: l === "" ? () => {} : () => this.key(field, l === "⌫" ? "del" : l)
+    }));
+  }
+
+  renderVals() {
+    const s = this.state, v = {};
+    NAV.forEach(([id]) => { v["s_" + id] = s.screen === id; });
+
+    v.navItems = NAV.map(([id, label, group]) => ({
+      label, group, go: () => this.go(id),
+      bg: s.screen === id ? "#232532" : "transparent",
+      fg: s.screen === id ? TXT : MUT,
+      fw: s.screen === id ? 500 : 400
+    }));
+
+    const n = NOTES[s.screen] || ["", ""];
+    v.noteTitle = n[0]; v.noteBody = n[1];
+    v.decisions = [
+      { t: "Payroll removes billing", b: "No failed payments, no lapse-and-reinstate. That room went into the contribution ledger instead." },
+      { t: "Mono palette, no red/green", b: "Nocturne carries one accent, so severity is weight and outline. If you want a true alert red, it has to be added to the system." },
+      { t: "Funeral money is a separate rail", b: "₦250k in 2–5 days, ahead of the ₦5m assessment, is the single most humane thing the programme can promise." },
+      { t: "Every figure is labelled illustrative", b: "The product is pre-underwriting; the UI should never imply a contractual promise it cannot keep." }
+    ];
+
+    v.lang = s.lang;
+    v.langs = ["English", "Hausa", "Yorùbá", "Igbo"].map(name => ({
+      name, go: () => this.setState({ lang: name }),
+      bc: s.lang === name ? AC : BORD, bg: s.lang === name ? AC9 : "transparent",
+      fg: s.lang === name ? AC3 : TXT
+    }));
+
+    const modes = [
+      ["phone", "My phone number", "The number on your payroll record"],
+      ["ippis", "My IPPIS service number", "The number on your payslip"],
+      ["email", "Email and password", "If you set one up already"]
+    ];
+    v.authModes = modes.map(([id, title, sub]) => ({
+      title, sub, go: () => this.setState({ authMode: id, screen: "identify" }),
+      bc: s.authMode === id ? AC : BORD, bg: s.authMode === id ? AC9 : SURF
+    }));
+
+    const ident = {
+      phone: ["What is your phone number?", "It must be the number on your payroll record. We send a code to it.", "PHONE NUMBER", "+234", "803 000 214", "Not the number on your payslip? Your HR officer can change it in a day."],
+      ippis: ["What is your service number?", "The IPPIS number printed at the top of your payslip.", "SERVICE NUMBER", "IPPIS", "3320114", "We will send the code to the phone number held on that record."],
+      email: ["What is your email address?", "Only if you already set a password. Most people use their phone number.", "EMAIL", "@", "a.okafor@edu.gov.ng", "Forgotten it? Sign in with your phone number instead."]
+    }[s.authMode];
+    v.identTitle = ident[0]; v.identHelp = ident[1]; v.identLabel = ident[2];
+    v.identPrefix = ident[3]; v.identValue = ident[4]; v.identNote = ident[5];
+
+    v.otpCells = Array.from({ length: 6 }, (_, i) => {
+      const filled = i < s.otp.length, active = i === s.otp.length;
+      return {
+        ch: filled ? s.otp[i] : "",
+        bc: s.otpError ? AC : (active ? AC : (filled ? "#5d5294" : "#292b31")),
+        bg: filled ? "#1f2133" : SURF
+      };
+    });
+    v.otpError = s.otpError; v.otpIdle = !s.otpError;
+    v.failOtp = () => this.setState({ otpError: true, otp: "" });
+    v.keys = this.pad("otp");
+    v.pinKeys = this.pad("pin");
+    v.lockKeys = this.pad("pin");
+    v.pinDots = Array.from({ length: 6 }, (_, i) => ({
+      bc: i < s.pin.length ? AC : "#3f424d",
+      bg: i < s.pin.length ? AC : "transparent"
+    }));
+    v.pinTitle = s.screen === "lock" ? "Enter your PIN" : "Create a 6-digit PIN";
+    v.pinHelp = "You will use this every time you open the app. Do not use your date of birth.";
+
+    const eb = [0, 1, 2].map(i => ({ bg: i <= s.enrolStep ? AC : "#292b31" }));
+    v.enrolBars = eb; v.enrolNo = s.enrolStep + 1;
+    v.e0 = s.enrolStep === 0; v.e1 = s.enrolStep === 1; v.e2 = s.enrolStep === 2;
+    v.enrolCta = ["Yes, this is me", "Choose " + s.tier, "Finish setting up"][s.enrolStep];
+    v.enrolNext = () => s.enrolStep < 2 ? this.setState({ enrolStep: s.enrolStep + 1 }) : this.go("enroldone");
+    v.enrolBack = () => s.enrolStep > 0 ? this.setState({ enrolStep: s.enrolStep - 1 }) : this.go("biometric");
+    v.record = [
+      { k: "Name", v: "Adaeze N. Okafor" },
+      { k: "Grade", v: "GL 12 · Principal Education Officer" },
+      { k: "MDA", v: "Fed. Ministry of Education" },
+      { k: "Date of birth", v: "04.11.1987" },
+      { k: "Monthly gross", v: "₦318,400" }
+    ];
+
+    const TIERS = [
+      ["Basic", "₦1,500", "₦3m life · ₦3m accident · ₦150k medical", "Lowest deduction"],
+      ["Standard", "₦2,500", "₦5m life · ₦5m accident · ₦250k medical · funeral + education", "Recommended for most people"],
+      ["Enhanced", "₦4,000", "₦10m life · ₦10m accident · ₦500k medical", "If you have young children"],
+      ["Executive", "₦6,000", "₦15m life · ₦15m accident · ₦1m medical", "Senior grades"]
+    ];
+    v.tier = s.tier;
+    v.tiers = TIERS.map(([name, price, detail, tagline]) => ({
+      name, price, detail, tagline, go: () => this.setState({ tier: name }),
+      bc: s.tier === name ? AC : BORD, bg: s.tier === name ? AC9 : SURF,
+      fg: s.tier === name ? AC3 : TXT
+    }));
+
+    const BENES = [
+      { name: "Chinedu Okafor", rel: "Spouse", phone: "0803 •• •• 214", share: "60%" },
+      { name: "Ngozi Okafor", rel: "Daughter, 14", phone: "guardian: C. Okafor", share: "40%" },
+      { name: "Emeka Okafor", rel: "Son, 9", phone: "guardian: C. Okafor", share: "0%" }
+    ];
+    v.benes = BENES.slice(0, s.benes);
+    v.addBene = () => this.setState({ benes: Math.min(3, s.benes + 1) });
+    v.shareTotal = s.benes === 3 ? "100%" : "100%";
+    v.shareNote = s.benes === 3 ? "Emeka is named but holds no share — set one before you confirm." : "Add a third person so one missing signature cannot hold up a payout.";
+
+    v.schedule = [
+      { k: "If you die", v: "₦5,000,000", note: "Paid to the people you named" },
+      { k: "If an accident kills you", v: "+₦5,000,000", note: "On top of the amount above" },
+      { k: "Permanent disability", v: "up to ₦5,000,000", note: "Scaled to the injury" },
+      { k: "Temporary disability", v: "₦50,000 / week", note: "Up to 12 weeks" },
+      { k: "Accident medical bills", v: "₦250,000", note: "Not a health plan" },
+      { k: "Funeral assistance", v: "₦250,000", note: "Fast — 2 to 5 working days" },
+      { k: "Children's education", v: "₦250,000", note: "After an eligible death" }
+    ];
+
+    const ACC = [
+      ["Who was hurt?", "Tap one. You can change it later.", ["Me", "My spouse", "My child"], "accWho"],
+      ["When did it happen?", "A rough answer is fine.", ["Today", "Yesterday", "Earlier this week"], "accWhen"],
+      ["Where did it happen?", "Cover runs 24 hours, at work or not.", ["On the road", "At work", "At home", "Somewhere else"], "accWhere"],
+      ["Is anyone in hospital now?", "This decides how fast we call you.", ["Yes, right now", "Was treated and discharged", "No hospital"], "accHosp"]
+    ];
+    const acc = ACC[s.accStep];
+    v.accNo = s.accStep + 1;
+    v.accBars = [0, 1, 2, 3].map(i => ({ bg: i <= s.accStep ? AC : "#292b31" }));
+    v.accQ = acc[0]; v.accHelp = acc[1];
+    v.accOptions = acc[2].map(label => {
+      const sel = s[acc[3]] === label;
+      return {
+        label, go: () => this.setState({ [acc[3]]: label }),
+        bc: sel ? AC : BORD, bg: sel ? AC9 : SURF,
+        dot: sel ? AC : "#595d6c", fill: sel ? AC : "transparent",
+        ring: sel ? "inset 0 0 0 3px #1f2133" : "none"
+      };
+    });
+    v.accCta = s.accStep < 3 ? "Next" : "Send report";
+    v.accNext = () => s.accStep < 3 ? this.setState({ accStep: s.accStep + 1 }) : this.setState({ screen: "track", accStep: 0 });
+    v.accBack = () => s.accStep > 0 ? this.setState({ accStep: s.accStep - 1 }) : this.go("home");
+
+    const CL = [
+      ["What has happened?", "This decides which papers we ask for.", [
+        ["Someone has died", "Life, funeral and education benefits"],
+        ["I was injured in an accident", "Medical bills and weekly payments"],
+        ["I cannot work any more", "Permanent disability"]
+      ]],
+      ["Who are you claiming for?", "You can claim for yourself or for a member who has died.", [
+        ["Myself", "CSP-ID 4471-2098"],
+        ["My spouse", "Covered under family top-up"],
+        ["A member who has died", "You will need their CSP-ID"]
+      ]]
+    ];
+    v.clNo = s.clStep + 1;
+    v.clBars = [0, 1, 2, 3, 4].map(i => ({ bg: i <= s.clStep ? AC : "#292b31" }));
+    v.clChoices = s.clStep < 2; v.clDocs = s.clStep === 2; v.clReview = s.clStep === 3; v.clDone = s.clStep === 4;
+    const clHeads = [
+      ["What has happened?", "This decides which papers we ask for."],
+      ["Who are you claiming for?", "You can claim for yourself or for a member who has died."],
+      ["Send us four papers", "Photograph each one. You can add the rest later."],
+      ["Check this is right", "Once you send it, the stages become time-stamped and cannot be changed."],
+      ["Your claim is in", "Reference CLM-2026-0091"]
+    ];
+    v.clQ = clHeads[s.clStep][0]; v.clHelp = clHeads[s.clStep][1];
+    v.clOptions = (CL[s.clStep] ? CL[s.clStep][2] : []).map(([label, sub]) => {
+      const sel = s.clType === label;
+      return {
+        label, sub, go: () => this.setState({ clType: label }),
+        bc: sel ? AC : BORD, bg: sel ? AC9 : SURF,
+        dot: sel ? AC : "#595d6c", fill: sel ? AC : "transparent"
+      };
+    });
+    v.docs = [
+      { name: "Death certificate", state: "Photographed 2 minutes ago", action: "Retake", bc: "#5d5294", fg: AC4 },
+      { name: "Your ID card", state: "Photographed 1 minute ago", action: "Retake", bc: "#5d5294", fg: AC4 },
+      { name: "Your bank details", state: "GTBank ••4471", action: "Change", bc: BORD, fg: MUT },
+      { name: "Police report", state: "Only if it was an accident", action: "Add", bc: "#292b31", fg: DIM }
+    ];
+    v.clSummary = [
+      { k: "Claim", v: "Death of the member" },
+      { k: "Member", v: "Adaeze Okafor · 4471-2098" },
+      { k: "Claimant", v: "Chinedu Okafor (spouse)" },
+      { k: "Papers", v: "3 of 4 sent" },
+      { k: "Paid to", v: "GTBank ••4471" }
+    ];
+    v.clCta = ["Next", "Next", "These are ready", "Send my claim", "Track this claim"][s.clStep];
+    v.clNext = () => s.clStep < 4 ? this.setState({ clStep: s.clStep + 1 }) : this.setState({ screen: "track", clStep: 0 });
+    v.clBack = () => s.clStep > 0 ? this.setState({ clStep: s.clStep - 1 }) : this.go("home");
+
+    v.stages = [
+      ["You told us", "Thursday 27 August, 10:14 · WhatsApp", "done"],
+      ["We received your papers", "Friday 28 August, 15:02", "done"],
+      ["We are checking them", "Started Saturday 29 August", "now"],
+      ["We say yes or no", "Expected around Wednesday 2 September", "todo"],
+      ["Money reaches your bank", "GTBank ending 4471", "todo"]
+    ].map(([title, when, st]) => ({
+      title, when,
+      size: st === "now" ? "15px" : "11px",
+      ring: st === "todo" ? "#3f424d" : AC,
+      fill: st === "done" ? AC : "transparent",
+      anim: st === "now" ? "pulseRing 1.8s ease-in-out infinite" : "none",
+      line: st === "todo" ? "#292b31" : "#5d5294",
+      fg: st === "todo" ? DIM : TXT
+    }));
+
+    v.months = Array.from({ length: 15 }, (_, i) => ({
+      bg: i < 14 ? "#5d5294" : "transparent",
+      border: i < 14 ? "0" : "1px dashed #3f424d"
+    }));
+    v.ledger = [
+      { title: "Payroll deduction", sub: "August 2026 · IPPIS", amt: "₦2,500" },
+      { title: "Payroll deduction", sub: "July 2026 · IPPIS", amt: "₦2,500" },
+      { title: "Payroll deduction", sub: "June 2026 · IPPIS", amt: "₦2,500" },
+      { title: "Payroll deduction", sub: "May 2026 · IPPIS", amt: "₦2,500" }
+    ];
+
+    v.family = [
+      { name: "Chinedu Okafor", rel: "Spouse", cover: "₦2,000,000", price: "₦1,200/mo", note: "Life cover only. Accident cover can be added.", bc: "#5d5294", bg: "#1f2133" },
+      { name: "Ngozi Okafor", rel: "Daughter, 14", cover: "₦500,000", price: "₦600/mo", note: "Includes ₦100,000 funeral support.", bc: "#5d5294", bg: "#1f2133" },
+      { name: "Emeka Okafor", rel: "Son, 9", cover: "Not covered", price: "from ₦600/mo", note: "Add him before the October payroll cut-off.", bc: BORD, bg: SURF }
+    ];
+
+    v.hrStats = [
+      { v: "8,412", k: "Employees enrolled", fg: TXT },
+      { v: "97.4%", k: "Deductions matched in August", fg: TXT },
+      { v: "31", k: "Deductions with no matching member", fg: AC3 },
+      { v: "6", k: "Open claims", fg: TXT }
+    ];
+    v.hrTasks = [
+      { title: "Approve plan upgrades", sub: "Starts from the next payroll run", count: "14", bc: "#5d5294" },
+      { title: "Members with no beneficiary", sub: "Chase before the annual confirmation", count: "203", bc: "#5d5294" },
+      { title: "New starters to enrol", sub: "Joined in the last 30 days", count: "37", bc: BORD }
+    ];
+    v.recon = [
+      { k: "Members on file", v: "8,412" },
+      { k: "Deductions received", v: "8,381" },
+      { k: "Unmatched deductions", v: "31" },
+      { k: "Total remitted", v: "₦20,952,500" }
+    ];
+
+    v.moreItems = [
+      { title: "My protection card", sub: "CSP-ID, offline proof", go: () => this.go("id") },
+      { title: "What I have paid", sub: "14 months · ₦35,000", go: () => this.go("contrib") },
+      { title: "Who gets paid", sub: "2 people named", go: () => this.go("benes") },
+      { title: "Language", sub: s.lang, go: () => this.go("splash") },
+      { title: "Lock the app", sub: "PIN and fingerprint", go: () => this.setState({ screen: "lock", pin: "" }) },
+      { title: "Switch to HR officer view", sub: "Fed. Ministry of Education", go: () => this.go("hr") },
+      { title: "Sign out", sub: "This phone stays trusted", go: () => this.go("auth") }
+    ];
+
+    const TABS = [["home", "Home", "house"], ["track", "Claims", "file-text"], ["id", "Card", "identification-card"], ["family", "Family", "users-three"], ["more", "More", "dots-three-circle"]];
+    v.tabs = TABS.map(([id, label, icon]) => ({
+      label, go: () => this.go(id),
+      icon: (s.screen === id ? "ph-fill" : "ph") + " ph-" + icon,
+      color: s.screen === id ? AC4 : "#595d6c"
+    }));
+    v.showTabs = ["home", "id", "benefits", "benes", "track", "contrib", "family", "more"].indexOf(s.screen) > -1;
+
+    v.offline = s.offline;
+    v.netLabel = s.offline ? "No network" : "MTN NG";
+    v.offlineLabel = s.offline ? "Go back online" : "Simulate no network";
+    v.toggleOffline = () => this.setState({ offline: !s.offline });
+
+    v.goAuth = () => this.go("auth"); v.goIdentify = () => this.go("identify");
+    v.goOtp = () => this.setState({ screen: "otp", otp: "", otpError: false });
+    v.goBiometric = () => this.go("biometric"); v.goEnrol = () => this.setState({ screen: "enrol", enrolStep: 0 });
+    v.goHome = () => this.go("home"); v.goSplash = () => this.go("splash");
+    v.goBenefits = () => this.go("benefits"); v.goBenes = () => this.go("benes");
+    v.goAccident = () => this.setState({ screen: "accident", accStep: 0 });
+    v.goClaim = () => this.setState({ screen: "claim", clStep: 0 });
+    v.goTrack = () => this.go("track"); v.goMore = () => this.go("more");
+    v.goHr = () => this.go("hr"); v.goBeneficiary = () => this.go("bene");
+    return v;
+  }
+}
+</script>
+</body>
+</html>

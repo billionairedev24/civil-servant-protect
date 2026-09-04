@@ -1,0 +1,1088 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"><link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css"><link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css"><script src="csp-i18n.js"></script><style>
+body{margin:0;background:#EDEBE4;color:#14181B;font-family:"Public Sans",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#046A38}a:hover{color:#03502A}
+button{font-family:inherit;-webkit-tap-highlight-color:transparent}
+button:focus-visible{outline:2px solid #046A38;outline-offset:2px}
+input,select,textarea{font-family:inherit}
+input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid #046A38;outline-offset:1px}
+::-webkit-scrollbar{width:0;height:0}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+</style></helmet>
+
+<div style="display:flex;gap:28px;padding:30px 34px 44px;align-items:flex-start;min-height:100vh">
+
+<div style="flex:none;width:206px;position:sticky;top:30px;display:flex;flex-direction:column;gap:13px">
+<div style="display:flex;flex-direction:column;gap:3px">
+<div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.12em;color:#046A38;font-weight:500">CIVIL SERVANT PROTECT</div>
+<div style="font-size:17px;font-weight:700;letter-spacing:-.02em">Member web</div>
+<div style="font-size:12px;line-height:1.5;color:#5C6560">The same twelve member jobs on a desk browser. Parity with the phone app, wider canvas, real paperwork.</div>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:7px;padding-top:11px;border-top:1px solid #DAD8CE">
+<div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:#8A928C">WHO PAYS THIS MEMBER</div>
+<div style="display:flex;flex-wrap:wrap;gap:5px">
+<sc-for list="{{ sponsorPicks }}" as="sp" hint-placeholder-count="4">
+<button type="button" onClick="{{ sp.go }}" style="display:flex;align-items:center;gap:5px;padding:5px 10px;border:1.5px solid {{ sp.bc }};border-radius:99px;background:{{ sp.bg }};color:{{ sp.fg }};font-size:12px;font-weight:{{ sp.fw }};cursor:pointer" style-hover="border-color:#046A38"><i class="{{ sp.icon }}" style="font-size:13px"></i>{{ sp.name }}</button>
+</sc-for>
+</div>
+<div style="font-family:'IBM Plex Mono',monospace;font-size:10px;line-height:1.5;color:#8A928C">{{ sponsorRail }}</div>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:7px;padding-top:11px;border-top:1px solid #DAD8CE">
+<div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:#8A928C">LANGUAGE</div>
+<div style="display:flex;flex-wrap:wrap;gap:5px">
+<sc-for list="{{ langPicks }}" as="l" hint-placeholder-count="5">
+<button type="button" onClick="{{ l.go }}" style="padding:5px 10px;border:1.5px solid {{ l.bc }};border-radius:99px;background:{{ l.bg }};color:{{ l.fg }};font-size:12px;font-weight:{{ l.fw }};cursor:pointer" style-hover="border-color:#046A38">{{ l.name }}</button>
+</sc-for>
+</div>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:9px;padding-top:11px;border-top:1px solid #DAD8CE">
+<sc-for list="{{ sideGroups }}" as="g" hint-placeholder-count="6">
+<div style="display:flex;flex-direction:column;gap:1px">
+<div style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.12em;color:#A9A69B;padding:0 9px 3px">{{ g.name }}</div>
+<sc-for list="{{ g.items }}" as="it" hint-placeholder-count="3">
+<button type="button" onClick="{{ it.go }}" style="display:flex;align-items:center;gap:8px;text-align:left;padding:6px 9px;border:0;border-radius:7px;background:{{ it.bg }};color:{{ it.fg }};font-size:12.5px;font-weight:{{ it.fw }};cursor:pointer" style-hover="background:#E3E1D8"><i class="{{ it.icon }}" style="font-size:14px;flex:none"></i>{{ it.label }}</button>
+</sc-for>
+</div>
+</sc-for>
+</div>
+
+<div style="padding-top:11px;border-top:1px solid #DAD8CE;font-size:11.5px;line-height:1.55;color:#8A928C">Phone app and sponsor console are separate surfaces in the combined shell — see <a href="Civil Servant Protect System.dc.html">the system file</a>.</div>
+</div>
+
+<div style="flex:none;display:flex;flex-direction:column;gap:11px">
+<div style="width:1180px;height:830px;background:#F7F6F2;border:1px solid #D5D2C7;border-radius:12px;box-shadow:0 24px 60px rgba(20,24,27,.22);overflow:hidden;display:flex;flex-direction:column">
+
+<div style="flex:none;display:flex;align-items:center;gap:8px;padding:0 14px;height:38px;background:#E7E5DE;border-bottom:1px solid #DAD8CE">
+<span style="width:10px;height:10px;border-radius:50%;background:#D2CFC4"></span>
+<span style="width:10px;height:10px;border-radius:50%;background:#D2CFC4"></span>
+<span style="width:10px;height:10px;border-radius:50%;background:#D2CFC4"></span>
+<div style="flex:1;display:flex;justify-content:center"><div style="display:flex;align-items:center;gap:7px;padding:4px 16px;border-radius:7px;background:#F7F6F2;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#8A928C"><i class="ph ph-lock-simple" style="font-size:11px;color:#046A38"></i>my.civilservantprotect.ng{{ urlPath }}</div></div>
+<div style="width:78px"></div>
+</div>
+
+<div style="flex:1;min-height:0;display:flex;flex-direction:column">
+
+<sc-if value="{{ chromeless }}" hint-placeholder-val="{{ false }}">
+<div style="flex:1;min-height:0;display:flex;overflow:hidden">
+<div style="flex:none;width:454px;background:#046A38;color:#F1F6F3;padding:44px 40px;display:flex;flex-direction:column">
+<div style="width:46px;height:46px;border-radius:13px;background:rgba(255,255,255,.14);display:flex;align-items:center;justify-content:center"><i class="ph-fill ph-shield-check" style="font-size:25px"></i></div>
+<div style="margin-top:26px;font-size:34px;line-height:1.14;font-weight:700;letter-spacing:-.03em">Civil Servant<br>Protect Plan</div>
+<div style="font-size:16px;line-height:1.55;color:rgba(241,246,243,.82);margin-top:12px">{{ t.tagline }}</div>
+<div style="flex:1"></div>
+<div style="display:flex;flex-direction:column;gap:10px;padding-top:22px;border-top:1px solid rgba(255,255,255,.18)">
+<sc-for list="{{ heroPoints }}" as="p" hint-placeholder-count="3">
+<div style="display:flex;gap:10px;align-items:flex-start"><i class="{{ p.icon }}" style="font-size:17px;margin-top:2px;color:rgba(241,246,243,.75)"></i><span style="font-size:13.5px;line-height:1.5;color:rgba(241,246,243,.9)">{{ p.text }}</span></div>
+</sc-for>
+</div>
+<div style="margin-top:18px;font-family:'IBM Plex Mono',monospace;font-size:10.5px;line-height:1.6;color:rgba(241,246,243,.6)">{{ t.ussd_note }}</div>
+</div>
+<div style="flex:1;min-width:0;overflow-y:auto;padding:44px 52px;background:#F7F6F2">
+
+<sc-if value="{{ s_signin }}" hint-placeholder-val="{{ true }}">
+<div data-screen-label="Web · Sign in" style="max-width:430px;animation:rise .25s ease">
+<div style="font-size:28px;font-weight:700;letter-spacing:-.025em">{{ t.signin_title }}</div>
+<div style="font-size:15px;line-height:1.55;color:#5C6560;margin-top:7px">{{ signinWebSub }}</div>
+
+<sc-if value="{{ otpStage }}" hint-placeholder-val="{{ false }}">
+<div style="margin-top:26px;display:flex;flex-direction:column;gap:9px">
+<div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.12em;color:#8A928C">{{ t.otp_title }}</div>
+<div style="display:flex;gap:8px">
+<sc-for list="{{ otpBoxes }}" as="b" hint-placeholder-count="6">
+<div style="width:52px;height:60px;border:1.5px solid {{ b.bc }};border-radius:10px;background:#FFFFFF;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:500">{{ b.ch }}</div>
+</sc-for>
+</div>
+<div style="font-size:13.5px;line-height:1.5;color:#5C6560">{{ t.otp_sub }} <span style="color:#14181B;font-weight:600">0803 •• •• 214</span> · <button type="button" onClick="{{ resetOtp }}" style="border:0;background:transparent;color:#046A38;font-size:13.5px;font-weight:600;cursor:pointer;padding:0">Change number</button></div>
+<div style="font-size:12.5px;line-height:1.5;color:#8A928C">{{ t.voice_fallback }}</div>
+</div>
+<div style="display:flex;gap:10px;margin-top:24px">
+<button type="button" onClick="{{ goHome }}" style="height:48px;padding:0 26px;border:0;border-radius:999px;background:#046A38;color:#F7F6F2;font-size:15.5px;font-weight:600;box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 8px 18px -10px rgba(4,106,56,.7);transition:background .15s,transform .12s;cursor:pointer" style-hover="background:#03502A" style-active="background:#023F21;transform:translateY(1px)">Verify and sign in</button>
+<button type="button" onClick="{{ fillOtp }}" style="height:48px;padding:0 20px;border:1.5px solid #D3D1C6;border-radius:999px;background:#FFFFFF;color:#14181B;font-size:15.5px;font-weight:600;cursor:pointer" style-hover="border-color:#046A38;background:#F2F6F3">Fill demo code</button>
+</div>
+</sc-if>
+
+<sc-if value="{{ phoneStage }}" hint-placeholder-val="{{ true }}">
+<div style="margin-top:26px;display:flex;flex-direction:column;gap:8px">
+<div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.12em;color:#8A928C">{{ t.phone_label }}</div>
+<div style="display:flex;align-items:center;gap:11px;padding:16px;border:1.5px solid #046A38;border-radius:10px;background:#FFFFFF">
+<span style="font-size:16px;color:#5C6560;font-weight:500">+234</span>
+<span style="font-family:'IBM Plex Mono',monospace;font-size:19px;font-weight:500">803 000 214</span>
+<span style="width:2px;height:22px;background:#046A38;animation:pulse 1.1s steps(1) infinite"></span>
+</div>
+<div style="font-size:12.5px;line-height:1.5;color:#8A928C">{{ t.phone_sub }}</div>
+</div>
+<button type="button" onClick="{{ toOtp }}" style="margin-top:22px;height:48px;padding:0 26px;border:0;border-radius:999px;background:#046A38;color:#F7F6F2;font-size:15.5px;font-weight:600;box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 8px 18px -10px rgba(4,106,56,.7);transition:background .15s,transform .12s;cursor:pointer" style-hover="background:#03502A" style-active="background:#023F21;transform:translateY(1px)">{{ t.send_code }}</button>
+<div style="display:flex;align-items:center;gap:12px;margin:26px 0 18px"><div style="flex:1;height:1px;background:#DAD8CE"></div><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#8A928C">{{ t.or }}</span><div style="flex:1;height:1px;background:#DAD8CE"></div></div>
+<div style="display:flex;flex-direction:column;gap:9px">
+<button type="button" onClick="{{ goEnrol }}" style="display:flex;align-items:center;justify-content:center;gap:11px;height:48px;border:1.5px solid #D3D1C6;border-radius:999px;background:#FFFFFF;color:#14181B;font-size:15.5px;font-weight:600;cursor:pointer" style-hover="border-color:#046A38;background:#F2F6F3"><i class="ph-fill ph-google-logo" style="font-size:18px;color:#046A38"></i>{{ t.google }}</button>
+<button type="button" onClick="{{ goBenePortal }}" style="display:flex;align-items:flex-start;gap:12px;text-align:left;padding:15px;border:1.5px solid #D7D5CC;border-radius:10px;background:#FFFFFF;cursor:pointer" style-hover="border-color:#046A38">
+<i class="ph ph-hand-heart" style="font-size:20px;color:#046A38;margin-top:1px"></i>
+<span><span style="display:block;font-size:15px;font-weight:600">{{ t.bene_title }}</span><span style="display:block;font-size:13px;line-height:1.45;color:#5C6560;margin-top:2px">{{ t.bene_sub }}</span></span>
+</button>
+</div>
+</sc-if>
+
+<div style="margin-top:26px;padding:13px 15px;border:1px dashed #C9C6BA;border-radius:9px;background:#FFFFFF">
+<div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:#8A928C">PHONE-ONLY, NOT ON WEB</div>
+<div style="font-size:13px;line-height:1.5;color:#5C6560;margin-top:5px">Fingerprint sign-in and the trusted-device shortcut stay on the phone. On a browser, every session is 6-digit SMS + a 20-minute idle timeout, because these machines are shared.</div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ s_enrol }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Web · Choose cover" style="max-width:560px;animation:rise .25s ease">
+<div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.12em;color:#8A928C">{{ t.step }} 2 / 3</div>
+<div style="font-size:28px;font-weight:700;letter-spacing:-.025em;margin-top:7px">{{ t.e1_title }}</div>
+<div style="font-size:15px;line-height:1.55;color:#5C6560;margin-top:6px">{{ enrolSub }}</div>
+<div style="display:flex;flex-direction:column;gap:9px;margin-top:22px">
+<sc-for list="{{ tierRows }}" as="tr" hint-placeholder-count="4">
+<button type="button" onClick="{{ tr.go }}" style="display:flex;align-items:flex-start;gap:13px;text-align:left;padding:16px;border:1.5px solid {{ tr.bc }};border-radius:11px;background:{{ tr.bg }};cursor:pointer" style-hover="border-color:#046A38">
+<span style="flex:none;width:19px;height:19px;border-radius:50%;border:2px solid {{ tr.dc }};background:{{ tr.df }};margin-top:2px"></span>
+<span style="flex:1;min-width:0">
+<span style="display:flex;justify-content:space-between;gap:12px;align-items:baseline"><span style="font-size:16.5px;font-weight:600">{{ tr.name }}</span><span style="font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:500;color:#046A38">{{ tr.price }}</span></span>
+<span style="display:block;font-size:13.5px;line-height:1.5;color:#5C6560;margin-top:4px">{{ tr.detail }}</span>
+</span>
+</button>
+</sc-for>
+</div>
+<div style="margin-top:16px;padding:14px 15px;border-radius:10px;background:#FFFFFF;border:1px solid #E2E1DA">
+<div style="display:flex;justify-content:space-between;gap:12px;font-size:14.5px"><span style="color:#5C6560">Deducted monthly</span><span style="font-family:'IBM Plex Mono',monospace;font-weight:500">{{ tierPrice }}</span></div>
+<div style="display:flex;justify-content:space-between;gap:12px;font-size:14.5px;margin-top:7px"><span style="color:#5C6560">Collected by</span><span style="font-weight:600">{{ sponsorShort }}</span></div>
+<div style="display:flex;justify-content:space-between;gap:12px;font-size:14.5px;margin-top:7px"><span style="color:#5C6560">First deduction</span><span style="font-weight:600">{{ firstDeduct }}</span></div>
+</div>
+<button type="button" onClick="{{ goHome }}" style="margin-top:20px;height:48px;padding:0 26px;border:0;border-radius:999px;background:#046A38;color:#F7F6F2;font-size:15.5px;font-weight:600;box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 8px 18px -10px rgba(4,106,56,.7);transition:background .15s,transform .12s;cursor:pointer" style-hover="background:#03502A" style-active="background:#023F21;transform:translateY(1px)">{{ t.continue }}</button>
+<div style="margin-top:12px;font-size:12.5px;line-height:1.5;color:#8A928C">{{ t.disclaimer }}</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ s_beneportal }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Web · Next-of-kin portal" style="max-width:470px;animation:rise .25s ease">
+<div style="font-size:28px;line-height:1.2;font-weight:700;letter-spacing:-.025em">{{ t.bene_page_title }}</div>
+<div style="font-size:15px;line-height:1.55;color:#5C6560;margin-top:8px">{{ t.bene_page_sub }}</div>
+<div style="display:flex;flex-direction:column;gap:14px;margin-top:24px">
+<div style="display:flex;flex-direction:column;gap:7px">
+<div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.12em;color:#8A928C">{{ t.their_id }}</div>
+<div style="padding:15px;border:1.5px solid #046A38;border-radius:10px;background:#FFFFFF;font-family:'IBM Plex Mono',monospace;font-size:17px;font-weight:500">CSP-114-88214</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:7px">
+<div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.12em;color:#8A928C">{{ t.your_number }}</div>
+<div style="padding:15px;border:1.5px solid #D3D1C6;border-radius:10px;background:#FFFFFF;font-family:'IBM Plex Mono',monospace;font-size:17px;font-weight:500;color:#5C6560">+234 806 •• •• 903</div>
+</div>
+</div>
+<button type="button" onClick="{{ goTrack }}" style="margin-top:20px;height:48px;padding:0 26px;border:0;border-radius:999px;background:#046A38;color:#F7F6F2;font-size:15.5px;font-weight:600;box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 8px 18px -10px rgba(4,106,56,.7);transition:background .15s,transform .12s;cursor:pointer" style-hover="background:#03502A" style-active="background:#023F21;transform:translateY(1px)">{{ t.start_funeral }}</button>
+<div style="margin-top:12px;font-size:13px;line-height:1.5;color:#5C6560">{{ t.funeral_target }}</div>
+<div style="margin-top:22px;padding:13px 15px;border-radius:9px;background:#FBF4E4;border:1px solid #E0CFA6">
+<div style="font-size:13px;line-height:1.55;color:#8A5A00">{{ t.no_id_note }}</div>
+</div>
+<div style="margin-top:16px;padding:13px 15px;border:1px dashed #C9C6BA;border-radius:9px;background:#FFFFFF">
+<div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:#8A928C">WEB-ONLY ADVANTAGE</div>
+<div style="font-size:13px;line-height:1.5;color:#5C6560;margin-top:5px">A next-of-kin is often helped by a relative with a laptop at a business centre. This page accepts scanned documents up to 10 MB each — the phone flow caps at camera photos.</div>
+</div>
+</div>
+</sc-if>
+
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ inApp }}" hint-placeholder-val="{{ true }}">
+<div style="flex:none;display:flex;align-items:center;gap:14px;padding:0 22px;height:54px;background:#FFFFFF;border-bottom:1px solid #E2E1DA">
+<div style="display:flex;align-items:center;gap:9px">
+<div style="width:26px;height:26px;border-radius:7px;background:#046A38;display:flex;align-items:center;justify-content:center"><i class="ph-fill ph-shield-check" style="font-size:15px;color:#F7F6F2"></i></div>
+<div style="font-size:14.5px;font-weight:700;letter-spacing:-.01em">Civil Servant Protect</div>
+</div>
+<div style="width:1px;height:22px;background:#E2E1DA"></div>
+<div style="font-size:13px;color:#5C6560">{{ screenTitle }}</div>
+<div style="flex:1"></div>
+<div style="display:flex;align-items:center;gap:6px;padding:5px 11px;border-radius:99px;background:#F1F6F3;border:1px solid #D8E6DE"><i class="{{ sponsorIcon }}" style="font-size:13px;color:#046A38"></i><span style="font-size:12px;font-weight:600;color:#03502A">{{ sponsorOrg }}</span></div>
+<div style="display:flex;align-items:center;gap:8px">
+<i class="ph ph-translate" style="font-size:16px;color:#5C6560"></i>
+<span style="font-size:12.5px;font-weight:600">{{ langName }}</span>
+</div>
+<div style="display:flex;align-items:center;gap:8px;padding-left:12px;border-left:1px solid #E2E1DA">
+<div style="width:28px;height:28px;border-radius:50%;background:#E3E1D8;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#5C6560">AO</div>
+<div style="display:flex;flex-direction:column"><span style="font-size:12.5px;font-weight:600;line-height:1.2">Adaeze Okafor</span><span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:#8A928C">CSP-114-88214</span></div>
+</div>
+</div>
+
+<div style="flex:1;min-height:0;display:flex">
+<div style="flex:none;width:218px;background:#FFFFFF;border-right:1px solid #E2E1DA;display:flex;flex-direction:column;padding:14px 12px;gap:11px">
+<sc-for list="{{ appGroups }}" as="g" hint-placeholder-count="5">
+<div style="display:flex;flex-direction:column;gap:2px">
+<div style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.12em;color:#A9A69B;padding:0 10px 4px">{{ g.name }}</div>
+<sc-for list="{{ g.items }}" as="it" hint-placeholder-count="3">
+<button type="button" onClick="{{ it.go }}" style="display:flex;align-items:center;gap:10px;text-align:left;padding:8px 10px;border:0;border-radius:8px;background:{{ it.bg }};color:{{ it.fg }};font-size:13.5px;font-weight:{{ it.fw }};cursor:pointer" style-hover="background:#F1F6F3"><i class="{{ it.icon }}" style="font-size:16px;flex:none;color:{{ it.ic }}"></i><span style="flex:1;min-width:0">{{ it.label }}</span><span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:#B4451F;font-weight:600">{{ it.badge }}</span></button>
+</sc-for>
+</div>
+</sc-for>
+<div style="flex:1"></div>
+<div style="padding:11px;border-radius:9px;background:#F1F6F3;border:1px solid #D8E6DE">
+<div style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.12em;color:#046A38">SESSION</div>
+<div style="font-size:11.5px;line-height:1.5;color:#03502A;margin-top:4px">Signs you out after 20 minutes idle. Built for shared machines.</div>
+</div>
+</div>
+
+<div style="flex:1;min-width:0;overflow-y:auto;padding:26px 30px 40px;background:#F7F6F2">
+
+<sc-if value="{{ s_home }}" hint-placeholder-val="{{ true }}">
+<div data-screen-label="Web · Dashboard" style="max-width:830px;animation:rise .25s ease">
+<div style="display:flex;justify-content:space-between;align-items:flex-end;gap:20px">
+<div>
+<div style="font-size:24px;font-weight:700;letter-spacing:-.02em">{{ t.greeting }}, Adaeze</div>
+<div style="font-size:14px;color:#5C6560;margin-top:4px">{{ coverSince }}</div>
+</div>
+<button type="button" onClick="{{ goClaim }}" style="height:42px;padding:0 20px;border:1.5px solid #B4451F;border-radius:999px;background:#FFFFFF;color:#B4451F;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px" style-hover="background:#FBF0EB"><i class="ph ph-first-aid-kit" style="font-size:16px"></i>{{ t.make_claim }}</button>
+</div>
+
+<sc-if value="{{ attention }}" hint-placeholder-val="{{ true }}">
+<div style="margin-top:18px;display:flex;align-items:center;gap:14px;padding:15px 17px;border-radius:11px;background:#FBF4E4;border:1px solid #E0CFA6">
+<i class="ph-fill ph-warning-circle" style="font-size:22px;color:#8A5A00;flex:none"></i>
+<div style="flex:1;min-width:0">
+<div style="font-size:15px;font-weight:600;color:#6E4800">{{ attnTitle }}</div>
+<div style="font-size:13.5px;line-height:1.45;color:#8A5A00;margin-top:2px">{{ attnBody }}</div>
+</div>
+<button type="button" onClick="{{ attnGo }}" style="flex:none;height:38px;padding:0 17px;border:0;border-radius:999px;background:#8A5A00;color:#FBF4E4;font-size:13.5px;font-weight:600;cursor:pointer" style-hover="background:#6E4800">{{ attnCta }}</button>
+</div>
+</sc-if>
+
+<div style="display:grid;grid-template-columns:1.35fr 1fr;gap:14px;margin-top:16px">
+<div style="padding:22px;border-radius:13px;background:#046A38;color:#F1F6F3">
+<div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:rgba(241,246,243,.7)">{{ t.if_you_die }}</div>
+<div style="font-size:40px;font-weight:700;letter-spacing:-.03em;margin-top:8px">₦5,000,000</div>
+<div style="font-size:13.5px;line-height:1.5;color:rgba(241,246,243,.82);margin-top:6px">{{ t.paid_to }} Chinedu, Ngozi and Amaka Okafor. {{ t.accident_amount }} ₦10,000,000.</div>
+<button type="button" onClick="{{ goBenefits }}" style="margin-top:16px;height:38px;padding:0 16px;border:1.5px solid rgba(255,255,255,.45);border-radius:999px;background:transparent;color:#F1F6F3;font-size:13.5px;font-weight:600;cursor:pointer" style-hover="background:rgba(255,255,255,.12)">{{ t.see_cover }}</button>
+</div>
+<div style="padding:20px;border-radius:13px;background:#FFFFFF;border:1px solid #E2E1DA;display:flex;flex-direction:column">
+<div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:#8A928C">{{ payHeading }}</div>
+<div style="display:flex;align-items:center;gap:9px;margin-top:9px">
+<span style="width:9px;height:9px;border-radius:50%;background:{{ payDot }}"></span>
+<span style="font-size:17px;font-weight:600">{{ payState }}</span>
+</div>
+<div style="font-size:13.5px;line-height:1.5;color:#5C6560;margin-top:7px">{{ payBody }}</div>
+<div style="flex:1"></div>
+<div style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;line-height:1.5;color:#8A928C;margin-top:14px;padding-top:12px;border-top:1px solid #EFEEE8">{{ sponsorRail }}</div>
+</div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px">
+<div style="padding:19px;border-radius:12px;background:#FFFFFF;border:1px solid #E2E1DA">
+<div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px">
+<div style="font-size:15.5px;font-weight:600">{{ t.paid_title }}</div>
+<button type="button" onClick="{{ goContrib }}" style="border:0;background:transparent;color:#046A38;font-size:13px;font-weight:600;cursor:pointer;padding:0" style-hover="color:#03502A">All</button>
+</div>
+<div style="font-family:'IBM Plex Mono',monospace;font-size:26px;font-weight:500;margin-top:8px">₦35,000</div>
+<div style="font-size:13px;color:#8A928C">{{ t.across_months }}</div>
+<div style="display:flex;flex-direction:column;gap:1px;margin-top:12px">
+<sc-for list="{{ ledgerMini }}" as="r" hint-placeholder-count="3">
+<div style="display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid #EFEEE8">
+<span style="font-size:13.5px">{{ r.month }}</span>
+<span style="display:flex;gap:10px;align-items:center"><span style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#5C6560">{{ r.amount }}</span><span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:600;color:{{ r.sc }}">{{ r.status }}</span></span>
+</div>
+</sc-for>
+</div>
+</div>
+<div style="padding:19px;border-radius:12px;background:#FFFFFF;border:1px solid #E2E1DA;display:flex;flex-direction:column">
+<div style="font-size:15.5px;font-weight:600">{{ t.claim_status }}</div>
+<div style="font-size:13.5px;line-height:1.5;color:#5C6560;margin-top:5px">{{ t.claim_status_sub }}</div>
+<div style="display:flex;flex-direction:column;gap:9px;margin-top:14px">
+<sc-for list="{{ stagesMini }}" as="st" hint-placeholder-count="3">
+<div style="display:flex;gap:10px;align-items:center">
+<i class="{{ st.icon }}" style="font-size:16px;color:{{ st.color }};flex:none"></i>
+<span style="flex:1;min-width:0;font-size:13.5px;font-weight:{{ st.fw }};color:{{ st.tc }}">{{ st.title }}</span>
+<span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:#A9A69B">{{ st.when }}</span>
+</div>
+</sc-for>
+</div>
+<div style="flex:1"></div>
+<button type="button" onClick="{{ goTrack }}" style="margin-top:14px;align-self:flex-start;height:38px;padding:0 17px;border:1.5px solid #D3D1C6;border-radius:999px;background:#FFFFFF;color:#14181B;font-size:13.5px;font-weight:600;cursor:pointer" style-hover="border-color:#046A38;background:#F1F6F3">Open claim</button>
+</div>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px">
+<sc-for list="{{ quickActions }}" as="q" hint-placeholder-count="4">
+<button type="button" onClick="{{ q.go }}" style="display:flex;flex-direction:column;gap:7px;text-align:left;padding:15px;border:1px solid #E2E1DA;border-radius:11px;background:#FFFFFF;cursor:pointer" style-hover="border-color:#046A38;background:#F1F6F3">
+<i class="{{ q.icon }}" style="font-size:19px;color:#046A38"></i>
+<span style="font-size:13.5px;font-weight:600;line-height:1.3">{{ q.label }}</span>
+<span style="font-size:11.5px;line-height:1.4;color:#8A928C">{{ q.sub }}</span>
+</button>
+</sc-for>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ s_benefits }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Web · Cover detail" style="max-width:830px;animation:rise .25s ease">
+<div style="font-size:24px;font-weight:700;letter-spacing:-.02em">{{ t.cover_title }}</div>
+<div style="font-size:14px;color:#5C6560;margin-top:4px">{{ coverSubWeb }}</div>
+
+<div style="margin-top:18px;border-radius:12px;background:#FFFFFF;border:1px solid #E2E1DA;overflow:hidden">
+<div style="display:grid;grid-template-columns:1.6fr repeat(4,1fr);background:#F1F6F3;border-bottom:1px solid #DDE9E2">
+<div style="padding:11px 16px;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.1em;color:#046A38">BENEFIT</div>
+<sc-for list="{{ tierHeads }}" as="th" hint-placeholder-count="4">
+<div style="padding:11px 12px;text-align:right"><span style="display:block;font-size:12.5px;font-weight:{{ th.fw }};color:{{ th.fg }}">{{ th.name }}</span><span style="display:block;font-family:'IBM Plex Mono',monospace;font-size:10px;color:#8A928C;margin-top:1px">{{ th.price }}</span></div>
+</sc-for>
+</div>
+<sc-for list="{{ schedRows }}" as="row" hint-placeholder-count="7">
+<div style="display:grid;grid-template-columns:1.6fr repeat(4,1fr);border-top:1px solid #EFEEE8;background:{{ row.bg }}">
+<div style="padding:12px 16px;font-size:14px;font-weight:500">{{ row.label }}</div>
+<sc-for list="{{ row.cells }}" as="c" hint-placeholder-count="4">
+<div style="padding:12px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-weight:{{ c.fw }};color:{{ c.fg }}">{{ c.v }}</div>
+</sc-for>
+</div>
+</sc-for>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px">
+<div style="padding:18px;border-radius:12px;background:#FFFFFF;border:1px solid #E2E1DA">
+<div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:#8A928C">{{ t.change_plan }}</div>
+<div style="display:flex;flex-direction:column;gap:8px;margin-top:11px">
+<sc-for list="{{ upgradeRows }}" as="u" hint-placeholder-count="3">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 13px;border:1px solid #E2E1DA;border-radius:9px">
+<span><span style="display:block;font-size:14.5px;font-weight:600">{{ u.name }}</span><span style="display:block;font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:#5C6560;margin-top:1px">{{ u.price }}</span></span>
+<button type="button" style="height:34px;padding:0 14px;border:1.5px solid #D3D1C6;border-radius:999px;background:#FFFFFF;color:#14181B;font-size:12.5px;font-weight:600;cursor:pointer" style-hover="border-color:#046A38;background:#F1F6F3">{{ u.cta }}</button>
+</div>
+</sc-for>
+</div>
+<div style="font-size:12.5px;line-height:1.5;color:#8A928C;margin-top:11px">{{ planNoteWeb }}</div>
+</div>
+<div style="padding:18px;border-radius:12px;background:#FFFFFF;border:1px solid #E2E1DA">
+<div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:#8A928C">WEB-ONLY</div>
+<div style="display:flex;flex-direction:column;gap:9px;margin-top:11px">
+<sc-for list="{{ webOnlyCover }}" as="w" hint-placeholder-count="3">
+<div style="display:flex;gap:10px;align-items:flex-start"><i class="{{ w.icon }}" style="font-size:17px;color:#046A38;margin-top:1px"></i><span><span style="display:block;font-size:14px;font-weight:600">{{ w.title }}</span><span style="display:block;font-size:12.5px;line-height:1.45;color:#5C6560;margin-top:1px">{{ w.body }}</span></span></div>
+</sc-for>
+</div>
+<div style="margin-top:13px;padding-top:11px;border-top:1px solid #EFEEE8;font-size:12px;line-height:1.5;color:#8A928C">{{ t.disclaimer }}</div>
+</div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ s_card }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Web · Protection card" style="max-width:830px;animation:rise .25s ease">
+<div style="font-size:24px;font-weight:700;letter-spacing:-.02em">{{ t.card_title }}</div>
+<div style="font-size:14px;color:#5C6560;margin-top:4px">{{ cardSubWeb }}</div>
+<div style="display:grid;grid-template-columns:1.15fr 1fr;gap:16px;margin-top:18px;align-items:start">
+<div style="padding:24px;border-radius:14px;background:#14181B;color:#F7F6F2">
+<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px">
+<div>
+<div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.13em;color:rgba(247,246,242,.55)">CIVIL SERVANT PROTECT</div>
+<div style="font-size:21px;font-weight:700;letter-spacing:-.02em;margin-top:9px">Adaeze N. Okafor</div>
+<div style="font-size:13px;color:rgba(247,246,242,.7);margin-top:2px">{{ sponsorOrg }} · GL 12</div>
+</div>
+<div style="width:74px;height:74px;border-radius:9px;background:#F7F6F2;display:flex;align-items:center;justify-content:center;flex:none"><i class="ph ph-qr-code" style="font-size:52px;color:#14181B"></i></div>
+</div>
+<div style="display:flex;gap:26px;margin-top:22px;padding-top:16px;border-top:1px solid rgba(247,246,242,.16)">
+<div><div style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.12em;color:rgba(247,246,242,.5)">{{ t.csp_id }}</div><div style="font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:500;margin-top:3px">CSP-114-88214</div></div>
+<div><div style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.12em;color:rgba(247,246,242,.5)">{{ t.in_force }}</div><div style="font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:500;margin-top:3px">01.10.2025</div></div>
+<div><div style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.12em;color:rgba(247,246,242,.5)">TIER</div><div style="font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:500;margin-top:3px">{{ tierName }}</div></div>
+</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:12px">
+<div style="padding:18px;border-radius:12px;background:#FFFFFF;border:1px solid #E2E1DA">
+<div style="font-size:15.5px;font-weight:600">Print or save</div>
+<div style="font-size:13px;line-height:1.5;color:#5C6560;margin-top:4px">{{ t.scan_note }}</div>
+<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:13px">
+<sc-for list="{{ cardActions }}" as="a" hint-placeholder-count="3">
+<button type="button" style="display:flex;align-items:center;gap:7px;height:38px;padding:0 15px;border:1.5px solid {{ a.bc }};border-radius:999px;background:{{ a.bg }};color:{{ a.fg }};font-size:13px;font-weight:600;cursor:pointer" style-hover="border-color:#046A38"><i class="{{ a.icon }}" style="font-size:15px"></i>{{ a.label }}</button>
+</sc-for>
+</div>
+<div style="margin-top:12px;padding-top:11px;border-top:1px solid #EFEEE8;font-size:12px;line-height:1.5;color:#8A928C">Printed at A4, one card per sheet, with the QR at 30 mm so a hospital scanner reads it from paper.</div>
+</div>
+<div style="padding:16px;border:1px dashed #C9C6BA;border-radius:11px;background:#FFFFFF">
+<div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:#8A928C">PHONE-ONLY, NOT ON WEB</div>
+<div style="font-size:13px;line-height:1.5;color:#5C6560;margin-top:5px">The offline card lives in the phone app — it is cached on the device and opens with no network. A browser cannot be relied on for that, so web offers print and PDF instead.</div>
+</div>
+</div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ s_family }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Web · Family cover" style="max-width:830px;animation:rise .25s ease">
+<div style="font-size:24px;font-weight:700;letter-spacing:-.02em">{{ t.fam_title }}</div>
+<div style="font-size:14px;color:#5C6560;margin-top:4px">{{ t.fam_sub }}</div>
+<div style="margin-top:18px;border-radius:12px;background:#FFFFFF;border:1px solid #E2E1DA;overflow:hidden">
+<div style="display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr 96px;background:#F1F6F3;border-bottom:1px solid #DDE9E2">
+<sc-for list="{{ famHead }}" as="h" hint-placeholder-count="5">
+<div style="padding:11px 16px;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.1em;color:#046A38;text-align:{{ h.al }}">{{ h.label }}</div>
+</sc-for>
+</div>
+<sc-for list="{{ famRows }}" as="f" hint-placeholder-count="3">
+<div style="display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr 96px;border-top:1px solid #EFEEE8;align-items:center">
+<div style="padding:13px 16px"><span style="display:block;font-size:14.5px;font-weight:600">{{ f.name }}</span><span style="display:block;font-size:12px;color:#8A928C">{{ f.dob }}</span></div>
+<div style="padding:13px 16px;font-size:13.5px;color:#5C6560">{{ f.rel }}</div>
+<div style="padding:13px 16px;font-size:13.5px;text-align:right;font-family:'IBM Plex Mono',monospace">{{ f.sum }}</div>
+<div style="padding:13px 16px;font-size:13.5px;text-align:right;font-family:'IBM Plex Mono',monospace">{{ f.price }}</div>
+<div style="padding:13px 16px;text-align:right"><button type="button" style="border:0;background:transparent;color:#046A38;font-size:13px;font-weight:600;cursor:pointer;padding:0" style-hover="color:#03502A">Remove</button></div>
+</div>
+</sc-for>
+</div>
+<div style="display:flex;justify-content:space-between;align-items:center;gap:16px;margin-top:14px;padding:17px 19px;border-radius:12px;background:#FFFFFF;border:1px solid #E2E1DA">
+<div>
+<div style="font-size:15.5px;font-weight:600">{{ t.new_total }}</div>
+<div style="font-size:13px;line-height:1.5;color:#5C6560;margin-top:3px">{{ famTotalNote }}</div>
+</div>
+<div style="font-family:'IBM Plex Mono',monospace;font-size:26px;font-weight:500">{{ famTotal }}</div>
+</div>
+<div style="display:flex;gap:10px;margin-top:14px">
+<button type="button" style="display:flex;align-items:center;gap:8px;height:44px;padding:0 20px;border:0;border-radius:999px;background:#046A38;color:#F7F6F2;font-size:15px;font-weight:600;box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 8px 18px -10px rgba(4,106,56,.7);transition:background .15s,transform .12s;cursor:pointer" style-hover="background:#03502A" style-active="background:#023F21;transform:translateY(1px)"><i class="ph ph-user-plus" style="font-size:17px"></i>{{ t.add_family }}</button>
+<button type="button" style="height:44px;padding:0 20px;border:1.5px solid #D3D1C6;border-radius:999px;background:#FFFFFF;color:#14181B;font-size:15px;font-weight:600;cursor:pointer" style-hover="border-color:#046A38;background:#F1F6F3">Upload birth certificates</button>
+</div>
+<div style="margin-top:14px;padding:14px 16px;border-radius:10px;background:#FBF4E4;border:1px solid #E0CFA6;font-size:13px;line-height:1.55;color:#8A5A00">{{ famRailNote }}</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ s_contrib }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Web · Contributions" style="max-width:830px;animation:rise .25s ease">
+<div style="display:flex;justify-content:space-between;align-items:flex-end;gap:20px">
+<div>
+<div style="font-size:24px;font-weight:700;letter-spacing:-.02em">{{ t.paid_title }}</div>
+<div style="font-size:14px;color:#5C6560;margin-top:4px">{{ t.paid_sub }}</div>
+</div>
+<button type="button" style="display:flex;align-items:center;gap:8px;height:42px;padding:0 18px;border:1.5px solid #D3D1C6;border-radius:999px;background:#FFFFFF;color:#14181B;font-size:14px;font-weight:600;cursor:pointer" style-hover="border-color:#046A38;background:#F1F6F3"><i class="ph ph-download-simple" style="font-size:16px;color:#046A38"></i>{{ t.download }}</button>
+</div>
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px">
+<sc-for list="{{ contribStats }}" as="c" hint-placeholder-count="3">
+<div style="padding:17px;border-radius:12px;background:#FFFFFF;border:1px solid #E2E1DA">
+<div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:#8A928C">{{ c.label }}</div>
+<div style="font-family:'IBM Plex Mono',monospace;font-size:23px;font-weight:500;margin-top:6px;color:{{ c.fg }}">{{ c.value }}</div>
+<div style="font-size:12.5px;line-height:1.45;color:#8A928C;margin-top:3px">{{ c.sub }}</div>
+</div>
+</sc-for>
+</div>
+<div style="display:flex;gap:6px;margin-top:16px;flex-wrap:wrap">
+<sc-for list="{{ contribFilters }}" as="f" hint-placeholder-count="4">
+<button type="button" onClick="{{ f.go }}" style="display:flex;align-items:center;gap:6px;padding:6px 13px;border:1.5px solid {{ f.bc }};border-radius:99px;background:{{ f.bg }};color:{{ f.fg }};font-size:12.5px;font-weight:{{ f.fw }};cursor:pointer" style-hover="border-color:#046A38">{{ f.label }}<span style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:#8A928C">{{ f.n }}</span></button>
+</sc-for>
+</div>
+<div style="margin-top:12px;border-radius:12px;background:#FFFFFF;border:1px solid #E2E1DA;overflow:hidden">
+<div style="display:grid;grid-template-columns:1fr 1.5fr 1.2fr .9fr 1fr;background:#F1F6F3;border-bottom:1px solid #DDE9E2">
+<sc-for list="{{ ledgerHead }}" as="h" hint-placeholder-count="5">
+<div style="padding:11px 16px;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.1em;color:#046A38;text-align:{{ h.al }}">{{ h.label }}</div>
+</sc-for>
+</div>
+<sc-for list="{{ ledgerRows }}" as="r" hint-placeholder-count="8">
+<div style="display:grid;grid-template-columns:1fr 1.5fr 1.2fr .9fr 1fr;border-top:1px solid #EFEEE8;align-items:center">
+<div style="padding:12px 16px;font-size:14px;font-weight:600">{{ r.month }}</div>
+<div style="padding:12px 16px;font-size:13.5px;color:#5C6560">{{ r.source }}</div>
+<div style="padding:12px 16px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:#8A928C">{{ r.ref }}</div>
+<div style="padding:12px 16px;font-family:'IBM Plex Mono',monospace;font-size:13.5px;text-align:right">{{ r.amount }}</div>
+<div style="padding:12px 16px;text-align:right"><span style="display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:99px;background:{{ r.pillBg }};color:{{ r.pillFg }};font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600">{{ r.status }}</span></div>
+</div>
+</sc-for>
+</div>
+<div style="margin-top:14px;padding:15px 17px;border-radius:11px;background:#FFFFFF;border:1px solid #E2E1DA">
+<div style="font-size:14.5px;font-weight:600">{{ gapTitle }}</div>
+<div style="font-size:13px;line-height:1.55;color:#5C6560;margin-top:4px">{{ gapBody }}</div>
+<button type="button" onClick="{{ goWhy }}" style="margin-top:11px;height:38px;padding:0 16px;border:1.5px solid #D3D1C6;border-radius:999px;background:#FFFFFF;color:#14181B;font-size:13.5px;font-weight:600;cursor:pointer" style-hover="border-color:#046A38;background:#F1F6F3">Ask my sponsor about this month</button>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ s_benes }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Web · Beneficiaries" style="max-width:830px;animation:rise .25s ease">
+<div style="font-size:24px;font-weight:700;letter-spacing:-.02em">{{ t.benes_title }}</div>
+<div style="font-size:14px;line-height:1.5;color:#5C6560;margin-top:4px;max-width:600px">{{ t.benes_sub }}</div>
+<div style="margin-top:18px;border-radius:12px;background:#FFFFFF;border:1px solid #E2E1DA;overflow:hidden">
+<div style="display:grid;grid-template-columns:1.4fr .9fr 1.1fr 1fr 88px;background:#F1F6F3;border-bottom:1px solid #DDE9E2">
+<sc-for list="{{ beneHead }}" as="h" hint-placeholder-count="5">
+<div style="padding:11px 16px;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.1em;color:#046A38;text-align:{{ h.al }}">{{ h.label }}</div>
+</sc-for>
+</div>
+<sc-for list="{{ beneRows }}" as="b" hint-placeholder-count="3">
+<div style="display:grid;grid-template-columns:1.4fr .9fr 1.1fr 1fr 88px;border-top:1px solid #EFEEE8;align-items:center">
+<div style="padding:13px 16px"><span style="display:block;font-size:14.5px;font-weight:600">{{ b.name }}</span><span style="display:block;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#8A928C;margin-top:1px">{{ b.id }}</span></div>
+<div style="padding:13px 16px;font-size:13.5px;color:#5C6560">{{ b.rel }}</div>
+<div style="padding:13px 16px;font-family:'IBM Plex Mono',monospace;font-size:13px;color:#5C6560">{{ b.phone }}</div>
+<div style="padding:13px 16px;text-align:right"><span style="font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:500">{{ b.share }}</span></div>
+<div style="padding:13px 16px;text-align:right"><button type="button" style="border:0;background:transparent;color:#046A38;font-size:13px;font-weight:600;cursor:pointer;padding:0" style-hover="color:#03502A">Edit</button></div>
+</div>
+</sc-for>
+<div style="display:grid;grid-template-columns:1.4fr .9fr 1.1fr 1fr 88px;border-top:1.5px solid #DDE9E2;background:{{ shareBg }};align-items:center">
+<div style="padding:12px 16px;font-size:13.5px;font-weight:600;color:{{ shareFg }};grid-column:span 3">{{ t.shares_title }}</div>
+<div style="padding:12px 16px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:600;color:{{ shareFg }}">{{ shareTotal }}</div>
+<div style="padding:12px 16px;text-align:right"><i class="{{ shareIcon }}" style="font-size:17px;color:{{ shareFg }}"></i></div>
+</div>
+</div>
+<div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
+<button type="button" style="display:flex;align-items:center;gap:8px;height:44px;padding:0 20px;border:1.5px solid #D3D1C6;border-radius:999px;background:#FFFFFF;color:#14181B;font-size:15px;font-weight:600;cursor:pointer" style-hover="border-color:#046A38;background:#F1F6F3"><i class="ph ph-user-plus" style="font-size:17px;color:#046A38"></i>{{ t.add_person }}</button>
+<button type="button" onClick="{{ goHome }}" style="height:44px;padding:0 22px;border:0;border-radius:999px;background:#046A38;color:#F7F6F2;font-size:15px;font-weight:600;box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 8px 18px -10px rgba(4,106,56,.7);transition:background .15s,transform .12s;cursor:pointer" style-hover="background:#03502A" style-active="background:#023F21;transform:translateY(1px)">{{ t.confirm_correct }}</button>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px">
+<div style="padding:16px;border-radius:11px;background:#FFFFFF;border:1px solid #E2E1DA">
+<div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:#8A928C">VALIDATION</div>
+<div style="display:flex;flex-direction:column;gap:7px;margin-top:9px">
+<sc-for list="{{ beneRules }}" as="r" hint-placeholder-count="4">
+<div style="display:flex;gap:8px;align-items:flex-start"><i class="{{ r.icon }}" style="font-size:15px;color:{{ r.color }};margin-top:2px;flex:none"></i><span style="font-size:13px;line-height:1.45;color:#5C6560">{{ r.text }}</span></div>
+</sc-for>
+</div>
+</div>
+<div style="padding:16px;border-radius:11px;background:#FFFFFF;border:1px solid #E2E1DA">
+<div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:#8A928C">LAST CONFIRMED</div>
+<div style="font-size:15px;font-weight:600;margin-top:7px">14 months ago · 22 June 2025</div>
+<div style="font-size:13px;line-height:1.5;color:#5C6560;margin-top:5px">{{ t.ask_again }} A change here is written to an append-only log that the sponsor cannot edit, and the member sees the diff on their phone.</div>
+</div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ s_claim }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Web · Make a claim" style="max-width:830px;animation:rise .25s ease">
+<div style="display:flex;gap:10px;align-items:center">
+<sc-for list="{{ clSteps }}" as="cs" hint-placeholder-count="5">
+<div style="flex:1;display:flex;flex-direction:column;gap:5px">
+<div style="height:4px;border-radius:99px;background:{{ cs.bar }}"></div>
+<div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.06em;color:{{ cs.fg }};font-weight:{{ cs.fw }}">{{ cs.label }}</div>
+</div>
+</sc-for>
+</div>
+<div style="font-size:24px;font-weight:700;letter-spacing:-.02em;margin-top:20px">{{ clTitle }}</div>
+<div style="font-size:14px;line-height:1.5;color:#5C6560;margin-top:5px">{{ clHint }}</div>
+
+<sc-if value="{{ clChoices }}" hint-placeholder-val="{{ true }}">
+<div style="display:flex;flex-direction:column;gap:9px;margin-top:18px;max-width:560px">
+<sc-for list="{{ clOptions }}" as="o" hint-placeholder-count="3">
+<button type="button" onClick="{{ o.go }}" style="display:flex;align-items:center;gap:12px;text-align:left;padding:16px;border:1.5px solid {{ o.bc }};border-radius:11px;background:{{ o.bg }};cursor:pointer" style-hover="border-color:#046A38">
+<i class="{{ o.icon }}" style="font-size:20px;color:#046A38;flex:none"></i>
+<span style="flex:1;min-width:0;font-size:15.5px;font-weight:600">{{ o.label }}</span>
+<i class="ph ph-arrow-right" style="font-size:16px;color:#8A928C"></i>
+</button>
+</sc-for>
+</div>
+</sc-if>
+
+<sc-if value="{{ clDocs }}" hint-placeholder-val="{{ false }}">
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:18px">
+<sc-for list="{{ docSlots }}" as="d" hint-placeholder-count="4">
+<div style="padding:16px;border:1.5px dashed {{ d.bc }};border-radius:11px;background:{{ d.bg }}">
+<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
+<div><div style="font-size:14.5px;font-weight:600">{{ d.name }}</div><div style="font-size:12.5px;color:#5C6560;margin-top:2px">{{ d.sub }}</div></div>
+<i class="{{ d.icon }}" style="font-size:20px;color:{{ d.ic }}"></i>
+</div>
+<div style="margin-top:11px;display:flex;align-items:center;gap:8px">
+<button type="button" style="height:34px;padding:0 14px;border:1.5px solid #D3D1C6;border-radius:999px;background:#FFFFFF;color:#14181B;font-size:12.5px;font-weight:600;cursor:pointer" style-hover="border-color:#046A38">{{ d.action }}</button>
+<span style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:#8A928C">{{ d.meta }}</span>
+</div>
+</div>
+</sc-for>
+</div>
+<div style="margin-top:12px;padding:14px 16px;border-radius:10px;background:#FFFFFF;border:1px solid #E2E1DA;font-size:13px;line-height:1.55;color:#5C6560">Web accepts PDF, JPG and PNG up to 10 MB each, and lets a relative drag a scan straight in. The phone flow photographs the same papers — both land in the same document store with the same OCR pass. {{ t.docs_note }}</div>
+</sc-if>
+
+<sc-if value="{{ clReview }}" hint-placeholder-val="{{ false }}">
+<div style="margin-top:18px;border-radius:12px;background:#FFFFFF;border:1px solid #E2E1DA;overflow:hidden;max-width:620px">
+<sc-for list="{{ sumRows }}" as="r" hint-placeholder-count="5">
+<div style="display:flex;justify-content:space-between;gap:16px;padding:13px 17px;border-top:1px solid #EFEEE8">
+<span style="font-size:13.5px;color:#5C6560">{{ r.k }}</span>
+<span style="font-size:14px;font-weight:600;text-align:right">{{ r.v }}</span>
+</div>
+</sc-for>
+</div>
+<div style="margin-top:12px;padding:15px 17px;border-radius:11px;background:#F1F6F3;border:1px solid #D8E6DE">
+<div style="font-size:14.5px;font-weight:600;color:#03502A">{{ t.funeral_first }}</div>
+<div style="font-size:13px;line-height:1.5;color:#046A38;margin-top:3px">{{ t.funeral_first_sub }}</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ clDone }}" hint-placeholder-val="{{ false }}">
+<div style="margin-top:18px;padding:24px;border-radius:13px;background:#046A38;color:#F1F6F3;max-width:560px">
+<i class="ph-fill ph-check-circle" style="font-size:34px"></i>
+<div style="font-size:19px;font-weight:600;margin-top:12px">{{ t.claim_ref }} CLM-2026-0091</div>
+<div style="font-size:13.5px;line-height:1.55;color:rgba(241,246,243,.85);margin-top:6px">{{ t.assessor_note }}</div>
+</div>
+</sc-if>
+
+<div style="display:flex;gap:10px;margin-top:20px">
+<sc-if value="{{ clCanBack }}" hint-placeholder-val="{{ false }}">
+<button type="button" onClick="{{ clBack }}" style="height:46px;padding:0 20px;border:1.5px solid #D3D1C6;border-radius:999px;background:#FFFFFF;color:#14181B;font-size:15px;font-weight:600;cursor:pointer" style-hover="border-color:#046A38;background:#F1F6F3">{{ t.back }}</button>
+</sc-if>
+<button type="button" onClick="{{ clNext }}" style="height:46px;padding:0 24px;border:0;border-radius:999px;background:#046A38;color:#F7F6F2;font-size:15px;font-weight:600;box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 8px 18px -10px rgba(4,106,56,.7);transition:background .15s,transform .12s;cursor:pointer" style-hover="background:#03502A" style-active="background:#023F21;transform:translateY(1px)">{{ clCta }}</button>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ s_track }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Web · Track claim" style="max-width:830px;animation:rise .25s ease">
+<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:20px">
+<div>
+<div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.12em;color:#8A928C">CLM-2026-0091 · {{ t.funeral_benefit }}</div>
+<div style="font-size:24px;font-weight:700;letter-spacing:-.02em;margin-top:6px">{{ t.claim_status }}</div>
+<div style="font-size:14px;color:#5C6560;margin-top:4px">{{ t.claim_status_sub }}</div>
+</div>
+<button type="button" style="display:flex;align-items:center;gap:8px;height:42px;padding:0 18px;border:1.5px solid #D3D1C6;border-radius:999px;background:#FFFFFF;color:#14181B;font-size:14px;font-weight:600;cursor:pointer" style-hover="border-color:#046A38;background:#F1F6F3"><i class="ph ph-chat-circle-text" style="font-size:16px;color:#046A38"></i>{{ t.msg_assessor }}</button>
+</div>
+<div style="display:grid;grid-template-columns:1.25fr 1fr;gap:16px;margin-top:18px;align-items:start">
+<div style="padding:20px;border-radius:12px;background:#FFFFFF;border:1px solid #E2E1DA">
+<div style="display:flex;flex-direction:column;gap:0">
+<sc-for list="{{ stages }}" as="st" hint-placeholder-count="5">
+<div style="display:flex;gap:13px">
+<div style="flex:none;display:flex;flex-direction:column;align-items:center">
+<i class="{{ st.icon }}" style="font-size:19px;color:{{ st.color }}"></i>
+<div style="flex:1;width:2px;background:{{ st.line }};min-height:16px"></div>
+</div>
+<div style="flex:1;min-width:0;padding-bottom:18px">
+<div style="font-size:15px;font-weight:{{ st.fw }};color:{{ st.tc }}">{{ st.title }}</div>
+<div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#8A928C;margin-top:2px">{{ st.when }}</div>
+<div style="font-size:13px;line-height:1.5;color:#5C6560;margin-top:4px">{{ st.note }}</div>
+</div>
+</div>
+</sc-for>
+</div>
+<div style="padding-top:12px;border-top:1px solid #EFEEE8;font-size:12px;line-height:1.5;color:#8A928C">{{ t.audit_note }}</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:12px">
+<div style="padding:17px;border-radius:12px;background:#F1F6F3;border:1px solid #D8E6DE">
+<div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:#046A38">{{ t.now_title }}</div>
+<div style="font-size:15.5px;font-weight:600;color:#03502A;margin-top:6px">{{ t.now_head }}</div>
+<div style="font-size:13px;line-height:1.5;color:#046A38;margin-top:4px">{{ t.now_body }}</div>
+</div>
+<div style="padding:17px;border-radius:12px;background:#FFFFFF;border:1px solid #E2E1DA">
+<div style="font-size:14.5px;font-weight:600">{{ t.separate_title }}</div>
+<div style="font-size:13px;line-height:1.5;color:#5C6560;margin-top:4px">{{ t.separate_sub }}</div>
+</div>
+<div style="padding:17px;border-radius:12px;background:#FFFFFF;border:1px solid #E2E1DA">
+<div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:#8A928C">DOCUMENTS</div>
+<div style="display:flex;flex-direction:column;gap:7px;margin-top:9px">
+<sc-for list="{{ trackDocs }}" as="d" hint-placeholder-count="4">
+<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;padding:8px 0;border-top:1px solid #EFEEE8">
+<span style="display:flex;gap:8px;align-items:center;min-width:0"><i class="{{ d.icon }}" style="font-size:15px;color:{{ d.ic }};flex:none"></i><span style="font-size:13px">{{ d.name }}</span></span>
+<span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;color:{{ d.ic }}">{{ d.state }}</span>
+</div>
+</sc-for>
+</div>
+</div>
+</div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ s_profile }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Web · Profile and settings" style="max-width:830px;animation:rise .25s ease">
+<div style="font-size:24px;font-weight:700;letter-spacing:-.02em">Profile and settings</div>
+<div style="font-size:14px;color:#5C6560;margin-top:4px">{{ profileSub }}</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:18px;align-items:start">
+<div style="padding:19px;border-radius:12px;background:#FFFFFF;border:1px solid #E2E1DA">
+<div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:#8A928C">PAYROLL RECORD</div>
+<div style="display:flex;flex-direction:column;gap:0;margin-top:9px">
+<sc-for list="{{ recRows }}" as="r" hint-placeholder-count="5">
+<div style="display:flex;justify-content:space-between;gap:14px;padding:10px 0;border-top:1px solid #EFEEE8">
+<span style="font-size:13.5px;color:#5C6560">{{ r.k }}</span>
+<span style="font-size:14px;font-weight:600;text-align:right">{{ r.v }}</span>
+</div>
+</sc-for>
+</div>
+<div style="margin-top:11px;font-size:12.5px;line-height:1.5;color:#8A928C">{{ recNote }}</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:14px">
+<div style="padding:19px;border-radius:12px;background:#FFFFFF;border:1px solid #E2E1DA">
+<div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:#8A928C">{{ t.device }}S AND SESSIONS</div>
+<div style="display:flex;flex-direction:column;gap:0;margin-top:9px">
+<sc-for list="{{ devices }}" as="d" hint-placeholder-count="3">
+<div style="display:flex;gap:11px;align-items:center;padding:10px 0;border-top:1px solid #EFEEE8">
+<i class="{{ d.icon }}" style="font-size:18px;color:#5C6560;flex:none"></i>
+<span style="flex:1;min-width:0"><span style="display:block;font-size:14px;font-weight:600">{{ d.name }}</span><span style="display:block;font-size:12px;color:#8A928C">{{ d.meta }}</span></span>
+<span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;color:{{ d.sc }}">{{ d.state }}</span>
+</div>
+</sc-for>
+</div>
+<div style="margin-top:11px;font-size:12.5px;line-height:1.5;color:#8A928C">{{ t.device_note }}</div>
+</div>
+<div style="padding:19px;border-radius:12px;background:#FFFFFF;border:1px solid #E2E1DA">
+<div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:#8A928C">{{ t.language }}</div>
+<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px">
+<sc-for list="{{ langPicks }}" as="l" hint-placeholder-count="5">
+<button type="button" onClick="{{ l.go }}" style="padding:7px 13px;border:1.5px solid {{ l.bc }};border-radius:99px;background:{{ l.bg }};color:{{ l.fg }};font-size:13px;font-weight:{{ l.fw }};cursor:pointer" style-hover="border-color:#046A38">{{ l.name }}</button>
+</sc-for>
+</div>
+<div style="margin-top:10px;font-size:12.5px;line-height:1.5;color:#8A928C">{{ langNote }}</div>
+</div>
+</div>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px;align-items:start">
+<div style="padding:19px;border-radius:12px;background:#FFFFFF;border:1px solid #E2E1DA">
+<div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:#046A38">ONLY ON WEB</div>
+<div style="display:flex;flex-direction:column;gap:9px;margin-top:10px">
+<sc-for list="{{ webOnly }}" as="w" hint-placeholder-count="4">
+<div style="display:flex;gap:10px;align-items:flex-start"><i class="{{ w.icon }}" style="font-size:17px;color:#046A38;margin-top:1px;flex:none"></i><span><span style="display:block;font-size:14px;font-weight:600">{{ w.title }}</span><span style="display:block;font-size:12.5px;line-height:1.45;color:#5C6560;margin-top:1px">{{ w.body }}</span></span></div>
+</sc-for>
+</div>
+</div>
+<div style="padding:19px;border-radius:12px;background:#FFFFFF;border:1px dashed #C9C6BA">
+<div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:#8A928C">ONLY ON THE PHONE</div>
+<div style="display:flex;flex-direction:column;gap:9px;margin-top:10px">
+<sc-for list="{{ phoneOnly }}" as="p" hint-placeholder-count="4">
+<div style="display:flex;gap:10px;align-items:flex-start"><i class="{{ p.icon }}" style="font-size:17px;color:#8A928C;margin-top:1px;flex:none"></i><span><span style="display:block;font-size:14px;font-weight:600;color:#5C6560">{{ p.title }}</span><span style="display:block;font-size:12.5px;line-height:1.45;color:#8A928C;margin-top:1px">{{ p.body }}</span></span></div>
+</sc-for>
+</div>
+</div>
+</div>
+<button type="button" onClick="{{ goSignin }}" style="margin-top:16px;display:flex;align-items:center;gap:8px;height:44px;padding:0 20px;border:1.5px solid #E3C7BC;border-radius:999px;background:#FFFFFF;color:#B4451F;font-size:15px;font-weight:600;cursor:pointer" style-hover="background:#FBF0EB;border-color:#B4451F"><i class="ph ph-sign-out" style="font-size:17px"></i>Sign out of this browser</button>
+</div>
+</sc-if>
+
+</div>
+</div>
+</sc-if>
+
+</div>
+</div>
+<div style="display:flex;justify-content:space-between;align-items:center;gap:14px;width:1180px">
+<div style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:#8A928C">{{ frameNote }}</div>
+<div style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:#8A928C">1180 × 830 · breakpoint ≥1024</div>
+</div>
+</div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1470,&quot;height&quot;:920},&quot;startScreen&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;signin&quot;,&quot;enrol&quot;,&quot;home&quot;,&quot;benefits&quot;,&quot;card&quot;,&quot;family&quot;,&quot;contrib&quot;,&quot;benes&quot;,&quot;claim&quot;,&quot;track&quot;,&quot;profile&quot;,&quot;beneportal&quot;],&quot;default&quot;:&quot;home&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;startLang&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;en&quot;,&quot;ha&quot;,&quot;yo&quot;,&quot;ig&quot;,&quot;pcm&quot;],&quot;default&quot;:&quot;en&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;startSponsor&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;federal&quot;,&quot;state&quot;,&quot;employer&quot;,&quot;self&quot;],&quot;default&quot;:&quot;federal&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;deductionLate&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Scenario&quot;}}">
+const G = "#046A38", GD = "#03502A", TINT = "#F1F6F3", INK = "#14181B", MUT = "#5C6560", FAINT = "#8A928C", CLAY = "#B4451F", AMB = "#8A5A00";
+const LANGS = [["en", "English"], ["ha", "Hausa"], ["yo", "Yorùbá"], ["ig", "Igbo"], ["pcm", "Pidgin"]];
+const SPONSORS = [
+  { name: "Federal", org: "Fed. Min. of Education", short: "IPPIS · Fed. Min. of Education", rail: "IPPIS deduction code CSP-114 · OAGF approved", ledger: "IPPIS", payroll: true, ref: "IPPIS-AUG-2026" },
+  { name: "State", org: "Lagos State Head of Service", short: "Lagos State payroll", rail: "Schedule CSP-LA-07 · State Accountant-General", ledger: "LAG PAYROLL", payroll: true, ref: "CSP-LA-07/08" },
+  { name: "Employer", org: "Nightingale Hospital, Ikeja", short: "Employer payroll", rail: "Schedule CSP-EM-2214 · monthly CSV + invoice", ledger: "CSV SCHEDULE", payroll: true, ref: "CSP-EM-2214" },
+  { name: "Self-pay", org: "Self-paying member", short: "Direct debit · GTBank ••4471", rail: "NIBSS e-mandate MND-88214 · card on file", ledger: "DIRECT DEBIT", payroll: false, ref: "MND-88214" }
+];
+const SP_ICONS = ["ph ph-bank", "ph ph-map-trifold", "ph ph-buildings", "ph ph-user"];
+const TIER_NAMES = ["Basic", "Standard", "Enhanced", "Executive"];
+const TIER_PRICES = ["₦1,500", "₦2,500", "₦4,000", "₦6,000"];
+const SCHED_M = [
+  ["₦3,000,000", "₦5,000,000", "₦10,000,000", "₦15,000,000"],
+  ["₦3,000,000", "₦5,000,000", "₦10,000,000", "₦15,000,000"],
+  ["up to ₦3m", "up to ₦5m", "up to ₦10m", "up to ₦15m"],
+  ["₦30,000 / wk", "₦50,000 / wk", "₦90,000 / wk", "₦120,000 / wk"],
+  ["₦150,000", "₦250,000", "₦500,000", "₦1,000,000"],
+  ["—", "₦250,000", "₦400,000", "₦600,000"],
+  ["—", "₦250,000", "₦500,000", "₦750,000"]
+];
+const WNAV = [
+  ["signin", "Sign in", "ACCESS", "ph ph-sign-in"],
+  ["enrol", "Choose cover", "ACCESS", "ph ph-list-checks"],
+  ["home", "Dashboard", "COVER", "ph ph-squares-four"],
+  ["benefits", "Cover detail", "COVER", "ph ph-shield-check"],
+  ["card", "Protection card", "COVER", "ph ph-identification-card"],
+  ["family", "Family cover", "COVER", "ph ph-house-line"],
+  ["contrib", "Contributions", "MONEY", "ph ph-receipt"],
+  ["benes", "Beneficiaries", "PEOPLE", "ph ph-users-three"],
+  ["claim", "Make a claim", "CLAIMS", "ph ph-first-aid-kit"],
+  ["track", "Track claim", "CLAIMS", "ph ph-git-commit"],
+  ["profile", "Profile + settings", "ADMIN", "ph ph-user-gear"],
+  ["beneportal", "Next-of-kin portal", "PUBLIC", "ph ph-hand-heart"]
+];
+const APP_SCREENS = ["home", "benefits", "card", "family", "contrib", "benes", "claim", "track", "profile"];
+const URLS = { signin: "/sign-in", enrol: "/enrol/cover", home: "/dashboard", benefits: "/cover", card: "/card", family: "/family", contrib: "/contributions", benes: "/beneficiaries", claim: "/claims/new", track: "/claims/CLM-2026-0091", profile: "/settings", beneportal: "/next-of-kin" };
+const BENES = [
+  { name: "Chinedu Okafor", rel: "Spouse", phone: "0803 •• •• 118", id: "NIN ••••4412", share: "50%" },
+  { name: "Ngozi Okafor", rel: "Mother", phone: "0806 •• •• 903", id: "NIN ••••7781", share: "30%" },
+  { name: "Amaka Okafor", rel: "Daughter, 14", phone: "—", id: "Birth cert. on file", share: "20%" }
+];
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = Object.assign({}, this.state, {
+      screen: props.startScreen || "home",
+      lang: props.startLang || "en",
+      sponsor: Math.max(0, ["federal", "state", "employer", "self"].indexOf(props.startSponsor || "federal")),
+      late: !!props.deductionLate
+    });
+  }
+  state = { screen: "home", lang: "en", sponsor: 0, late: false, tier: 1, otp: "", otpStage: false, clStep: 0, cl: [0, 0], filter: 0 };
+  componentDidUpdate(prev) {
+    const p = this.props;
+    if (prev.startSponsor !== p.startSponsor && p.startSponsor) {
+      const i = ["federal", "state", "employer", "self"].indexOf(p.startSponsor);
+      if (i > -1 && i !== this.state.sponsor) this.setState({ sponsor: i });
+    }
+    if (prev.startLang !== p.startLang && p.startLang && p.startLang !== this.state.lang) this.setState({ lang: p.startLang });
+    if (prev.startScreen !== p.startScreen && p.startScreen && p.startScreen !== this.state.screen) this.setState({ screen: p.startScreen });
+  }
+  go = (s) => this.setState({ screen: s });
+
+  renderVals() {
+    const s = this.state, v = {};
+    const t = (window.CSP_I18N && window.CSP_I18N[s.lang]) || (window.CSP_I18N && window.CSP_I18N.en) || {};
+    const sp = SPONSORS[s.sponsor], pr = sp.payroll;
+    v.t = t;
+    WNAV.forEach(([id]) => { v["s_" + id] = s.screen === id; });
+    v.inApp = APP_SCREENS.indexOf(s.screen) > -1;
+    v.chromeless = !v.inApp;
+    v.urlPath = URLS[s.screen] || "/";
+    v.screenTitle = (WNAV.find(n => n[0] === s.screen) || [, "—"])[1];
+    v.frameNote = v.inApp ? "Signed in · " + sp.short : "Public page · no session";
+
+    v.sponsorPicks = SPONSORS.map((x, i) => ({
+      name: x.name, icon: SP_ICONS[i], go: () => this.setState({ sponsor: i }),
+      bc: s.sponsor === i ? G : "#DAD8CE", bg: s.sponsor === i ? TINT : "transparent",
+      fg: s.sponsor === i ? GD : MUT, fw: s.sponsor === i ? 600 : 500
+    }));
+    v.sponsorRail = sp.rail;
+    v.sponsorOrg = sp.org;
+    v.sponsorShort = sp.short;
+    v.sponsorIcon = SP_ICONS[s.sponsor];
+    v.langPicks = LANGS.map(([id, name]) => ({
+      name, go: () => this.setState({ lang: id }),
+      bc: s.lang === id ? G : "#DAD8CE", bg: s.lang === id ? TINT : "transparent",
+      fg: s.lang === id ? GD : MUT, fw: s.lang === id ? 600 : 500
+    }));
+    v.langName = (LANGS.find(l => l[0] === s.lang) || [, "English"])[1];
+    v.langNote = "Set per account, not per device — the phone app follows this choice at next sign-in. Machine-drafted translations still need a native-speaker pass.";
+
+    const groups = ["ACCESS", "COVER", "MONEY", "PEOPLE", "CLAIMS", "ADMIN", "PUBLIC"];
+    const mk = (id, label, icon) => ({
+      label, icon, go: () => this.go(id),
+      bg: s.screen === id ? "#E3E1D8" : "transparent",
+      fg: s.screen === id ? INK : MUT, fw: s.screen === id ? 600 : 400,
+      ic: s.screen === id ? G : FAINT,
+      badge: id === "benes" ? "1" : ""
+    });
+    v.sideGroups = groups.map(name => ({ name, items: WNAV.filter(n => n[2] === name).map(([id, label, , icon]) => mk(id, label, icon)) })).filter(g => g.items.length);
+    v.appGroups = ["COVER", "MONEY", "PEOPLE", "CLAIMS", "ADMIN"].map(name => ({
+      name, items: WNAV.filter(n => n[2] === name).map(([id, label, , icon]) => {
+        const it = mk(id, label, icon);
+        it.bg = s.screen === id ? TINT : "transparent";
+        it.fg = s.screen === id ? GD : MUT;
+        it.fw = s.screen === id ? 600 : 500;
+        return it;
+      })
+    }));
+
+    v.goHome = () => this.setState({ screen: "home", otpStage: false, otp: "" });
+    v.goEnrol = () => this.go("enrol");
+    v.goSignin = () => this.setState({ screen: "signin", otpStage: false, otp: "" });
+    v.goBenePortal = () => this.go("beneportal");
+    v.goBenefits = () => this.go("benefits");
+    v.goContrib = () => this.go("contrib");
+    v.goTrack = () => this.go("track");
+    v.goClaim = () => this.setState({ screen: "claim", clStep: 0 });
+    v.goWhy = () => this.go("contrib");
+
+    v.phoneStage = !s.otpStage;
+    v.otpStage = s.otpStage;
+    v.toOtp = () => this.setState({ otpStage: true });
+    v.resetOtp = () => this.setState({ otpStage: false, otp: "" });
+    v.fillOtp = () => this.setState({ otp: "418206" });
+    v.otpBoxes = [0, 1, 2, 3, 4, 5].map(i => ({ ch: s.otp[i] || "", bc: s.otp.length === i ? G : "#D3D1C6" }));
+    v.signinWebSub = "On a browser we send a 6-digit code every time. " + t.phone_sub;
+    v.heroPoints = [
+      { icon: "ph ph-buildings", text: "Collected by " + sp.short + " — the web app never asks you to pay twice." },
+      { icon: "ph ph-printer", text: "Print your protection card, statements and claim papers at A4." },
+      { icon: "ph ph-timer", text: "Sessions end after 20 minutes idle, for cyber-cafe and office machines." }
+    ];
+
+    v.tierName = TIER_NAMES[s.tier];
+    v.tierPrice = TIER_PRICES[s.tier];
+    v.enrolSub = t.e1_sub + " " + (pr ? "Your sponsor deducts it before your salary reaches you." : "Debited from the account on your mandate.");
+    v.firstDeduct = pr ? "September payslip" : "28 September, by direct debit";
+    v.tierRows = TIER_NAMES.map((name, i) => ({
+      name, price: TIER_PRICES[i], detail: (t.tier_d || [])[i], go: () => this.setState({ tier: i }),
+      bc: s.tier === i ? G : "#D7D5CC", bg: s.tier === i ? TINT : "#FFFFFF",
+      dc: s.tier === i ? G : "#C9C6BA", df: s.tier === i ? G : "transparent"
+    }));
+    v.coverSince = "Standard plan · in force since 1 October 2025 · " + sp.short;
+    v.coverSubWeb = t.cover_sub + " · every tier side by side, which the phone shows one at a time";
+    v.cardSubWeb = "Held on your account and printable here. " + t.card_sub;
+
+    v.tierHeads = TIER_NAMES.map((name, i) => ({
+      name, price: TIER_PRICES[i],
+      fw: s.tier === i ? 700 : 500, fg: s.tier === i ? GD : MUT
+    }));
+    v.schedRows = (t.sched || []).map((label, r) => ({
+      label, bg: r % 2 ? "#FCFCFA" : "#FFFFFF",
+      cells: TIER_NAMES.map((n, c) => ({
+        v: (SCHED_M[r] || [])[c] || "—",
+        fw: s.tier === c ? 600 : 400, fg: s.tier === c ? INK : MUT
+      }))
+    }));
+    v.upgradeRows = TIER_NAMES.filter((n, i) => i !== s.tier).map((name, i) => ({
+      name, price: TIER_PRICES[TIER_NAMES.indexOf(name)],
+      cta: pr ? "Request through HR" : "Change my debit"
+    }));
+    v.planNoteWeb = pr ? t.plan_note : "You pay this yourself, so a change takes effect on your next debit date — no HR approval needed.";
+    v.webOnlyCover = [
+      { icon: "ph ph-table", title: "Full benefit schedule", body: "All four tiers in one table, with the actuarial notes the phone truncates." },
+      { icon: "ph ph-file-pdf", title: "Download the policy wording", body: "The 14-page document, versioned, with the date it applied to you." },
+      { icon: "ph ph-calculator", title: "Compare take-home effect", body: "What each tier does to your net pay at your grade level." }
+    ];
+    v.cardActions = [
+      { label: "Print at A4", icon: "ph ph-printer", bc: G, bg: G, fg: "#F7F6F2" },
+      { label: "Download PDF", icon: "ph ph-file-pdf", bc: "#D3D1C6", bg: "#FFFFFF", fg: INK },
+      { label: t.share_hr, icon: "ph ph-paper-plane-tilt", bc: "#D3D1C6", bg: "#FFFFFF", fg: INK }
+    ];
+
+    v.attention = true;
+    v.attnTitle = s.late && pr ? "Your sponsor has not sent August yet" : t.confirm_benes;
+    v.attnBody = s.late && pr
+      ? sp.org + " is 9 days late with the August schedule. Your cover stays in force through the 60-day grace period."
+      : t.confirm_benes_sub + " · shares must still add up to 100%";
+    v.attnCta = s.late && pr ? "What this means" : "Review now";
+    v.attnGo = () => this.go(s.late && pr ? "contrib" : "benes");
+
+    v.payHeading = pr ? "HOW YOU PAY" : "YOUR DIRECT DEBIT";
+    v.payState = s.late && pr ? "August not received" : (pr ? "Deducted from payslip" : "Debit collected");
+    v.payDot = s.late && pr ? AMB : G;
+    v.payBody = pr
+      ? "₦2,500 leaves your salary before it reaches you. " + sp.org + " sends the schedule to us each month."
+      : "₦2,500 on the 28th from GTBank ••4471. Retried twice before your cover is touched.";
+
+    const LED = [
+      ["Aug 2026", "₦2,500", s.late && pr ? "Pending" : "Received"],
+      ["Jul 2026", "₦2,500", "Received"],
+      ["Jun 2026", "₦2,500", "Received"],
+      ["May 2026", "₦2,500", "Received"],
+      ["Apr 2026", "₦2,500", pr ? "Received" : "Retried"],
+      ["Mar 2026", "₦2,500", "Received"],
+      ["Feb 2026", "₦2,500", "Received"],
+      ["Jan 2026", "₦2,500", "Received"]
+    ];
+    const pill = (st) => st === "Received"
+      ? { bg: TINT, fg: GD }
+      : st === "Pending" ? { bg: "#FBF4E4", fg: AMB } : { bg: "#FBF0EB", fg: CLAY };
+    v.ledgerRows = LED.map(([month, amount, status]) => {
+      const p = pill(status);
+      return { month, amount, status, source: pr ? sp.short : "Direct debit · GTBank ••4471", ref: sp.ref, pillBg: p.bg, pillFg: p.fg };
+    });
+    v.ledgerMini = LED.slice(0, 3).map(([month, amount, status]) => ({ month, amount, status, sc: pill(status).fg }));
+    v.ledgerHead = [{ label: "MONTH", al: "left" }, { label: "SOURCE", al: "left" }, { label: "REFERENCE", al: "left" }, { label: "AMOUNT", al: "right" }, { label: "STATUS", al: "right" }];
+    v.contribStats = [
+      { label: "PAID TO DATE", value: "₦35,000", sub: t.across_months, fg: INK },
+      { label: "MONTHS COVERED", value: "14 / 14", sub: "No gap in cover since October 2025", fg: INK },
+      { label: s.late && pr ? "OUTSTANDING" : "NEXT COLLECTION", value: s.late && pr ? "₦2,500" : (pr ? "30 Sep" : "28 Sep"), sub: s.late && pr ? "August, 9 days late with your sponsor" : (pr ? "From the September payslip" : "GTBank ••4471"), fg: s.late && pr ? AMB : INK }
+    ];
+    v.contribFilters = [["All", "14"], ["Received", pr ? "13" : "12"], [pr ? "Pending" : "Retried", pr ? "1" : "2"], ["Adjustments", "0"]].map(([label, n], i) => ({
+      label, n, go: () => this.setState({ filter: i }),
+      bc: s.filter === i ? G : "#DAD8CE", bg: s.filter === i ? TINT : "#FFFFFF",
+      fg: s.filter === i ? GD : MUT, fw: s.filter === i ? 600 : 500
+    }));
+    v.gapTitle = pr ? "A month missing here is almost never your fault" : "A failed debit is retried before anything changes";
+    v.gapBody = pr
+      ? "If a row says Pending, the sponsor has not sent that schedule line yet. Your cover runs for 60 days regardless, and we chase " + sp.org + " — not you."
+      : "We retry on the 3rd and the 10th. Only after both fail does the 60-day grace period start, and you are told by SMS each time.";
+
+    v.beneHead = [{ label: "NAME", al: "left" }, { label: "RELATION", al: "left" }, { label: "PHONE", al: "left" }, { label: "SHARE", al: "right" }, { label: "", al: "right" }];
+    v.beneRows = BENES;
+    v.shareTotal = "100%";
+    v.shareBg = TINT;
+    v.shareFg = GD;
+    v.shareIcon = "ph-fill ph-check-circle";
+    v.beneRules = [
+      { icon: "ph-fill ph-check-circle", color: G, text: "Shares must total exactly 100%. The form cannot be saved at 99% or 101%." },
+      { icon: "ph-fill ph-check-circle", color: G, text: "At least two named people, so one unreachable name never stalls a claim." },
+      { icon: "ph-fill ph-check-circle", color: G, text: "A minor needs a birth certificate and a named adult trustee." },
+      { icon: "ph ph-info", color: FAINT, text: "NIN is optional but moves a claim from weeks to days at payout." }
+    ];
+
+    v.famHead = [{ label: "PERSON", al: "left" }, { label: "RELATION", al: "left" }, { label: "COVER", al: "right" }, { label: "MONTHLY", al: "right" }, { label: "", al: "right" }];
+    v.famRows = [
+      { name: "Chinedu Okafor", dob: "12.03.1985", rel: "Spouse", sum: "₦1,000,000", price: "₦900" },
+      { name: "Amaka Okafor", dob: "04.07.2012", rel: "Daughter, 14", sum: "₦500,000", price: "₦500" },
+      { name: "Obiora Okafor", dob: "19.01.2017", rel: "Son, 9", sum: "₦500,000", price: "₦400" }
+    ];
+    v.famTotal = "₦4,300";
+    v.famTotalNote = pr ? t.new_total_sub : "₦2,500 own cover + ₦1,800 family top-up, on the same mandate from October.";
+    v.famRailNote = pr
+      ? "Family top-up is your own money, not the sponsor's. It rides on the same payroll line, so " + sp.org + " sees one total — never who it covers."
+      : "Family top-up is added to your existing mandate. One debit, one reference, so a failed collection never partially covers your household.";
+
+    const CLI = [["ph ph-flower-lotus", "ph ph-first-aid", "ph ph-wheelchair"], ["ph ph-user", "ph ph-heart", "ph ph-flower-lotus"]];
+    v.clSteps = (t.cl_q || []).map((label, i) => ({
+      label: "0" + (i + 1), bar: i <= s.clStep ? G : "#E2E1DA",
+      fg: i === s.clStep ? GD : FAINT, fw: i === s.clStep ? 600 : 400
+    }));
+    v.clTitle = (t.cl_q || [])[s.clStep];
+    v.clHint = (t.cl_h || [])[s.clStep];
+    v.clCta = (t.cl_cta || [])[s.clStep];
+    v.clChoices = s.clStep < 2;
+    v.clDocs = s.clStep === 2;
+    v.clReview = s.clStep === 3;
+    v.clDone = s.clStep === 4;
+    v.clCanBack = s.clStep > 0 && s.clStep < 4;
+    v.clOptions = ((t.cl_o || [])[s.clStep] || []).map((label, i) => ({
+      label, icon: (CLI[s.clStep] || [])[i] || "ph ph-circle",
+      go: () => { const c = s.cl.slice(); c[s.clStep] = i; this.setState({ cl: c }); },
+      bc: s.cl[s.clStep] === i ? G : "#D7D5CC", bg: s.cl[s.clStep] === i ? TINT : "#FFFFFF"
+    }));
+    v.clNext = () => s.clStep < 4 ? this.setState({ clStep: s.clStep + 1 }) : this.go("track");
+    v.clBack = () => this.setState({ clStep: Math.max(0, s.clStep - 1) });
+    v.docSlots = (t.docs_n || []).map((name, i) => ({
+      name, sub: (t.docs_s || [])[i], action: i < 2 ? "Replace" : (t.docs_a || [])[i],
+      icon: i < 2 ? "ph-fill ph-check-circle" : "ph ph-upload-simple",
+      ic: i < 2 ? G : FAINT, bc: i < 2 ? "#B9D3C6" : "#C9C6BA", bg: i < 2 ? TINT : "#FFFFFF",
+      meta: i < 2 ? "PDF · 1.2 MB" : "PDF, JPG or PNG · max 10 MB"
+    }));
+    v.sumRows = (t.sum_k || []).map((k, i) => ({
+      k, v: [t.funeral_benefit + " + death claim", "Adaeze N. Okafor · CSP-114-88214", "Chinedu Okafor (spouse)", "4 of 4 uploaded", "GTBank ••4471"][i]
+    }));
+
+    const stStates = ["done", "done", "now", "todo", "todo"];
+    const notes = [
+      "Filed from this browser at " + sp.short + ".",
+      "Death certificate and ID read and accepted.",
+      "A. Bello, Lagos claims office, is reading them now.",
+      "You are told by SMS and here, in " + v.langName + ".",
+      "Paid to the account on your record, not to the sponsor."
+    ];
+    v.stages = (t.stages || []).map((title, i) => {
+      const st = stStates[i];
+      return {
+        title, when: (t.stage_when || [])[i], note: notes[i],
+        icon: st === "done" ? "ph-fill ph-check-circle" : st === "now" ? "ph-fill ph-circle-notch" : "ph ph-circle",
+        color: st === "todo" ? "#C9C6BA" : G,
+        line: st === "done" ? G : "#E2E1DA",
+        fw: st === "now" ? 700 : 500,
+        tc: st === "todo" ? FAINT : INK
+      };
+    });
+    v.stagesMini = v.stages.slice(0, 3);
+    v.trackDocs = (t.docs_n || []).map((name, i) => ({
+      name, icon: i < 3 ? "ph-fill ph-check-circle" : "ph ph-clock",
+      ic: i < 3 ? G : AMB, state: i < 3 ? "ACCEPTED" : "OPTIONAL"
+    }));
+
+    v.quickActions = [
+      { label: t.confirm_benes, sub: "3 people · 100%", icon: "ph ph-users-three", go: () => this.go("benes") },
+      { label: t.card_title, sub: "Print at A4", icon: "ph ph-identification-card", go: () => this.go("card") },
+      { label: t.paid_title, sub: "14 months", icon: "ph ph-receipt", go: () => this.go("contrib") },
+      { label: t.fam_title, sub: "3 dependants", icon: "ph ph-house-line", go: () => this.go("family") }
+    ];
+
+    v.profileSub = "Your record comes from " + (pr ? sp.org + "'s payroll file" : "what you gave us at sign-up") + ". Some fields only they can change.";
+    v.recRows = (t.rec_k || []).map((k, i) => ({ k, v: ["Adaeze N. Okafor", "GL 12", sp.org, "04.11.1987", "₦318,400"][i] }));
+    v.recNote = pr
+      ? "Name, grade and gross pay are read from the payroll file each month. To change them, your HR officer edits the record — we cannot."
+      : "You maintain these yourself. A change to your bank details re-verifies the mandate with NIBSS before the next debit.";
+    v.devices = [
+      { name: "Infinix Hot 12 · phone app", meta: "Lagos · last used 2 hours ago", state: t.trusted.toUpperCase(), sc: G, icon: "ph ph-device-mobile" },
+      { name: "This browser · Chrome on Windows", meta: "Secretariat, Alausa · signed in 09:41", state: "THIS SESSION", sc: GD, icon: "ph ph-monitor" },
+      { name: "Shared PC · business centre", meta: "Ikeja · 22 June 2025", state: "REVOKED", sc: CLAY, icon: "ph ph-desktop" }
+    ];
+    v.webOnly = [
+      { icon: "ph ph-printer", title: "Print and PDF", body: "Protection card at A4, contribution statements, claim summaries." },
+      { icon: "ph ph-upload-simple", title: "Scanned uploads to 10 MB", body: "Real documents from a scanner, not only camera photos." },
+      { icon: "ph ph-table", title: "Full tables", body: "Whole ledger and benefit schedule in one view, sortable." },
+      { icon: "ph ph-download-simple", title: "Export my data", body: "Everything we hold on you, as CSV and PDF." }
+    ];
+    v.phoneOnly = [
+      { icon: "ph ph-fingerprint", title: "Fingerprint sign-in", body: "Device-bound, never on a shared machine." },
+      { icon: "ph ph-wifi-slash", title: "Offline protection card", body: "Cached on the phone and valid with no network." },
+      { icon: "ph ph-camera", title: "Photograph papers at the scene", body: "Accident reports queue and send themselves when signal returns." },
+      { icon: "ph ph-phone", title: "USSD and WhatsApp fallback", body: "*347*55# works with no data at all." }
+    ];
+    return v;
+  }
+}
+</script>
+</body>
+</html>
