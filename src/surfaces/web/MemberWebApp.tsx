@@ -1,11 +1,14 @@
-import { useLocation, useNavigate } from 'react-router-dom'
+import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { Icon } from '../../components/Icon'
 import { Kicker, Mono } from '../../components/primitives'
 import { BP, useMediaQuery } from '../../components/useMediaQuery'
 import { LANGS, type Lang } from '../../i18n'
 import type { SponsorId } from '../../data/sponsors'
 import { C } from '../../theme/tokens'
-import { APP_GROUPS, APP_SCREENS, URLS, WNAV, webScreenForPath, type WebScreen } from './nav'
+import {
+  APP_GROUPS, APP_SCREENS, PUBLIC_WEB_SCREENS, URLS, WNAV, webScreenForPath, type WebScreen,
+} from './nav'
+import { useAuth } from '../../api/auth'
 import { WEB_MEMBER } from './data'
 import { WebStateProvider, useWeb } from './state'
 import { WebBenePortal, WebEnrol, WebSignIn } from './screens/Public'
@@ -56,6 +59,15 @@ export function MemberWebApp({
   const { pathname } = useLocation()
   const nav = useNavigate()
   const navigate = (to: WebScreen) => nav({ pathname: URLS[to], search: window.location.search })
+  const asked = webScreenForPath(pathname)
+
+  /* Live and signed out, a bookmarked page goes to the front door rather than
+     rendering a dashboard whose every request would 401. On fixtures `signedIn`
+     is always true, so a design review still opens any page directly. */
+  const { signedIn } = useAuth()
+  if (!signedIn && !PUBLIC_WEB_SCREENS.includes(asked)) {
+    return <Navigate to={{ pathname: URLS.signin, search: window.location.search }} replace />
+  }
 
   return (
     <WebStateProvider
@@ -63,7 +75,7 @@ export function MemberWebApp({
       setLang={setLang}
       sponsorId={sponsorId}
       setSponsor={setSponsor}
-      screen={webScreenForPath(pathname)}
+      screen={asked}
       navigate={navigate}
       demo={demo}
     >

@@ -1,6 +1,9 @@
 import { Icon } from '../../../components/Icon'
 import { Kicker, Mono } from '../../../components/primitives'
-import { CLAIM, CLAIM_STAGES } from '../../../data/member'
+import { CLAIM } from '../../../data/member'
+import { CLAIM_FIXTURE, MY_CLAIMS } from '../../../api/fixtures'
+import { useClaim, useMyClaims } from '../../../api/queries'
+import { NotLive, dayFirst, useLive } from '../../../api/live'
 import { C, MONO } from '../../../theme/tokens'
 import { WEB_CLAIM_SUMMARY } from '../data'
 import { PageTitle, Panel } from '../../../components/surface'
@@ -188,12 +191,20 @@ export function WebClaim() {
 export function WebTrack() {
   const { t, sponsor, lang } = useWeb()
 
+  /* Same two reads as the phone's tracking screen: the list, then the detail.
+     A member cannot be asked for a reference they were never given. */
+  const { data: mine, failed: listFailed, provisional } = useLive(useMyClaims(MY_CLAIMS), MY_CLAIMS)
+  const ref = provisional ? '' : (mine.claims[0]?.ref ?? '')
+  const { data: claim, failed: detailFailed } = useLive(useClaim(ref, CLAIM_FIXTURE), CLAIM_FIXTURE)
+  const failed = listFailed || detailFailed
+
   const langName = { en: 'English', ha: 'Hausa', yo: 'Yorùbá', ig: 'Igbo', pcm: 'Pidgin' }[lang]
+  const assessor = claim.assessor
 
   const notes = [
     `Filed from this browser at ${sponsor.short}.`,
     'Death certificate and ID read and accepted.',
-    'A. Bello, Lagos claims office, is reading them now.',
+    assessor ? `${assessor.name}, ${assessor.office}, is reading them now.` : 'Being read now.',
     `You are told by SMS and here, in ${langName}.`,
     'Paid to the account on your record, not to the sponsor.',
   ]
@@ -203,12 +214,13 @@ export function WebTrack() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 20 }}>
         <div>
           <Kicker>
-            {CLAIM.newRef} · {t.funeral_benefit}
+            {claim.ref} · {t.funeral_benefit}
           </Kicker>
           <div style={{ marginTop: 6 }}>
             <PageTitle>{t.claim_status}</PageTitle>
           </div>
           <div style={{ fontSize: 14, color: C.mut, marginTop: 4 }}>{t.claim_status_sub}</div>
+          {failed && <NotLive what="This claim" />}
         </div>
         <button type="button" className="btn btn-secondary" style={{ height: 42, padding: '0 18px', fontSize: 14, gap: 8 }}>
           <Icon name="ph ph-chat-circle-text" size={16} color={C.g} />
@@ -220,7 +232,9 @@ export function WebTrack() {
         <Panel pad={20}>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             {t.stages.map((title, i) => {
-              const st = CLAIM_STAGES[i]
+              // The claim's own audit log, one stage per translated title.
+              const stage = claim.stages[i] ?? null
+              const st = (stage?.state ?? 'todo') as 'done' | 'now' | 'todo'
               return (
                 <div key={title} style={{ display: 'flex', gap: 13 }}>
                   <div style={{ flex: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -241,7 +255,9 @@ export function WebTrack() {
                     <div style={{ fontSize: 15, fontWeight: st === 'now' ? 700 : 500, color: st === 'todo' ? C.faint : C.ink }}>
                       {title}
                     </div>
-                    <Mono size={11} color={C.faint} style={{ display: 'block', marginTop: 2 }}>{t.stage_when[i]}</Mono>
+                    <Mono size={11} color={C.faint} style={{ display: 'block', marginTop: 2 }}>
+                      {stage && stage.at ? dayFirst(stage.at) : t.stage_when[i]}
+                    </Mono>
                     <div style={{ fontSize: 13, lineHeight: 1.5, color: C.mut, marginTop: 4 }}>{notes[i]}</div>
                   </div>
                 </div>

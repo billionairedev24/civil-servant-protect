@@ -103,6 +103,18 @@ export function naira(minor: number | null | undefined): string {
   return `₦${Math.round(minor / 100).toLocaleString('en-NG')}`
 }
 
+/**
+ * A wire enum as a person reads it: `standard` → "Standard".
+ *
+ * The API speaks lower-case identifiers because they are values, not prose. A
+ * screen that prints one straight into a sentence gets "standard plan · in
+ * force since…", which reads like a typo rather than a tier name.
+ */
+export function titleCase(value: string | null | undefined): string {
+  if (!value) return ''
+  return value[0].toUpperCase() + value.slice(1).replace(/_/g, ' ')
+}
+
 /** "16.07.2025" — the form Nigerian forms and payslips use. */
 export function dayFirst(iso: string | null | undefined): string {
   if (!iso) return '—'

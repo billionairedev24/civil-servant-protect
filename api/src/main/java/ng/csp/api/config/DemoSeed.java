@@ -7,6 +7,7 @@ import java.util.UUID;
 import ng.csp.api.domain.Money;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import ng.csp.api.domain.Nin;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Profile;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -72,9 +73,11 @@ public class DemoSeed implements CommandLineRunner {
           new MemberSeed("self", "CSP-900-10233", null, "Chidi Eze", "Chidi Okonkwo Eze", "+2348030000217"));
 
   private final JdbcClient db;
+  private final Nin nin;
 
-  public DemoSeed(JdbcClient db) {
+  public DemoSeed(JdbcClient db, Nin nin) {
     this.db = db;
+    this.nin = nin;
   }
 
   @Override
@@ -195,23 +198,37 @@ public class DemoSeed implements CommandLineRunner {
     log.info("    ops      / password   CSP Operations csp_admin");
   }
 
-  /** Chinedu 60 / Ngozi 40 / Emeka 0 — including the named-but-unshared third person. */
+  /**
+   * Chinedu 60 / Ngozi 40 / Emeka 0 — including the named-but-unshared third person.
+   *
+   * <p>Only the spouse carries a NIN. The two children are minors and a minor does not have one, so
+   * they are on file with a birth certificate instead — which is why {@code ninOnFile} is a per-row
+   * fact and not a property of the member. The screens say "NIN on file" or "Birth cert. on file"
+   * off the back of it, and seeding nobody a NIN made an adult look like a child.
+   *
+   * <p>The number itself is stored the only two ways it may be: an HMAC to match on and AES-GCM
+   * ciphertext to re-transmit. Never in the clear, and never returned by the API.
+   */
   private void seedBeneficiaries(UUID memberId) {
-    record Bene(String name, String relation, String msisdn, int share) {}
+    record Bene(String name, String relation, String msisdn, String nin, int share) {}
     var people =
         List.of(
-            new Bene("Chinedu Okafor", "Spouse", "+2348030000118", 60),
-            new Bene("Ngozi Okafor", "Daughter", "+2348060000903", 40),
-            new Bene("Emeka Okafor", "Son", null, 0));
+            new Bene("Chinedu Okafor", "Spouse", "+2348030000118", "22233344455", 60),
+            new Bene("Ngozi Okafor", "Daughter", "+2348060000903", null, 40),
+            new Bene("Emeka Okafor", "Son", null, null, 0));
     for (int i = 0; i < people.size(); i++) {
       var p = people.get(i);
       db.sql(
               """
-              INSERT INTO beneficiaries (member_id, full_name, relation, msisdn, share_pct, position)
-              VALUES (:m, :n, :r, :msisdn, :s, :pos)
+              INSERT INTO beneficiaries
+                (member_id, full_name, relation, msisdn, nin_hmac, nin_ciphertext, share_pct, position)
+              VALUES (:m, :n, :r, :msisdn, :ninHmac, :ninCipher, :s, :pos)
               """)
           .param("m", memberId).param("n", p.name()).param("r", p.relation())
-          .param("msisdn", p.msisdn()).param("s", p.share()).param("pos", i)
+          .param("msisdn", p.msisdn())
+          .param("ninHmac", p.nin() == null ? null : nin.hmac(p.nin()))
+          .param("ninCipher", p.nin() == null ? null : nin.encrypt(p.nin()))
+          .param("s", p.share()).param("pos", i)
           .update();
     }
     // Dated back so the demo's "last confirmed 14 months ago" nudge is true.

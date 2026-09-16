@@ -4,7 +4,7 @@ import { useAuth } from '../../../api/auth'
 import { useApi } from '../../../api/provider'
 import { Kicker, Mono } from '../../../components/primitives'
 import { EN_ONLY, LANGS, type Lang } from '../../../i18n'
-import { MEMBER } from '../../../data/member'
+import { MEMBER, toE164 } from '../../../data/member'
 import { C, MONO } from '../../../theme/tokens'
 import { Screen, BackButton } from '../Screen'
 import { usePhone } from '../state'
@@ -354,23 +354,6 @@ export function OtpScreen() {
       </div>
     </Screen>
   )
-}
-
-/**
- * A Nigerian mobile number, however it was typed, as E.164.
- *
- * People write their own number the way they say it — 0803 0000 214 — and a
- * field labelled "+234" invites both that and the bare 803 0000 214. Pasting
- * from a contact gives +234803.... All three are the same number, and the
- * server only recognises one of them, so the app does the conversion instead of
- * making someone guess which form it wants.
- */
-function toE164(entry: string): string {
-  let digits = entry.replace(/\D/g, '')
-  if (digits.startsWith('234')) digits = digits.slice(3)
-  // The trunk prefix used for domestic dialling. It is not part of the number.
-  if (digits.startsWith('0')) digits = digits.slice(1)
-  return `+234${digits}`
 }
 
 /** What the server said, rather than a generic apology. */

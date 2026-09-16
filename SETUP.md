@@ -349,9 +349,18 @@ Real, and deliberately not papered over.
    Hermes build, no MMKV offline card, no `react-native-biometrics`.
 2. **The member web app is Vite, not Next.js.** The spec asks for SSR so it works
    on slow links and old browsers. This is a client-rendered SPA.
-3. **The frontends still read fixtures, not the API.** Both exist and agree on
-   the same figures; nothing wires them together yet. That is loading states,
-   error states and the auth flow — real work, not configuration.
+3. **Some screens still read fixtures.** Sign-in, and the money and people
+   screens on all three surfaces, read the API when `VITE_API_URL` is set —
+   contributions, the protection card, beneficiaries and their annual
+   confirmation, claim tracking, the console's dashboard and its reconciliation
+   queue including the maker–checker pair. Still on fixtures: the console's
+   roster, schedule upload, direct-debit run, remittances, claims queue,
+   reports and settings; the member's family cover and cover-detail screens;
+   and the whole enrolment run, which has no endpoints behind it yet.
+
+   A screen that has not been wired says the same numbers it always did — the
+   fixtures and the seed agree — so the difference is where the figure comes
+   from, not what it says.
 4. **No Spring Batch or Kafka.** Schedule upload is synchronous and capped at
    20,000 rows. The spec's 1m-row path needs chunked restartable jobs with Kafka
    between stages; `uploadSchedule` is the seam that job would call.
