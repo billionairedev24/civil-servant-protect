@@ -6,6 +6,7 @@ import java.time.Instant;
 import java.util.UUID;
 import javax.crypto.spec.SecretKeySpec;
 import ng.csp.api.config.CspProperties;
+import ng.csp.api.crypto.KeyVault;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.JwsHeader;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -35,8 +36,8 @@ public class TokenService {
   private final Duration refreshTtl;
   private final String issuer;
 
-  public TokenService(CspProperties props) {
-    var key = new SecretKeySpec(props.jwtSecret().getBytes(), "HmacSHA256");
+  public TokenService(CspProperties props, KeyVault keys) {
+    var key = new SecretKeySpec(keys.signingSecret(), "HmacSHA256");
     this.encoder = new NimbusJwtEncoder(new ImmutableSecret<>(key));
     this.accessTtl = props.accessTokenTtl();
     this.refreshTtl = props.refreshTokenTtl();

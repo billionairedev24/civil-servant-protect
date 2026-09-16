@@ -60,6 +60,17 @@ csp:
   # default is loopback on any port, which covers `npm run dev` (5173),
   # `npm run preview` (4173) and the browser tests. Deployment replaces it.
   cors-origins: ${CORS_ORIGINS:http://localhost:[*],http://127.0.0.1:[*]}
+  crypto:
+    hsm:
+      # The in-country HSM the spec requires. Off locally, mandatory under the
+      # prod profile — see ProductionSafetyCheck. `config` is a SunPKCS11
+      # configuration file naming the vendor's library and slot; the keys must
+      # already exist in the token under the labels in KeyVault.Purpose, because
+      # a key ceremony is a witnessed procedure and not something a pod does on
+      # first boot.
+      enabled: ${HSM_ENABLED:false}
+      config: ${HSM_CONFIG:}
+      pin: ${HSM_PIN:}
   integrations:
     # `stub` answers locally: no SMS leaves the machine, no NIN reaches NIMC and
     # no money moves — but every call still goes through the replay log and the

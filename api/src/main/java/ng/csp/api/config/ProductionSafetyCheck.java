@@ -1,5 +1,7 @@
 package ng.csp.api.config;
 
+import ng.csp.api.crypto.KeyVault;
+import ng.csp.api.crypto.Pkcs11KeyVault;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
@@ -16,9 +18,11 @@ import org.springframework.stereotype.Component;
 public class ProductionSafetyCheck implements InitializingBean {
 
   private final CspProperties props;
+  private final KeyVault keys;
 
-  public ProductionSafetyCheck(CspProperties props) {
+  public ProductionSafetyCheck(CspProperties props, KeyVault keys) {
     this.props = props;
+    this.keys = keys;
   }
 
   @Override
@@ -39,6 +43,18 @@ public class ProductionSafetyCheck implements InitializingBean {
           payout reaches NIBSS — while every screen reports success. A scheme that silently stops \
           telling its members anything is worse than one that is plainly down. Set \
           INTEGRATIONS_MODE=http and configure the endpoints.""");
+    }
+
+    if (!(keys instanceof Pkcs11KeyVault)) {
+      throw new IllegalStateException(
+          """
+          Refusing to start: the NIN keys are derived from csp.jwt-secret under the prod profile.
+          The build spec puts L3 key material in an in-country HSM, and a derived key lives in the \
+          same environment variable as the token secret — one leak is both. Set \
+          csp.crypto.hsm.enabled=true with the PKCS#11 config and PIN.
+
+          Note that HS256 member tokens cannot be signed inside an HSM; move them to ES256 at the \
+          same time. See KeyVault#signingSecret.""");
     }
   }
 }

@@ -4,6 +4,7 @@ import com.nimbusds.jwt.JWTParser;
 import java.util.List;
 import javax.crypto.spec.SecretKeySpec;
 import ng.csp.api.auth.TokenRoles;
+import ng.csp.api.crypto.KeyVault;
 import ng.csp.api.auth.TokenService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,12 +45,15 @@ public class SecurityConfig {
   private static final Logger log = LoggerFactory.getLogger(SecurityConfig.class);
 
   private final CspProperties props;
+  private final KeyVault keys;
   private final String keycloakIssuer;
 
   public SecurityConfig(
       CspProperties props,
+      KeyVault keys,
       @Value("${csp.keycloak.issuer-uri:}") String keycloakIssuer) {
     this.props = props;
+    this.keys = keys;
     this.keycloakIssuer = keycloakIssuer;
   }
 
@@ -111,7 +115,7 @@ public class SecurityConfig {
 
   /** HS256 for the tokens this service mints for members. */
   private JwtDecoder memberTokenDecoder() {
-    var key = new SecretKeySpec(props.jwtSecret().getBytes(), "HmacSHA256");
+    var key = new SecretKeySpec(keys.signingSecret(), "HmacSHA256");
     return NimbusJwtDecoder.withSecretKey(key).macAlgorithm(MacAlgorithm.HS256).build();
   }
 

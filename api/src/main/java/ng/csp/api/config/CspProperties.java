@@ -77,6 +77,21 @@ public record CspProperties(
    * context rather than trusting a deploy to have unset them.
    */
   public record Otp(boolean echo, @Pattern(regexp = "^\\d{6}$") String fixedCode) {
+
+    /*
+     * An empty value means unset.
+     *
+     * `OTP_FIXED_CODE: ""` is what a Helm values file or a Kubernetes env block
+     * produces for a variable somebody chose not to set, and it arrives here as
+     * an empty string rather than as null. Treated literally it fails the
+     * six-digit pattern — so the context would not start at all — and if it got
+     * past that, `fixedCode != null` would read an unset variable as a pinned
+     * code and refuse a perfectly good production deploy.
+     */
+    public Otp {
+      fixedCode = fixedCode == null || fixedCode.isBlank() ? null : fixedCode;
+    }
+
     public boolean isRelaxed() {
       return echo || fixedCode != null;
     }

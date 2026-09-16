@@ -272,6 +272,8 @@ request that needs it.
 | `DATABASE_URL` | `jdbc:postgresql://127.0.0.1:5432/csp` | |
 | `DATABASE_USER` / `DATABASE_PASSWORD` | `csp` / `csp` | From Vault in every deployed environment |
 | `SPRING_DATA_REDIS_HOST` / `_PORT` | `127.0.0.1` / `6379` | OTP challenges, rate limits |
+| `HSM_ENABLED` / `HSM_CONFIG` / `HSM_PIN` | `false` | The in-country HSM. Off locally; the `prod` profile refuses to start without it. |
+| `INTEGRATIONS_MODE` | `stub` | `stub` or `http`. Also refused under `prod`. |
 | `JWT_SECRET` | **none** | ≥32 chars. No default on purpose — a fallback secret is a production incident waiting for the one deploy that forgets it |
 | `CSP_TOKEN_ISSUER` | `https://member-auth.csp.local` | Must be a URL; Spring converts the `iss` claim to one while decoding |
 | `CSP_KEYCLOAK_ISSUER_URI` | *(empty)* | Empty means console sign-in is off and only member tokens are accepted |
@@ -432,7 +434,19 @@ Real, and deliberately not papered over.
    They also *deliberately do not deliver*. `csp.integrations.mode=stub` is
    logged as a warning at startup, because a scheme that silently stops telling
    its members anything is worse than one that is plainly down.
-6. **Keys are not in an HSM**, as above.
+6. **Keys are derived from configuration unless an HSM is configured.**
+   `KeyVault` exposes operations and never key bytes, which is the shape that
+   lets a PKCS#11 implementation exist at all — an interface with
+   `byte[] key()` on it can only be implemented by extracting the key, which is
+   the one thing an HSM is for not doing. `Pkcs11KeyVault` is written;
+   `HSM_ENABLED=true` with a config file and PIN selects it, and the `prod`
+   profile refuses to start without it.
+
+   One finding worth stating plainly: **HS256 member tokens cannot be signed
+   inside an HSM.** The signer needs the key bytes, so hardware custody and
+   symmetric signing are incompatible here. Moving member tokens to ES256 is
+   the fix and has not been done — it is a token-format change with a rollover,
+   not a config flag.
 7. **Translations are machine-drafted** and have had no native-speaker pass. Ten
    of them were drafted in this session rather than carried from the design
    bundle — see the README.
