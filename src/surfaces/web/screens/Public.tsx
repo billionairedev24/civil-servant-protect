@@ -49,7 +49,8 @@ export function WebSignIn() {
               <button
                 type="button"
                 onClick={() => set({ otpStage: false, otp: '' })}
-                style={{ border: 0, background: 'transparent', color: C.g, fontSize: 13.5, fontWeight: 600, cursor: 'pointer', padding: 0 }}
+                className="btn-inline"
+                  style={{ fontSize: 13.5 }}
               >
                 Change number
               </button>

@@ -13,6 +13,7 @@ npm run dev        # http://localhost:5173
 npm run build      # typecheck + production build
 npm run typecheck
 npm run smoke      # drives all 56 screens in Chromium; needs a build first
+npm run a11y       # audits against the spec's accessibility minimums
 ```
 
 `npm run smoke` is the only test, and deliberately so: the app is almost entirely presentational, so the failure worth
@@ -97,6 +98,17 @@ These are real and deliberate — not oversights to tidy away.
    a minor; phone uses 4471-2098 and 60/40. Both are reproduced as designed rather than silently reconciled — see the
    note at the top of `src/surfaces/web/data.ts`. Worth deciding before these become seed data.
 6. **Benefit figures are illustrative**, pending actuarial, legal and underwriting sign-off.
+7. **The mockups fail the spec's own contrast rule.** The spec lists 4.5:1 text contrast as a non-negotiable minimum
+   and says explicitly: *do not tint text below `#5C6560` on white*. The designs use `#8A928C` for secondary text
+   (3.2:1 on white) and `#A9A69B` for mono eyebrow labels (2.0–2.4:1). `npm run a11y` reports every instance. The
+   implementation reproduces the design rather than silently re-tinting every screen, because that is a design
+   decision — but it is a real one to make, and the product is used outdoors in bright sun by people who may not read
+   English well. Raising secondary text to `#5C6560` and eyebrows to `#6E756F` would clear it without touching the
+   palette's character.
+
+   Hit targets have the same shape of conflict: the spec asks for 44px everywhere, and the design's chips, nav rows
+   and table actions are 26–38px. Everything now clears the 24px WCAG 2.2 floor, which was worth fixing outright; the
+   rest is the same design call.
 
 ## What this is not
 

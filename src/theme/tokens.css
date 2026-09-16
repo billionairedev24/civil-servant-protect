@@ -245,6 +245,24 @@ button:focus-visible,
   text-decoration-color: var(--g);
 }
 
+/* Inline text action inside a card header or table row ("All", "Edit",
+   "Remove"). The padding buys a 24px+ hit area — the WCAG 2.2 target-size
+   floor — and the matching negative margin keeps the text optically exactly
+   where the design put it. */
+.btn-inline {
+  padding: 6px 5px;
+  margin: -6px -5px;
+  border: 0;
+  background: transparent;
+  color: var(--g);
+  font-family: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-inline:hover {
+  color: var(--gd);
+}
+
 /* Back sits at the TOP-LEFT of every wizard, never at the bottom next to the
    primary — that pairing produced an orphan circular button. */
 .btn-back {
