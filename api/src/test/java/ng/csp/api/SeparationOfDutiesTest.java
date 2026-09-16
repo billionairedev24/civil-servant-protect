@@ -208,6 +208,40 @@ class SeparationOfDutiesTest {
   }
 
   @Test
+  @DisplayName("the role these tests connect as cannot bypass row-level security")
+  void theRoleIsSubjectToItsOwnPolicies() {
+    /*
+     * First, because everything below it is meaningless otherwise.
+     *
+     * A superuser — or any role with rolbypassrls — does not have policies
+     * applied to it. They are not consulted at all. Every assertion in this
+     * class about one employer not seeing another's people would then pass or
+     * fail for reasons having nothing to do with the policies being tested, and
+     * the dangerous direction is the quiet one: a suite that proves nothing
+     * while reporting that it proved something.
+     *
+     * This is not only a test concern. An application connecting as a superuser
+     * has no row-level security in production either, whatever the schema says.
+     */
+    var bypasses =
+        db.sql(
+                """
+                SELECT rolsuper OR rolbypassrls
+                  FROM pg_roles WHERE rolname = current_user
+                """)
+            .query(Boolean.class)
+            .single();
+
+    assertThat(bypasses)
+        .as(
+            "This suite is connected as a role that bypasses row-level security, so none of it "
+                + "means anything. Postgres does not apply policies to a superuser or to a role "
+                + "with BYPASSRLS. Create the application role as an ordinary one — see "
+                + "deploy/local/init-db.sql.")
+        .isFalse();
+  }
+
+  @Test
   @DisplayName("row-level security hides another sponsor's members even from a raw query")
   void rowLevelSecurityHidesOtherRails() {
     RlsScope.set(RlsScope.forSponsor(otherSponsorId));

@@ -16,13 +16,18 @@ jobs:
     services:
       postgres:
         image: postgres:16-alpine
+        # `postgres` bootstraps, and the step below creates `csp` as an ordinary
+        # role. POSTGRES_USER: csp made it the superuser, and a superuser
+        # bypasses row-level security entirely — which is why the five tests
+        # asserting that one employer cannot see another's members failed here
+        # and passed everywhere else. See deploy/local/init-db.sql.
         env:
-          POSTGRES_USER: csp
-          POSTGRES_PASSWORD: csp
-          POSTGRES_DB: csp_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
         ports: ['5432:5432']
         options: >-
-          --health-cmd "pg_isready -U csp -d csp_test"
+          --health-cmd "pg_isready -U postgres -d postgres"
           --health-interval 5s --health-timeout 5s --health-retries 10
       redis:
         image: redis:7-alpine
@@ -35,6 +40,15 @@ jobs:
       TEST_REDIS_HOST: 127.0.0.1
     steps:
       - uses: actions/checkout@v4
+
+      # The same script the local compose file mounts, so CI and a laptop get
+      # the same role with the same attributes.
+      - name: Create the application role and databases
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 \
+            -f deploy/local/init-db.sql
 
       - uses: actions/setup-java@v4
         with:

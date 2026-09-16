@@ -45,7 +45,7 @@ docker compose ps
 
 | | Port | Notes |
 |---|---|---|
-| Postgres | 5432 | user `csp`, password `csp`, databases `csp` and `csp_test` |
+| Postgres | 5432 | app role `csp` / `csp`, databases `csp` and `csp_test`; bootstrap superuser is `postgres` |
 | Redis | 6379 | no persistence — OTP challenges are worthless after five minutes |
 | Keycloak | 8081 | admin `admin` / `admin` at http://localhost:8081 |
 
@@ -73,6 +73,18 @@ curl -s localhost:8080/actuator/health
 
 **Drop `seed` after the first run** unless you want the database rewritten. It
 truncates and re-inserts every time.
+
+**The application must not connect as a superuser.** Postgres does not apply
+row-level security to a superuser or to a role with `BYPASSRLS` — the policies
+are not consulted at all, so every protection in this schema stops applying
+without an error anywhere. `postgres` bootstraps the cluster and `csp` is an
+ordinary role that owns its databases (`deploy/local/init-db.sql`, which compose
+mounts and CI runs). `SeparationOfDutiesTest` asserts it, first, because a suite
+connected as a superuser proves nothing while reporting that it proved
+something — which is how five of its tests came to fail only on CI.
+
+If you brought the stack up before this change, the init script will not re-run
+against an existing volume: `docker compose down -v && docker compose up -d`.
 
 API docs are at http://localhost:8080/swagger-ui.html.
 
