@@ -10,7 +10,10 @@ CREATE TABLE beneficiaries (
   full_name         text        NOT NULL,
   relation          text        NOT NULL,
   msisdn            text,
-  nin               text,
+  -- L3, same rule as the member's: HMAC under the HSM key for matching, the
+  -- value itself encrypted for the rare path that must re-transmit it.
+  nin_hmac          bytea,
+  nin_ciphertext    bytea,
   -- A person can be named and hold nothing. That gap is the entire reason the
   -- annual re-confirmation exists, so 0 is valid and is not the same as absent.
   share_pct         smallint    NOT NULL CHECK (share_pct BETWEEN 0 AND 100),
@@ -38,7 +41,7 @@ CREATE INDEX beneficiary_events_member_idx ON beneficiary_events (member_id, cre
 
 CREATE TRIGGER beneficiary_events_append_only
   BEFORE UPDATE OR DELETE ON beneficiary_events
-  FOR EACH ROW EXECUTE FUNCTION reject_mutation();
+  FOR EACH ROW EXECUTE FUNCTION csp.reject_mutation();
 
 /**
  * Shares must total exactly 100 across a member's set, checked once per
@@ -48,24 +51,38 @@ CREATE TRIGGER beneficiary_events_append_only
  * A member with no beneficiaries at all is allowed — that is a new enrolment,
  * not a broken split.
  */
-CREATE OR REPLACE FUNCTION check_beneficiary_shares() RETURNS trigger
+CREATE OR REPLACE FUNCTION csp.check_beneficiary_shares() RETURNS trigger
 LANGUAGE plpgsql AS $$
 DECLARE
-  bad record;
+  touched uuid[];
+  bad     record;
 BEGIN
+  -- A transition table exists only on the operation that declared it, so each
+  -- branch may name only the one it has. Referencing the other is a runtime
+  -- error, not a compile-time one, which is how it hides.
+  IF TG_OP = 'INSERT' THEN
+    SELECT array_agg(DISTINCT member_id) INTO touched FROM new_rows;
+  ELSIF TG_OP = 'DELETE' THEN
+    SELECT array_agg(DISTINCT member_id) INTO touched FROM old_rows;
+  ELSE
+    SELECT array_agg(DISTINCT member_id) INTO touched
+      FROM (SELECT member_id FROM new_rows UNION SELECT member_id FROM old_rows) touched_rows;
+  END IF;
+
   FOR bad IN
     SELECT member_id, SUM(share_pct) AS total
     FROM beneficiaries
-    WHERE member_id IN (
-      SELECT member_id FROM new_rows
-      UNION
-      SELECT member_id FROM old_rows
-    )
+    WHERE member_id = ANY (touched)
     GROUP BY member_id
-    HAVING SUM(share_pct) <> 100
+    -- 0 is the empty set on its way somewhere; anything else that is not 100 is
+    -- a split that does not add up.
+    HAVING SUM(share_pct) NOT IN (0, 100)
   LOOP
-    RAISE EXCEPTION
-      'beneficiary shares for member % total %%%, not 100%%', bad.member_id, bad.total
+    -- Built with format() rather than RAISE's own placeholders: RAISE parses
+    -- '%%%' greedily as a literal percent followed by a placeholder, which
+    -- renders "%90" instead of "90%".
+    RAISE EXCEPTION '%',
+      format('Beneficiary shares for this member total %s%%, not 100%%.', bad.total)
       USING ERRCODE = 'check_violation';
   END LOOP;
   RETURN NULL;
@@ -75,12 +92,18 @@ $$;
 CREATE TRIGGER beneficiary_shares_insert
   AFTER INSERT ON beneficiaries
   REFERENCING NEW TABLE AS new_rows
-  FOR EACH STATEMENT EXECUTE FUNCTION check_beneficiary_shares();
+  FOR EACH STATEMENT EXECUTE FUNCTION csp.check_beneficiary_shares();
 
 CREATE TRIGGER beneficiary_shares_update
   AFTER UPDATE ON beneficiaries
   REFERENCING NEW TABLE AS new_rows OLD TABLE AS old_rows
-  FOR EACH STATEMENT EXECUTE FUNCTION check_beneficiary_shares();
+  FOR EACH STATEMENT EXECUTE FUNCTION csp.check_beneficiary_shares();
+
+-- Without this, removing one of three people leaves 60% behind unchecked.
+CREATE TRIGGER beneficiary_shares_delete
+  AFTER DELETE ON beneficiaries
+  REFERENCING OLD TABLE AS old_rows
+  FOR EACH STATEMENT EXECUTE FUNCTION csp.check_beneficiary_shares();
 
 CREATE TABLE dependants (
   id                uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -135,7 +158,7 @@ CREATE INDEX claim_stages_claim_idx ON claim_stages (claim_id, occurred_at);
 
 CREATE TRIGGER claim_stages_append_only
   BEFORE UPDATE OR DELETE ON claim_stages
-  FOR EACH ROW EXECUTE FUNCTION reject_mutation();
+  FOR EACH ROW EXECUTE FUNCTION csp.reject_mutation();
 
 CREATE TABLE claim_documents (
   id                uuid PRIMARY KEY DEFAULT gen_random_uuid(),

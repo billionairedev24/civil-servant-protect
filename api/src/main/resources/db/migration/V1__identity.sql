@@ -1,9 +1,16 @@
 -- Identity: sponsors, members, and the people who sign in.
 --
+-- Data classification (build spec, "Where each kind of data may live"):
+--   members, beneficiaries, dependants   L3 — Nigeria only, NIN as HMAC +
+--                                        encrypted column, RLS by rail
+--   sponsors, benefit schedule           L2 — aggregates, no member identifiers
+--
 -- The CSP-ID is the product's identity artefact, so it is a real column with a
 -- real format constraint rather than a display string assembled in the app.
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+CREATE SCHEMA IF NOT EXISTS csp;
 
 CREATE TYPE sponsor_type AS ENUM ('federal', 'state', 'employer', 'self');
 
@@ -23,6 +30,13 @@ CREATE TABLE sponsors (
   rail_label        text              NOT NULL,
   -- Which day of the month the collection is attempted or the file is due.
   collection_day    smallint          NOT NULL CHECK (collection_day BETWEEN 1 AND 28),
+  /*
+   * Defence nominal rolls are L4: separate encryption key per service, access by
+   * Defence-cleared roles only, no export. Flagged on the sponsor so that every
+   * query path can see it without joining, and so a future segmented tenancy has
+   * an existing discriminator to split on.
+   */
+  classification    smallint          NOT NULL DEFAULT 3 CHECK (classification IN (3, 4)),
   created_at        timestamptz       NOT NULL DEFAULT now(),
   CONSTRAINT sponsor_self_is_direct_debit
     CHECK ((type = 'self') = (method = 'direct_debit'))
@@ -36,7 +50,7 @@ CREATE TABLE members (
                                 CHECK (csp_id ~ '^CSP-[0-9]{3}-[0-9]{5}$'),
   sponsor_id        uuid        NOT NULL REFERENCES sponsors(id),
   -- What the sponsor's payroll knows this person by. Deliberately separate from
-  -- csp_id: a return file that cites a service number we cannot resolve is the
+  -- csp_id: a return file citing a service number we cannot resolve is the
   -- single most common exception in the whole system.
   service_no        text,
   full_name         text        NOT NULL,
@@ -44,7 +58,22 @@ CREATE TABLE members (
   date_of_birth     date        NOT NULL,
   grade             text,
   msisdn            text        NOT NULL,
-  nin               text,
+  /*
+   * NIN is never stored in the clear.
+   *
+   *   nin_hmac       HMAC-SHA256 under a key that lives in the HSM. Deterministic,
+   *                  so it can be looked up and deduplicated, and unique — one NIN
+   *                  is one member. Reversing it needs the HSM, which never leaves
+   *                  Nigeria.
+   *   nin_ciphertext the value itself, encrypted, for the rare path that must show
+   *                  or re-transmit it (a NIMC verification call). Reading it is
+   *                  audited; the lookup path never touches it.
+   *
+   * Two columns rather than one because the two jobs have different risk: we
+   * match on the NIN constantly and decrypt it almost never.
+   */
+  nin_hmac          bytea       UNIQUE,
+  nin_ciphertext    bytea,
   bank_mask         text,
   tier              text        NOT NULL DEFAULT 'standard',
   in_force_since    date        NOT NULL,
@@ -53,7 +82,16 @@ CREATE TABLE members (
 );
 
 CREATE INDEX members_msisdn_idx ON members (msisdn);
+CREATE INDEX members_sponsor_idx ON members (sponsor_id);
 
+/*
+ * The eight roles, as realm roles in Keycloak and as an enum here.
+ *
+ * Console roles are authenticated by Keycloak (OIDC + TOTP); members and next of
+ * kin are authenticated by the custom SMS-OTP path, because a civil servant on a
+ * Tecno in a village has no business being handed an OIDC login page. Both end up
+ * in this table so that one audit trail names everyone.
+ */
 CREATE TYPE user_role AS ENUM (
   'member',
   'next_of_kin',
@@ -65,15 +103,16 @@ CREATE TYPE user_role AS ENUM (
   'csp_admin'
 );
 
--- One row per person who can sign in. A member and an HR officer authenticate
--- the same way — by phone number and a one-time code — and differ only in role.
 CREATE TABLE users (
   id                uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  msisdn            text        NOT NULL UNIQUE,
+  -- Members sign in by phone; console users by Keycloak. Exactly one is set.
+  msisdn            text        UNIQUE,
+  -- Keycloak's `sub`. The join between a realm account and our audit trail.
+  oidc_subject      text        UNIQUE,
   full_name         text        NOT NULL,
   email             text,
   role              user_role   NOT NULL,
-  -- Exactly one of these is set, and which one is decided by the role.
+  -- Exactly one of these is set, decided by the role.
   member_id         uuid        REFERENCES members(id),
   sponsor_id        uuid        REFERENCES sponsors(id),
   disabled_at       timestamptz,
@@ -82,28 +121,16 @@ CREATE TABLE users (
   CONSTRAINT user_scope_matches_role CHECK (
     CASE
       WHEN role IN ('member', 'next_of_kin') THEN member_id IS NOT NULL AND sponsor_id IS NULL
-      WHEN role LIKE 'sponsor\_%'            THEN sponsor_id IS NOT NULL AND member_id IS NULL
+      WHEN role::text LIKE 'sponsor\_%'      THEN sponsor_id IS NOT NULL AND member_id IS NULL
       ELSE member_id IS NULL AND sponsor_id IS NULL
     END
-  )
+  ),
+  -- A member authenticates by phone, a console user by Keycloak. An account with
+  -- neither cannot sign in at all, which is a seeding bug worth catching here.
+  CONSTRAINT user_has_a_way_in CHECK (msisdn IS NOT NULL OR oidc_subject IS NOT NULL)
 );
 
--- Sign-in challenges. Three attempts then a lock, per the spec — enforced here
--- rather than in the client, because the client is the untrusted part.
-CREATE TABLE auth_challenges (
-  id                uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  msisdn            text        NOT NULL,
-  code_hash         text        NOT NULL,
-  attempts          smallint    NOT NULL DEFAULT 0,
-  consumed_at       timestamptz,
-  locked_at         timestamptz,
-  expires_at        timestamptz NOT NULL,
-  created_at        timestamptz NOT NULL DEFAULT now()
-);
-
-CREATE INDEX auth_challenges_msisdn_idx ON auth_challenges (msisdn, created_at DESC);
-
--- Phone-only. A browser never gets one of these, and a revoked device is
+-- Phone only. A browser never gets one of these, and a revoked device is
 -- rejected at token refresh rather than at the next screen.
 CREATE TABLE devices (
   id                uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -116,3 +143,31 @@ CREATE TABLE devices (
   created_at        timestamptz NOT NULL DEFAULT now(),
   UNIQUE (user_id, device_id)
 );
+
+/*
+ * Row-level security by rail.
+ *
+ * The application connects as a non-owning role and sets `csp.sponsor_id` for
+ * the transaction. Every sponsor-scoped read is then filtered by Postgres rather
+ * than by a WHERE clause someone can forget — an approver at one ministry cannot
+ * read another's roster even through a handler with a missing check.
+ *
+ * FORCE is what makes this real: without it the table owner bypasses its own
+ * policies, which is exactly the connection an app usually runs as.
+ */
+CREATE OR REPLACE FUNCTION csp.current_sponsor() RETURNS uuid
+LANGUAGE sql STABLE AS $$
+  SELECT NULLIF(current_setting('csp.sponsor_id', true), '')::uuid
+$$;
+
+/** True when the caller is unscoped — migrations, batch workers, CSP operations. */
+CREATE OR REPLACE FUNCTION csp.is_unscoped() RETURNS boolean
+LANGUAGE sql STABLE AS $$
+  SELECT COALESCE(current_setting('csp.unscoped', true), 'off') = 'on'
+$$;
+
+ALTER TABLE members ENABLE ROW LEVEL SECURITY;
+ALTER TABLE members FORCE ROW LEVEL SECURITY;
+
+CREATE POLICY members_by_rail ON members
+  USING (csp.is_unscoped() OR sponsor_id = csp.current_sponsor());
