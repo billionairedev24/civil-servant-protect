@@ -1,0 +1,13 @@
+apiVersion: v2
+name: csp
+description: Civil Servant Protect — API, member web, and the sponsor console.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+maintainers:
+  - name: Civil Servant Protect
+annotations:
+  # Sovereignty is a deployment constraint, not a code one. Recorded on the
+  # chart so a cluster that cannot satisfy it is obvious before install.
+  csp.ng/data-classification: "L3"
+  csp.ng/residency: "NG"

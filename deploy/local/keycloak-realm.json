@@ -1,0 +1,198 @@
+{
+  "realm": "csp",
+  "enabled": true,
+  "displayName": "Civil Servant Protect",
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "otpPolicyType": "totp",
+  "otpPolicyAlgorithm": "HmacSHA1",
+  "otpPolicyDigits": 6,
+  "roles": {
+    "realm": [
+      {
+        "name": "sponsor_viewer",
+        "description": "Sees the month and changes nothing in it"
+      },
+      {
+        "name": "sponsor_preparer",
+        "description": "Prepares the schedule and proposes how exceptions are resolved"
+      },
+      {
+        "name": "sponsor_approver",
+        "description": "Commits what a preparer proposed, and closes the cycle"
+      },
+      {
+        "name": "sponsor_admin",
+        "description": "Runs the roster and the roles; cannot approve money"
+      },
+      {
+        "name": "assessor",
+        "description": "Assesses claims; works for the insurer, not the sponsor"
+      },
+      {
+        "name": "csp_admin",
+        "description": "CSP operations"
+      },
+      {
+        "name": "member",
+        "description": "Member \u2014 normally signs in by SMS OTP, not here"
+      },
+      {
+        "name": "next_of_kin",
+        "description": "Named beneficiary opening a claim"
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "csp-console",
+      "name": "Sponsor console",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "redirectUris": [
+        "http://localhost:5174/*",
+        "http://localhost:5173/*"
+      ],
+      "webOrigins": [
+        "http://localhost:5174",
+        "http://localhost:5173"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      },
+      "protocolMappers": [
+        {
+          "name": "sponsor_ref",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "config": {
+            "user.attribute": "sponsor_ref",
+            "claim.name": "sponsor_ref",
+            "jsonType.label": "String",
+            "access.token.claim": "true",
+            "id.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "amina",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Amina",
+      "lastName": "Bello",
+      "email": "amina@education.gov.ng",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "password",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "sponsor_preparer"
+      ],
+      "attributes": {
+        "sponsor_ref": [
+          "CSP-114"
+        ]
+      }
+    },
+    {
+      "username": "musa",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Musa",
+      "lastName": "Danjuma",
+      "email": "musa@education.gov.ng",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "password",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "sponsor_approver"
+      ],
+      "attributes": {
+        "sponsor_ref": [
+          "CSP-114"
+        ]
+      }
+    },
+    {
+      "username": "ngozi",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Ngozi",
+      "lastName": "Eze",
+      "email": "ngozi@education.gov.ng",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "password",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "sponsor_viewer"
+      ],
+      "attributes": {
+        "sponsor_ref": [
+          "CSP-114"
+        ]
+      }
+    },
+    {
+      "username": "ibrahim",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Ibrahim",
+      "lastName": "Sule",
+      "email": "ibrahim@education.gov.ng",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "password",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "sponsor_admin"
+      ],
+      "attributes": {
+        "sponsor_ref": [
+          "CSP-114"
+        ]
+      }
+    },
+    {
+      "username": "assessor",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "A",
+      "lastName": "Bello",
+      "email": "assessor@education.gov.ng",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "password",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "assessor"
+      ],
+      "attributes": {
+        "sponsor_ref": [
+          ""
+        ]
+      }
+    }
+  ]
+}

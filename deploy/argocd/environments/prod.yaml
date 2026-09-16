@@ -1,0 +1,30 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: csp-prod
+  namespace: argocd
+  annotations:
+    # Abuja is primary. Lagos follows as DR, one revision behind on purpose.
+    csp.ng/site: gbb-abuja
+    csp.ng/data-classification: "L3"
+spec:
+  project: csp
+  source:
+    repoURL: https://gitlab.com/csp/civil-servant-protect.git
+    targetRevision: main
+    path: deploy/helm/csp
+    helm:
+      valueFiles:
+        - values.yaml
+        - ../../environments/prod.values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: csp-prod
+  syncPolicy:
+    # Deliberately manual. A federal payroll deduction is not something to roll
+    # out because a pipeline went green on a Friday afternoon.
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 2
+      backoff: { duration: 30s, factor: 2 }

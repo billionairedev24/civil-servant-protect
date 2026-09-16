@@ -1,0 +1,111 @@
+# Defaults. Every environment overlays this; nothing here is production-ready on
+# its own, and a few values are deliberately empty so a missing secret fails the
+# install rather than starting a pod that cannot work.
+
+global:
+  # Set per environment. Images are promoted by digest, never by moving a tag.
+  imageRegistry: registry.gitlab.com/csp
+  imagePullSecrets: []
+  # Stamped onto every pod so a deployed workload can be traced to a commit
+  # without asking anyone.
+  revision: ""
+
+api:
+  enabled: true
+  image:
+    repository: csp-api
+    # A digest, not a tag: ArgoCD promotes what CI signed, and a tag can move.
+    digest: ""
+    tag: ""
+    pullPolicy: IfNotPresent
+  replicas: 2
+  resources:
+    requests: { cpu: 500m, memory: 1Gi }
+    limits: { cpu: 2, memory: 2Gi }
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    # Roll week: the 5th of the month is when a million rows arrive.
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+  env:
+    LOG_LEVEL: info
+    ACCESS_TOKEN_TTL: 20m
+    REFRESH_TOKEN_TTL: 8h
+  # Names of secrets that must already exist — created by the Vault injector or
+  # External Secrets, never by this chart. A chart that can create a secret is a
+  # chart that has seen one.
+  secrets:
+    database: csp-database
+    jwt: csp-jwt
+    redis: csp-redis
+
+memberWeb:
+  enabled: true
+  image:
+    repository: csp-member-web
+    digest: ""
+    tag: ""
+  replicas: 2
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { cpu: 500m, memory: 512Mi }
+
+console:
+  enabled: true
+  image:
+    repository: csp-console
+    digest: ""
+    tag: ""
+  replicas: 2
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { cpu: 300m, memory: 256Mi }
+
+postgres:
+  # The chart never runs a database. Postgres is Patroni HA, owned by Terraform
+  # and the platform team; this is only how to reach it.
+  host: ""
+  port: 5432
+  database: csp
+  # Read replica for L2 reporting. Empty means "use the primary".
+  readHost: ""
+
+redis:
+  host: ""
+  port: 6379
+
+keycloak:
+  # Console identity. The realm is managed as config in its own repository.
+  issuerUri: ""
+
+ingress:
+  enabled: true
+  className: nginx
+  # The WAF and CDN sit in front of this; the ingress only terminates inside
+  # the cluster.
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: 12m
+  hosts:
+    api: ""
+    web: ""
+    console: ""
+  tls:
+    enabled: true
+    secretName: csp-tls
+
+migrations:
+  # Flyway runs as a pre-install/pre-upgrade hook so a new schema is in place
+  # before any new pod serves a request, and a failed migration stops the
+  # rollout instead of half-applying it.
+  enabled: true
+  backoffLimit: 1
+
+podSecurity:
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+
+serviceMonitor:
+  # Prometheus is part of the platform, so this is off unless the CRD is there.
+  enabled: false

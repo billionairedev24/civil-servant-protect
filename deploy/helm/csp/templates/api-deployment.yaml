@@ -1,0 +1,97 @@
+{{- if .Values.api.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-api
+  labels:
+    {{- include "csp.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+spec:
+  {{- if not .Values.api.autoscaling.enabled }}
+  replicas: {{ .Values.api.replicas }}
+  {{- end }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: api
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      # Never fewer pods than we started with: a rolling deploy during roll week
+      # must not reduce capacity, and readiness gates the new ones anyway.
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        {{- include "csp.labels" . | nindent 8 }}
+        app.kubernetes.io/component: api
+      annotations:
+        # Roll the pods when configuration changes, not only when the image does.
+        checksum/config: {{ include (print $.Template.BasePath "/api-configmap.yaml") . | sha256sum }}
+    spec:
+      securityContext:
+        {{- include "csp.podSecurity" . | nindent 8 }}
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets: {{ toYaml . | nindent 8 }}
+      {{- end }}
+      # Spread across nodes so losing one does not take the API with it.
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/instance: {{ .Release.Name }}
+              app.kubernetes.io/component: api
+      containers:
+        - name: api
+          image: {{ include "csp.image" (list . .Values.api) }}
+          imagePullPolicy: {{ .Values.api.image.pullPolicy }}
+          securityContext:
+            {{- include "csp.containerSecurity" . | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: {{ .Release.Name }}-api
+          env:
+            - name: DATABASE_USER
+              valueFrom:
+                secretKeyRef: { name: {{ .Values.api.secrets.database }}, key: username }
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: {{ .Values.api.secrets.database }}, key: password }
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef: { name: {{ .Values.api.secrets.jwt }}, key: secret }
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: {{ .Values.api.secrets.redis }}, key: password }
+          # Liveness only asks whether the process is alive. Readiness asks
+          # whether it can serve — so a pod that loses the database leaves the
+          # load balancer instead of being killed and restarted in a loop.
+          startupProbe:
+            httpGet: { path: /actuator/health/liveness, port: http }
+            periodSeconds: 3
+            failureThreshold: 40
+          livenessProbe:
+            httpGet: { path: /actuator/health/liveness, port: http }
+            periodSeconds: 10
+          readinessProbe:
+            httpGet: { path: /actuator/health/readiness, port: http }
+            periodSeconds: 5
+          resources: {{ toYaml .Values.api.resources | nindent 12 }}
+          volumeMounts:
+            # The root filesystem is read-only, so the JVM needs somewhere for
+            # its temporary files.
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      # Long enough for in-flight requests to finish; the app shuts down
+      # gracefully and Tomcat drains first.
+      terminationGracePeriodSeconds: 45
+{{- end }}

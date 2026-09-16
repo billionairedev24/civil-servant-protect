@@ -1,0 +1,179 @@
+# Civil Servant Protect — GitLab CI.
+#
+# Builds and signs images; ArgoCD promotes them. CI never touches a cluster
+# directly, so a pipeline cannot deploy something nobody reviewed — the only way
+# into an environment is a commit to its values file.
+
+stages: [verify, build, sign, promote]
+
+variables:
+  MAVEN_OPTS: "-Dmaven.repo.local=$CI_PROJECT_DIR/.m2"
+  MAVEN_CLI_OPTS: "-B -ntp"
+  # Postgres and Redis for the API tests. Every rule worth testing lives in the
+  # database, so an in-memory stand-in would test none of them.
+  POSTGRES_DB: csp_test
+  POSTGRES_USER: csp
+  POSTGRES_PASSWORD: csp
+  TEST_DATABASE_URL: "jdbc:postgresql://postgres:5432/csp_test"
+  TEST_REDIS_HOST: redis
+
+.java:
+  image: maven:3.9-eclipse-temurin-25
+  cache:
+    key: maven
+    paths: [.m2]
+
+api:test:
+  extends: .java
+  stage: verify
+  services:
+    - name: postgres:16-alpine
+      alias: postgres
+    - name: redis:7-alpine
+      alias: redis
+  script:
+    - cd api
+    - mvn $MAVEN_CLI_OPTS verify
+  artifacts:
+    when: always
+    reports:
+      junit: api/target/surefire-reports/TEST-*.xml
+
+web:test:
+  image: node:22
+  stage: verify
+  cache:
+    key: npm
+    paths: [node_modules]
+  script:
+    - npm ci
+    - npm run typecheck
+    - npm run build
+    - npx playwright install --with-deps chromium
+    - npm test
+
+chart:lint:
+  stage: verify
+  image: alpine/helm:3.16.3
+  script:
+    - helm lint deploy/helm/csp --values deploy/environments/dev.values.yaml
+    # Render every environment. A chart that only renders for dev is a chart
+    # that breaks on the Friday someone promotes to prod.
+    - |
+      for env in dev prod; do
+        echo "── $env"
+        helm template csp deploy/helm/csp \
+          --values deploy/helm/csp/values.yaml \
+          --values deploy/environments/$env.values.yaml \
+          --set api.image.tag=ci --set memberWeb.image.tag=ci --set console.image.tag=ci \
+          > /dev/null
+      done
+
+chart:structure:
+  # The Python check, so the chart is still validated if the Helm image is
+  # unavailable — and so it can be run on a laptop without installing Helm.
+  stage: verify
+  image: python:3.12-alpine
+  script:
+    - pip install --quiet pyyaml
+    - python3 deploy/helm/check-templates.py
+
+terraform:validate:
+  stage: verify
+  image: hashicorp/terraform:1.9
+  script:
+    - |
+      for env in dev uat prod dr; do
+        [ -d "infra/terraform/environments/$env" ] || continue
+        echo "── $env"
+        terraform -chdir=infra/terraform/environments/$env init -backend=false
+        terraform -chdir=infra/terraform/environments/$env validate
+      done
+    - terraform fmt -check -recursive infra/terraform
+
+.build:
+  stage: build
+  image:
+    name: gcr.io/kaniko-project/executor:debug
+    entrypoint: [""]
+  script:
+    # Kaniko rather than docker-in-docker: building images does not need a
+    # privileged container, and on a shared runner that matters.
+    - /kaniko/executor
+      --context "$CI_PROJECT_DIR/$CONTEXT"
+      --dockerfile "$CI_PROJECT_DIR/$CONTEXT/Dockerfile"
+      --destination "$CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_SHA"
+      --digest-file /tmp/digest
+      --reproducible
+    - cp /tmp/digest "$CI_PROJECT_DIR/$IMAGE.digest"
+  artifacts:
+    paths: ["$IMAGE.digest"]
+
+build:api:
+  extends: .build
+  variables: { CONTEXT: api, IMAGE: csp-api }
+
+build:web:
+  extends: .build
+  variables: { CONTEXT: ".", IMAGE: csp-member-web }
+
+build:console:
+  extends: .build
+  variables: { CONTEXT: ".", IMAGE: csp-console }
+
+sign:
+  stage: sign
+  image: bitnami/cosign:2
+  id_tokens:
+    SIGSTORE_ID_TOKEN: { aud: sigstore }
+  script:
+    # Keyless signing against the pipeline's own identity. What gets deployed is
+    # then provably what this commit built, which is the point of promoting by
+    # digest rather than by tag.
+    - |
+      for image in csp-api csp-member-web csp-console; do
+        digest=$(cat "$image.digest")
+        cosign sign --yes "$CI_REGISTRY_IMAGE/$image@$digest"
+      done
+
+promote:dev:
+  stage: promote
+  image: alpine:3.20
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+  script:
+    # Write the digests into the dev values file and push. ArgoCD notices the
+    # commit; nothing here talks to a cluster.
+    - apk add --no-cache git yq
+    - |
+      for pair in "api:csp-api" "memberWeb:csp-member-web" "console:csp-console"; do
+        key=${pair%%:*}; image=${pair##*:}
+        yq -i ".$key.image.digest = \"$(cat $image.digest)\"" deploy/environments/dev.values.yaml
+      done
+    - yq -i ".global.revision = \"$CI_COMMIT_SHA\"" deploy/environments/dev.values.yaml
+    - git config user.email "ci@csp.gov.ng"
+    - git config user.name "GitLab CI"
+    - git commit -am "promote ${CI_COMMIT_SHORT_SHA} to dev [skip ci]"
+    - git push "https://oauth2:${PROMOTE_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git" HEAD:main
+
+promote:prod:
+  stage: promote
+  image: alpine:3.20
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      # Deliberately manual, and deliberately not the last step of a green
+      # pipeline. A federal payroll deduction is not something to roll out
+      # because CI passed on a Friday afternoon.
+      when: manual
+  script:
+    - apk add --no-cache git yq
+    - |
+      for pair in "api:csp-api" "memberWeb:csp-member-web" "console:csp-console"; do
+        key=${pair%%:*}; image=${pair##*:}
+        yq -i ".$key.image.digest = \"$(cat $image.digest)\"" deploy/environments/prod.values.yaml
+      done
+    - yq -i ".global.revision = \"$CI_COMMIT_SHA\"" deploy/environments/prod.values.yaml
+    - git config user.email "ci@csp.gov.ng"
+    - git config user.name "GitLab CI"
+    - git commit -am "promote ${CI_COMMIT_SHORT_SHA} to prod [skip ci]"
+    - git push "https://oauth2:${PROMOTE_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git" HEAD:main

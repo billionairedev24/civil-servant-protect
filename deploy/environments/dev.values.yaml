@@ -1,0 +1,34 @@
+# dev — synthetic roll, mock NIMC and SMS.
+global:
+  imageRegistry: registry.gitlab.com/csp
+  revision: ""   # written by CI
+
+api:
+  image:
+    digest: ""   # written by CI
+  replicas: 1
+  autoscaling:
+    enabled: false
+  env:
+    LOG_LEVEL: debug
+
+memberWeb: { image: { digest: "" }, replicas: 1 }
+console:   { image: { digest: "" }, replicas: 1 }
+
+postgres:
+  host: csp-postgres-rw.csp-dev.svc.cluster.local
+  database: csp
+redis:
+  host: csp-redis-master.csp-dev.svc.cluster.local
+
+keycloak:
+  issuerUri: https://id.dev.csp.gov.ng/realms/csp
+
+ingress:
+  hosts:
+    api: api.dev.csp.gov.ng
+    web: my.dev.csp.gov.ng
+    console: console.dev.csp.gov.ng
+
+serviceMonitor:
+  enabled: true

@@ -1,0 +1,66 @@
+{{- if .Values.migrations.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-migrate-{{ .Release.Revision }}
+  labels:
+    {{- include "csp.labels" . | nindent 4 }}
+    app.kubernetes.io/component: migrate
+  annotations:
+    # Before anything else in the release, and before any new pod serves a
+    # request against a schema it does not match. A failure here stops the
+    # rollout rather than half-applying it.
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  backoffLimit: {{ .Values.migrations.backoffLimit }}
+  template:
+    metadata:
+      labels:
+        {{- include "csp.labels" . | nindent 8 }}
+        app.kubernetes.io/component: migrate
+    spec:
+      restartPolicy: Never
+      securityContext:
+        {{- include "csp.podSecurity" . | nindent 8 }}
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets: {{ toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: migrate
+          image: {{ include "csp.image" (list . .Values.api) }}
+          securityContext:
+            {{- include "csp.containerSecurity" . | nindent 12 }}
+          # The same image as the API, so the migrations that run are exactly
+          # the ones the new code expects. A separate migration image is a
+          # separate thing to keep in step.
+          args:
+            - "--spring.main.web-application-type=none"
+            - "--spring.flyway.enabled=true"
+            - "--spring.main.register-shutdown-hook=true"
+          envFrom:
+            - configMapRef:
+                name: {{ .Release.Name }}-api
+          env:
+            - name: SPRING_FLYWAY_ENABLED
+              value: "true"
+            - name: DATABASE_USER
+              valueFrom:
+                secretKeyRef: { name: {{ .Values.api.secrets.database }}, key: username }
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: {{ .Values.api.secrets.database }}, key: password }
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef: { name: {{ .Values.api.secrets.jwt }}, key: secret }
+          resources:
+            requests: { cpu: 200m, memory: 512Mi }
+            limits: { cpu: 1, memory: 1Gi }
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+{{- end }}

@@ -1,0 +1,30 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: csp-dev
+  namespace: argocd
+spec:
+  project: csp
+  source:
+    repoURL: https://gitlab.com/csp/civil-servant-protect.git
+    targetRevision: main
+    path: deploy/helm/csp
+    helm:
+      valueFiles:
+        - values.yaml
+        - ../../environments/dev.values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: csp-dev
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions:
+      - CreateNamespace=true
+      # The migration Job is a Helm hook; Argo should wait for it rather than
+      # declare success while the schema is still moving.
+      - ApplyOutOfSyncOnly=true
+  # A migration can legitimately take a few minutes on a large partition.
+  ignoreDifferences:
+    - group: autoscaling
+      kind: HorizontalPodAutoscaler
+      jsonPointers: [/spec/minReplicas]
