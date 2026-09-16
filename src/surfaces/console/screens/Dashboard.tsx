@@ -1,48 +1,75 @@
 import { Icon } from '../../../components/Icon'
 import { Kicker, Mono } from '../../../components/primitives'
 import { PageSub, PageTitle, Panel } from '../../../components/surface'
+import { SPONSOR_DASHBOARD } from '../../../api/fixtures'
+import { useSponsorDashboard } from '../../../api/queries'
+import { NotLive, dayFirst, monthName, naira, periodLabel, useLive } from '../../../api/live'
 import { C } from '../../../theme/tokens'
 import { MOVEMENT, tone } from '../data'
 import { useConsole } from '../state'
 
 export function ConsoleDashboard() {
   const { payroll, profile, late, go } = useConsole()
+  /* Polled every minute — an officer leaves this open while a colleague works
+     the same queue, and a count five minutes stale is how two people resolve
+     the same exception twice. */
+  const { data: dash, failed } = useLive(useSponsorDashboard(SPONSOR_DASHBOARD), SPONSOR_DASHBOARD)
 
-  const cycleState = payroll ? (late ? 'File overdue' : 'Reconciling') : 'Retrying'
-  const cycleSkin = late ? tone('clay') : tone('ochre')
+  /* The cycle's state comes from the record rather than from the demo's `late`
+     flag, which only exists so the overdue story can be shown without waiting a
+     month for it. `late` still drives the fixture demo. */
+  const overdue = late || dash.cycle?.state === 'overdue'
+  const cycleState = payroll ? (overdue ? 'File overdue' : 'Reconciling') : 'Retrying'
+  const cycleSkin = overdue ? tone('clay') : tone('ochre')
+  const exceptions = String(dash.exceptions.open)
+
+  const scheduled = dash.cycle?.scheduledCount ?? 0
+  // Of what was scheduled, how much came back accounted for. Derived rather
+  // than stated: an officer who is told "99.6%" and separately "57 exceptions"
+  // should be able to check that those are the same claim.
+  const returnedPct =
+    scheduled === 0 ? '—' : `${(((scheduled - dash.exceptions.total) / scheduled) * 100).toFixed(1)}%`
 
   const stats = payroll
     ? [
-        { v: profile.count, k: 'Members on this sponsor', tag: 'ROSTER', icon: 'ph ph-users-three', alert: false },
-        { v: '₦21.0m', k: 'Scheduled for August', tag: 'SCHEDULED', icon: 'ph ph-arrow-up-right', alert: false },
         {
-          v: late ? '—' : '99.6%',
-          k: late ? 'No file returned yet' : 'Returned in the August file',
-          tag: 'RETURNED', icon: 'ph ph-file-text', alert: late,
+          v: dash.roster.members.toLocaleString('en-NG'),
+          k: 'Members on this sponsor', tag: 'ROSTER', icon: 'ph ph-users-three', alert: false,
+        },
+        { v: millions(dash.cycle?.scheduledMinor), k: `Scheduled for ${monthName(dash.cycle?.period)}`, tag: 'SCHEDULED', icon: 'ph ph-arrow-up-right', alert: false },
+        {
+          v: overdue ? '—' : returnedPct,
+          k: overdue ? 'No file returned yet' : `Returned in the ${monthName(dash.cycle?.period)} file`,
+          tag: 'RETURNED', icon: 'ph ph-file-text', alert: overdue,
         },
         {
-          v: late ? '8,412' : '57',
-          k: late ? 'Members waiting on the file' : 'Exceptions to clear',
+          v: overdue ? scheduled.toLocaleString('en-NG') : exceptions,
+          k: overdue ? 'Members waiting on the file' : 'Exceptions to clear',
           tag: 'EXCEPTIONS', icon: 'ph ph-warning-diamond', alert: true,
         },
       ]
     : [
-        { v: profile.count, k: 'Self-paying members', tag: 'ROSTER', icon: 'ph ph-users-three', alert: false },
-        { v: '₦3.1m', k: 'Presented on 28 August', tag: 'PRESENTED', icon: 'ph ph-arrow-up-right', alert: false },
+        {
+          v: dash.roster.members.toLocaleString('en-NG'),
+          k: 'Self-paying members', tag: 'ROSTER', icon: 'ph ph-users-three', alert: false,
+        },
+        { v: millions(dash.cycle?.scheduledMinor), k: `Presented on ${dayFirst(dash.cycle?.sentAt)}`, tag: 'PRESENTED', icon: 'ph ph-arrow-up-right', alert: false },
         { v: '96.0%', k: 'Settled the same day', tag: 'SETTLED', icon: 'ph ph-check-circle', alert: false },
-        { v: '51', k: 'Failed debits to work', tag: 'FAILED', icon: 'ph ph-warning-diamond', alert: true },
+        { v: exceptions, k: 'Failed debits to work', tag: 'FAILED', icon: 'ph ph-warning-diamond', alert: true },
       ]
 
   const tasks = [
     {
       title: payroll ? 'Clear the exceptions queue' : 'Retry the failed debits',
       sub: payroll ? 'Blocks the next payroll run' : 'Second attempt due 04.09',
-      count: payroll ? '57' : '51',
+      count: exceptions,
       icon: 'ph ph-git-diff', skin: tone('clay'),
       to: payroll ? ('recon' as const) : ('debit' as const),
     },
     {
-      title: 'Members with no beneficiary', sub: 'Chase before annual confirmation', count: '203',
+      title: 'Members with no beneficiary',
+      sub: 'Chase before annual confirmation',
+      count: String(dash.roster.withoutBeneficiary),
       icon: 'ph ph-user-minus', skin: tone('ochre'), to: 'roster' as const,
     },
     {
@@ -54,38 +81,61 @@ export function ConsoleDashboard() {
   /* The cycle is the console's spine: a file goes out, it sits on someone's
      desk for most of a month, a return file comes back, and only then can
      anything be reconciled. */
+  const sent = dayFirst(dash.cycle?.sentAt)
+  const returned = dayFirst(dash.cycle?.returnedAt)
+  const scheduledLine = `${scheduled.toLocaleString('en-NG')} members · ${naira(dash.cycle?.scheduledMinor)}`
+
   const cycle = payroll
     ? [
-        { title: 'Schedule sent', sub: '8,412 members · ₦21,030,000', when: '02.08', done: true },
-        { title: `With ${profile.destShort}`, sub: 'No API — the file sits on a desk for the month', when: '02–26.08', done: true },
+        { title: 'Schedule sent', sub: scheduledLine, when: sent, done: true },
         {
-          title: late ? 'Return file overdue' : 'Return file received',
-          sub: late ? 'Expected 28.08 · chased twice' : '8,381 deductions · 31 with no matching member',
-          when: late ? 'overdue' : '28.08',
-          done: !late,
+          title: `With ${profile.destShort}`,
+          sub: 'No API — the file sits on a desk for the month',
+          when: overdue ? `since ${sent}` : `${sent}–${returned}`,
+          done: true,
+        },
+        {
+          title: overdue ? 'Return file overdue' : 'Return file received',
+          sub: overdue
+            ? 'Chased twice · nothing back'
+            : `${(scheduled - dash.exceptions.total).toLocaleString('en-NG')} deductions · ${dash.exceptions.byKind.unmatched ?? 0} with no matching member`,
+          when: overdue ? 'overdue' : returned,
+          done: !overdue,
         },
         {
           title: 'Reconciled and members told',
-          sub: late ? 'Cannot start until the file arrives' : 'Blocked until the 57 exceptions are cleared',
+          sub: overdue
+            ? 'Cannot start until the file arrives'
+            : `Blocked until the ${dash.exceptions.open} exceptions are cleared`,
           when: 'pending', done: false,
         },
       ]
     : [
-        { title: 'Mandate batch queued', sub: '1,240 members · ₦3,100,000', when: '26.08', done: true },
-        { title: 'Debits presented', sub: 'NIBSS direct debit, card as fallback', when: '28.08', done: true },
-        { title: 'Results returned', sub: 'Same day — the one rail that answers live', when: '28.08', done: true },
-        { title: 'Retries and dunning', sub: '41 insufficient funds · retry 04.09', when: 'running', done: false },
+        { title: 'Mandate batch queued', sub: scheduledLine, when: sent, done: true },
+        { title: 'Debits presented', sub: 'NIBSS direct debit, card as fallback', when: sent, done: true },
+        { title: 'Results returned', sub: 'Same day — the one rail that answers live', when: returned, done: true },
+        {
+          title: 'Retries and dunning',
+          sub: `${dash.exceptions.open} to work · retry on the next presentation date`,
+          when: 'running', done: false,
+        },
       ]
 
   return (
     <>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
         <div>
-          <PageTitle>{payroll ? 'August deduction cycle' : 'August collection run'}</PageTitle>
+          <PageTitle>
+            {monthName(dash.cycle?.period)} {payroll ? 'deduction cycle' : 'collection run'}
+          </PageTitle>
           <PageSub style={{ lineHeight: 1.5 }}>
             {payroll
-              ? `Schedule sent 02.08 · return file ${late ? 'still outstanding' : 'received 28.08'}`
-              : '1,240 mandates presented 28.08 · settled the same day'}
+              ? `Schedule sent ${dayFirst(dash.cycle?.sentAt)} · return file ${
+                  overdue ? 'still outstanding' : `received ${dayFirst(dash.cycle?.returnedAt)}`
+                }`
+              : `${scheduled.toLocaleString('en-NG')} mandates presented ${dayFirst(
+                  dash.cycle?.sentAt,
+                )} · settled the same day`}
           </PageSub>
         </div>
         <div
@@ -97,10 +147,12 @@ export function ConsoleDashboard() {
           <Icon name={late ? 'ph-fill ph-warning-circle' : 'ph-fill ph-circle-notch'} size={17} color={cycleSkin.ic} />
           <div>
             <div style={{ fontSize: 12.5, fontWeight: 700, color: cycleSkin.fg }}>{cycleState}</div>
-            <Mono size={10} color={C.faint}>AUGUST 2026 CYCLE</Mono>
+            <Mono size={10} color={C.faint}>{periodLabel(dash.cycle?.period)} CYCLE</Mono>
           </div>
         </div>
       </div>
+
+      {failed && <NotLive what="This cycle" />}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(158px,1fr))', gap: 10, marginTop: 20 }}>
         {stats.map((s) => (
@@ -236,4 +288,13 @@ export function ConsoleDashboard() {
       </div>
     </>
   )
+}
+
+/** "₦21.0m" — the scale a cycle is read at, not the kobo it is stored in. */
+function millions(minor: number | null | undefined): string {
+  if (minor == null) return '—'
+  const naira = minor / 100
+  if (naira >= 1_000_000) return `₦${(naira / 1_000_000).toFixed(1)}m`
+  if (naira >= 1_000) return `₦${Math.round(naira / 1_000)}k`
+  return `₦${Math.round(naira)}`
 }

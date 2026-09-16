@@ -242,8 +242,30 @@ public class SponsorService {
 
   public Reconciliation reconciliation(UUID sponsorId, UUID cycleId) {
     var sponsor = sponsorOr404(sponsorId);
+    /*
+     * How many rows on the schedule came back without a question against them.
+     *
+     * Deliberately not "how many contributions are confirmed". Nothing is
+     * credited until the cycle is closed, so that count is zero for every cycle
+     * that is still being reconciled — which is every cycle this screen is ever
+     * looked at. It made the match bar read "0 of 8,412 reconciled" on a file
+     * where all but three rows were fine.
+     *
+     * What an officer is asking here is about the *file*: of everything we sent,
+     * how much came back needing a decision. That is the schedule less the
+     * exceptions raised against it.
+     */
     var matched =
-        db.sql("SELECT count(*)::int FROM contributions WHERE cycle_id = :c AND status = 'confirmed'")
+        db.sql(
+                """
+                SELECT GREATEST(
+                         c.scheduled_count
+                           - (SELECT count(*)::int FROM reconciliation_exceptions e
+                               WHERE e.cycle_id = c.id),
+                         0)::int
+                  FROM collection_cycles c
+                 WHERE c.id = :c
+                """)
             .param("c", cycleId)
             .query(Integer.class)
             .single();

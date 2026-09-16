@@ -10,6 +10,7 @@
 import { BENEFICIARIES, CLAIM, CONTRIB_MONTHS, MEMBER } from '../data/member'
 import type {
   BeneficiarySet, Claim, Ledger, LedgerRow, MemberSummary, MyClaim, ProtectionCard,
+  Reconciliation, SponsorDashboard,
 } from './types'
 
 const NAIRA = 100
@@ -146,6 +147,87 @@ export const MY_CLAIMS: { claims: MyClaim[] } = {
       state: CLAIM_FIXTURE.state,
       amountMinor: CLAIM_FIXTURE.amountMinor,
       openedAt: '2026-08-28T10:12:00Z',
+    },
+  ],
+}
+
+/**
+ * The console's dashboard, in the API's shape.
+ *
+ * Matches the federal rail's figures in `src/surfaces/console/data.ts` — 8,412
+ * on the September schedule at ₦21,030,000 — so switching a console between
+ * fixtures and the API changes where the numbers come from and not what they
+ * say.
+ */
+export const SPONSOR_DASHBOARD: SponsorDashboard = {
+  sponsor: {
+    id: 'fixture-federal',
+    name: MEMBER.ministry,
+    shortName: 'IPPIS',
+    tag: 'FEDERAL',
+    type: 'federal',
+    method: 'payroll',
+    railCode: 'CSP-114',
+  },
+  cycle: {
+    id: 'fixture-cycle',
+    period: '2026-09-01',
+    state: 'reconciling',
+    railRef: 'CSP-114/09',
+    scheduledCount: 8_412,
+    scheduledMinor: 21_030_000 * NAIRA,
+    sentAt: '2026-08-21T09:00:00Z',
+    returnedAt: '2026-09-14T09:00:00Z',
+  },
+  roster: { members: 8_440, withoutBeneficiary: 203 },
+  exceptions: {
+    total: 57,
+    open: 57,
+    byKind: { unmatched: 31, no_deduction: 12, wrong_amount: 5, left_service: 9 },
+  },
+}
+
+/**
+ * The reconciliation queue.
+ *
+ * Re-expressed from RECON_PAYROLL. The mismatch *is* the evidence, so a row
+ * carries both what we hold and what the file said — `ADAEZE N OKAFOR` against
+ * service number 4471209 when ours reads 4471208 is the whole story of the
+ * console's central screen.
+ */
+export const RECONCILIATION: Reconciliation = {
+  method: 'payroll',
+  matched: 8_324,
+  summary: {
+    total: 57,
+    open: 57,
+    byKind: { unmatched: 31, no_deduction: 12, wrong_amount: 5, left_service: 9 },
+  },
+  exceptions: [
+    {
+      id: 'fixture-ex-1', memberId: null, memberName: null, cspId: null,
+      ourServiceNo: MEMBER.serviceNo, kind: 'unmatched',
+      nameAsWritten: 'ADAEZE N OKAFOR', serviceNoAsWritten: '4471209',
+      railResponse: null, expectedMinor: 2_500 * NAIRA, receivedMinor: 2_500 * NAIRA,
+      proposedAction: null, proposedNote: null, proposedAt: null,
+      resolvedAction: null, resolvedNote: null, resolvedAt: null,
+    },
+    {
+      id: 'fixture-ex-2', memberId: 'fixture-m2', memberName: 'Musa Ibrahim',
+      cspId: 'CSP-8812-4409', ourServiceNo: '8812441', kind: 'no_deduction',
+      nameAsWritten: null, serviceNoAsWritten: null,
+      railResponse: 'Card fallback attempted 08.09',
+      expectedMinor: 1_500 * NAIRA, receivedMinor: 0,
+      proposedAction: null, proposedNote: null, proposedAt: null,
+      resolvedAction: null, resolvedNote: null, resolvedAt: null,
+    },
+    {
+      id: 'fixture-ex-3', memberId: 'fixture-m3', memberName: 'Folake Adeyemi',
+      cspId: 'CSP-7741-2280', ourServiceNo: '7741228', kind: 'wrong_amount',
+      nameAsWritten: null, serviceNoAsWritten: null, railResponse: null,
+      expectedMinor: 2_500 * NAIRA, receivedMinor: 1_500 * NAIRA,
+      proposedAction: null, proposedNote: null, proposedAt: null,
+      resolvedAction: null, resolvedNote: null, resolvedAt: null,
     },
   ],
 }

@@ -112,13 +112,35 @@ export function dayFirst(iso: string | null | undefined): string {
   return `${pad(date.getUTCDate())}.${pad(date.getUTCMonth() + 1)}.${date.getUTCFullYear()}`
 }
 
+/*
+ * Month names, written out rather than taken from `toLocaleDateString`.
+ *
+ * Intl's "short" month for en-NG is "Sept" — four letters for one month out of
+ * twelve — which put "AUG 2025" and "SEPT 2026" at either end of the same axis.
+ * It is also an ICU-version detail, so the same build could render differently
+ * on a different machine, and these strings are asserted in the rail tests.
+ */
+const SHORT_MONTHS = [
+  'JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC',
+] as const
+
+const LONG_MONTHS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+] as const
+
 /** "SEP 2026" from an ISO date or a period like "2026-09-01". */
 export function periodLabel(iso: string | null | undefined): string {
   if (!iso) return '—'
   const date = new Date(iso)
   if (Number.isNaN(date.getTime())) return '—'
-  return date
-    .toLocaleDateString('en-NG', { month: 'short', year: 'numeric' })
-    .toUpperCase()
-    .replace(',', '')
+  return `${SHORT_MONTHS[date.getUTCMonth()]} ${date.getUTCFullYear()}`
+}
+
+/** "September", for a sentence. `periodLabel` gives "SEP 2026", for a label. */
+export function monthName(iso: string | null | undefined): string {
+  if (!iso) return 'This'
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return 'This'
+  return LONG_MONTHS[date.getUTCMonth()]
 }
