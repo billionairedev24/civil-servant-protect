@@ -13,7 +13,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - run: npm ci
@@ -33,4 +33,25 @@ jobs:
       # languages and both console device modes, failing on any uncaught
       # exception or console error.
       - name: Smoke test
-        run: npm run smoke
+        shell: bash
+        run: npm run smoke 2>&1 | tee smoke.log
+
+      # A browser failure needs its output where the change is reviewed, not
+      # only in a log archive. The job summary carries the full tail; the
+      # ::error:: annotation carries a one-line version, which surfaces on the
+      # PR and in the checks API without needing a write-scoped token.
+      - name: Report smoke failure
+        if: failure()
+        shell: bash
+        run: |
+          {
+            echo '### Smoke test failed'
+            echo ''
+            echo '```'
+            tail -80 smoke.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          detail=$(grep -E '^\s*(✗|console:|uncaught:)' smoke.log | head -5 | tr '\n' ' ' | cut -c1-900)
+          [ -n "$detail" ] || detail=$(tail -5 smoke.log | tr '\n' ' ' | cut -c1-900)
+          echo "::error title=Smoke test::${detail}"

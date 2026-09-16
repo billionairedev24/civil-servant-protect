@@ -17,7 +17,11 @@ import { setTimeout as sleep } from 'node:timers/promises'
 import { chromium } from 'playwright'
 
 const PORT = Number(process.env.SMOKE_PORT ?? 4180)
-const BASE = `http://localhost:${PORT}/`
+// 127.0.0.1 rather than localhost, for binding and for browsing. On some CI
+// runners `localhost` resolves to ::1 first, so a server bound to one stack and
+// a client probing the other never meet.
+const HOST = '127.0.0.1'
+const BASE = `http://${HOST}:${PORT}/`
 
 const SURFACES = ['Phone', 'Web', 'Console', 'Spec']
 const RAILS = ['Federal', 'State', 'Employer', 'Self-pay']
@@ -54,7 +58,7 @@ const SPEC_SECTIONS = [
  */
 function portOpen(port) {
   return new Promise((resolve) => {
-    const socket = connect({ host: '127.0.0.1', port })
+    const socket = connect({ host: HOST, port })
     const done = (ok) => {
       socket.destroy()
       resolve(ok)
@@ -65,24 +69,35 @@ function portOpen(port) {
   })
 }
 
+// --strictPort so a busy port fails loudly instead of vite quietly moving to
+// the next one and leaving us driving a stale build on the wrong address.
+const server = spawn(
+  'npx',
+  ['vite', 'preview', '--host', HOST, '--port', String(PORT), '--strictPort'],
+  { stdio: ['ignore', 'pipe', 'pipe'] },
+)
+
+// Keep the server's own output so a startup failure can explain itself rather
+// than being reported as a bare timeout.
+let serverOutput = ''
+server.stdout?.on('data', (d) => (serverOutput += d))
+server.stderr?.on('data', (d) => (serverOutput += d))
+server.on('error', (e) => (serverOutput += `spawn failed: ${e.message}\n`))
+
 async function waitForServer(port, timeoutMs = 60_000) {
   const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
     if (await portOpen(port)) return
+    if (server.exitCode !== null) break
     await sleep(250)
   }
   throw new Error(
-    `preview server did not start on port ${port}. ` +
-      'Is the port already taken, or has `npm run build` not been run?',
+    `preview server did not start on ${BASE}\n` +
+      `  exit code: ${server.exitCode ?? 'still running'}\n` +
+      `  output: ${serverOutput.trim() || '(none)'}\n` +
+      '  Has `npm run build` been run, or is the port already taken?',
   )
 }
-
-// --strictPort so a busy port fails loudly instead of vite quietly moving to
-// the next one and leaving us driving a stale build on the wrong address.
-const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], {
-  stdio: 'ignore',
-  detached: false,
-})
 
 let browser
 let failed = false
@@ -102,7 +117,11 @@ try {
     if (m.type() === 'error') problems.push(`console: ${m.text()}`)
   })
 
-  await page.goto(BASE, { waitUntil: 'networkidle' })
+  // 'load' rather than 'networkidle': networkidle is timing-sensitive and
+  // Playwright discourages it. What actually matters is that the shell has
+  // painted, so wait for the surface tabs.
+  await page.goto(BASE, { waitUntil: 'load', timeout: 60_000 })
+  await page.getByRole('button', { name: 'Phone', exact: true }).first().waitFor({ timeout: 30_000 })
 
   const surface = (name) => page.getByRole('button', { name, exact: true }).click()
   const open = async (label) => {
