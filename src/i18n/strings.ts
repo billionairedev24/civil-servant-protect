@@ -118,6 +118,9 @@ export interface Strings {
   audit_note: string
   paid_title: string
   paid_sub: string
+  /** Self-pay has no payroll file, so the prose that names one needs a twin.
+      See the `_self` block in the README's rail notes. */
+  paid_sub_self: string
   across_months: string
   recent: string
   deduction: string
@@ -181,14 +184,27 @@ export interface Strings {
   pay_b2_body: string
   pay_if_title: string
   pay_if_body: string
+  pay_if_body_self: string
+  /** The grace timeline under "if the deduction does not come". Four segments:
+      the collection attempt, the wait, the card fallback, the grace period. */
+  pay_grace: string[]
+  pay_grace_self: string[]
   pay_move_title: string
   pay_move_body: string
   pay_switch: string
   pay_next: string
   src: string[]
+  /** Mono source labels on a ledger row. `sponsor.ledger` supplies the cleared
+      case, because that one is a rail identifier rather than prose. */
+  ct_src_card: string
+  ct_src_pending: string
+  ct_src_pending_self: string
   ct_note: string
+  ct_note_self: string
   ct_legend: string[]
+  ct_legend_self: string[]
   home_pay_head: string
+  home_pay_head_self: string
   home_pay_sub: string
   home_pay_ok: string
   more_pay: string
@@ -290,6 +306,7 @@ export const STRINGS: Record<Lang, Strings> = {
     audit_note: "Every stage is time-stamped and cannot be edited afterwards. Dial *347*55*84# to hear it.",
     paid_title: "What you have paid",
     paid_sub: "Straight from the payroll file. We cannot edit it.",
+    paid_sub_self: "Straight from your bank mandate. We cannot edit it.",
     across_months: "across 14 months",
     recent: "RECENT",
     deduction: "Payroll deduction",
@@ -353,14 +370,23 @@ export const STRINGS: Record<Lang, Strings> = {
     pay_b2_body: "Dial *347*55# and pay from any phone, even a borrowed one.",
     pay_if_title: "If the deduction does not come",
     pay_if_body: "We wait 7 days for the payroll file, then try your card. Cover only stops after 60 days of nothing, and we warn you three times before that.",
+    pay_if_body_self: "We try the debit again after 7 days, then your card. Cover only stops after 60 days of nothing, and we warn you three times before that.",
+    pay_grace: ["file due", "7-day wait", "card tried", "60-day grace"],
+    pay_grace_self: ["debit sent", "7-day wait", "card tried", "60-day grace"],
     pay_move_title: "If you transfer, retire or leave",
     pay_move_body: "Your cover moves with you. It becomes a card payment and keeps the same CSP-ID and the same start date.",
     pay_switch: "Pay by card instead",
     pay_next: "Next collection",
     src: ["Payroll", "Card", "Waiting"],
+    ct_src_card: "CARD",
+    ct_src_pending: "NOT YET IN THE FILE",
+    ct_src_pending_self: "NOT YET CLEARED",
     ct_note: "A month only turns green when the payroll office returns its remittance file. Until then it stays grey — we will not tell you that you are paid when we do not know yet.",
+    ct_note_self: "A month only turns green once your bank confirms the debit. Until then it stays grey — we will not tell you that you are paid when we do not know yet.",
     ct_legend: ["Confirmed", "Paid by card", "Waiting for the file"],
+    ct_legend_self: ["Confirmed", "Paid by card", "Waiting to clear"],
     home_pay_head: "August deduction has not arrived",
+    home_pay_head_self: "August direct debit did not go through",
     home_pay_sub: "We try your card on 8 September. You are still covered.",
     home_pay_ok: "Next ₦2,500 on 28 September",
     more_pay: "How I pay",
@@ -460,6 +486,7 @@ export const STRINGS: Record<Lang, Strings> = {
     audit_note: "Kowane mataki na da lokaci kuma ba za a iya canza shi ba. Buga *347*55*84#.",
     paid_title: "Abin da ka biya",
     paid_sub: "Kai tsaye daga fayil ɗin albashi. Ba za mu iya canza shi ba.",
+    paid_sub_self: "Kai tsaye daga izinin bankinka. Ba za mu iya canza shi ba.",
     across_months: "cikin watanni 14",
     recent: "NA KWANAN NAN",
     deduction: "Cirewar albashi",
@@ -523,14 +550,23 @@ export const STRINGS: Record<Lang, Strings> = {
     pay_b2_body: "Buga *347*55# ka biya daga kowace waya, ko ta aro.",
     pay_if_title: "Idan cirewa bai zo ba",
     pay_if_body: "Muna jira kwana 7 don fayil ɗin albashi, sannan mu gwada katinka. Kariya na tsayawa bayan kwana 60 na babu komai, kuma mun gargaɗe ka sau uku kafin haka.",
+    pay_if_body_self: "Muna sake gwada cirewar bayan kwana 7, sannan mu gwada katinka. Kariya na tsayawa bayan kwana 60 na babu komai, kuma mun gargaɗe ka sau uku kafin haka.",
+    pay_grace: ["ranar fayil", "jira kwana 7", "an gwada kati", "kwana 60 na jinkiri"],
+    pay_grace_self: ["an aika cirewa", "jira kwana 7", "an gwada kati", "kwana 60 na jinkiri"],
     pay_move_title: "Idan ka koma, ka yi hutu ko ka bar aiki",
     pay_move_body: "Kariyarka na tafiya tare da kai. Ta koma biyan kati, tare da CSP-ID iri ɗaya da ranar farawa iri ɗaya.",
     pay_switch: "Biya da kati maimakon",
     pay_next: "Karɓa na gaba",
     src: ["Albashi", "Kati", "Ana jira"],
+    ct_src_card: "KATI",
+    ct_src_pending: "BAI SHIGA FAYIL BA",
+    ct_src_pending_self: "BAI TABBATA BA",
     ct_note: "Wata na koma kore sai ofishin albashi ya dawo da fayil ɗin. Kafin nan yana zama toka — ba za mu ce ka biya idan ba mu sani ba.",
+    ct_note_self: "Wata na koma kore sai bankinka ya tabbatar da cirewar. Kafin nan yana zama toka — ba za mu ce ka biya idan ba mu sani ba.",
     ct_legend: ["An tabbatar", "An biya da kati", "Ana jiran fayil"],
+    ct_legend_self: ["An tabbatar", "An biya da kati", "Ana jiran tabbaci"],
     home_pay_head: "Cirewar Agusta bai zo ba",
+    home_pay_head_self: "Cirewar banki ta Agusta ba ta yi nasara ba",
     home_pay_sub: "Za mu gwada katinka 8 ga Satumba. Kariyarka na nan.",
     home_pay_ok: "₦2,500 na gaba 28 ga Satumba",
     more_pay: "Yadda nake biya",
@@ -630,6 +666,7 @@ export const STRINGS: Record<Lang, Strings> = {
     audit_note: "Ìgbésẹ̀ kọ̀ọ̀kan ní àkókò, a kò lè yí i padà. Pe *347*55*84#.",
     paid_title: "Ohun tí o ti san",
     paid_sub: "Tààrà láti inú fáìlì owó oṣù. A kò lè yí i padà.",
+    paid_sub_self: "Tààrà láti inú àṣẹ báǹkì rẹ. A kò lè yí i padà.",
     across_months: "ní oṣù 14",
     recent: "TÍ Ó ṢẸ̀ṢẸ̀ ṢẸLẸ̀",
     deduction: "Ìyọkúrò owó oṣù",
@@ -693,14 +730,23 @@ export const STRINGS: Record<Lang, Strings> = {
     pay_b2_body: "Pe *347*55# kí o san láti fóònù yòówù, kódà tí o yá.",
     pay_if_title: "Tí ìyọkúrò kò bá dé",
     pay_if_body: "A dúró ọjọ́ 7 fún fáìlì owó oṣù, lẹ́yìn náà a gbìyànjú káàdì rẹ. Ààbò dúró kìkì lẹ́yìn ọjọ́ 60 tí kò sí nǹkan, a sì kìlọ̀ fún ọ ní ìgbà mẹ́ta.",
+    pay_if_body_self: "A tún gbìyànjú ìyọkúrò náà lẹ́yìn ọjọ́ 7, lẹ́yìn náà káàdì rẹ. Ààbò dúró kìkì lẹ́yìn ọjọ́ 60 tí kò sí nǹkan, a sì kìlọ̀ fún ọ ní ìgbà mẹ́ta.",
+    pay_grace: ["ọjọ́ fáìlì", "ìdúró ọjọ́ 7", "a gbìyànjú káàdì", "ìdáwọ́dúró ọjọ́ 60"],
+    pay_grace_self: ["a rán ìyọkúrò", "ìdúró ọjọ́ 7", "a gbìyànjú káàdì", "ìdáwọ́dúró ọjọ́ 60"],
     pay_move_title: "Tí o bá ṣí, fẹ̀yìntì tàbí kúrò",
     pay_move_body: "Ààbò rẹ ń bá ọ lọ. Ó di ìsanwó káàdì pẹ̀lú CSP-ID kan náà àti ọjọ́ ìbẹ̀rẹ̀ kan náà.",
     pay_switch: "San pẹ̀lú káàdì dípò",
     pay_next: "Ìgbà tókàn",
     src: ["Owó oṣù", "Káàdì", "À ń dúró"],
+    ct_src_card: "KÁÀDÌ",
+    ct_src_pending: "KÒ TÍÌ WÀ NÍNÚ FÁÌLÌ",
+    ct_src_pending_self: "KÒ TÍÌ JẸ́RÌÍ",
     ct_note: "Oṣù kan di àwọ̀ ewé kìkì tí ọ́fíìsì owó oṣù dá fáìlì rẹ̀ padà. Kí ó tó dé, ó wà ní eérú — a kò ní sọ pé o ti san tí a kò bá mọ̀.",
+    ct_note_self: "Oṣù kan di àwọ̀ ewé kìkì tí báǹkì rẹ bá jẹ́rìí ìyọkúrò náà. Kí ó tó dé, ó wà ní eérú — a kò ní sọ pé o ti san tí a kò bá mọ̀.",
     ct_legend: ["A jẹ́rìí", "A san pẹ̀lú káàdì", "À ń dúró de fáìlì"],
+    ct_legend_self: ["A jẹ́rìí", "A san pẹ̀lú káàdì", "À ń dúró de ìjẹ́rìí"],
     home_pay_head: "Ìyọkúrò Ògùn kò dé",
+    home_pay_head_self: "Ìyọkúrò báǹkì Ògùn kò ṣẹ",
     home_pay_sub: "A ó gbìyànjú káàdì rẹ ní 8 Septẹ́mbà. Ààbò rẹ wà.",
     home_pay_ok: "₦2,500 tókàn ní 28 Septẹ́mbà",
     more_pay: "Bí mo ṣe ń san",
@@ -800,6 +846,7 @@ export const STRINGS: Record<Lang, Strings> = {
     audit_note: "Nzọụkwụ ọ bụla nwere oge, enweghị ike idezi ya. Kpọọ *347*55*84#.",
     paid_title: "Ihe ị kwụrụ",
     paid_sub: "Kpọmkwem site na faịlụ ụgwọ ọnwa. Anyị enweghị ike idezi ya.",
+    paid_sub_self: "Kpọmkwem site n'ikike banki gị. Anyị enweghị ike idezi ya.",
     across_months: "n'ime ọnwa 14",
     recent: "NKE NSO",
     deduction: "Mwepụ ụgwọ ọnwa",
@@ -863,14 +910,23 @@ export const STRINGS: Record<Lang, Strings> = {
     pay_b2_body: "Kpọọ *347*55# kwụọ site na ekwentị ọ bụla, ọbụna nke ị gbaziri.",
     pay_if_title: "Ọ bụrụ na mwepụ abịaghị",
     pay_if_body: "Anyị na-eche ụbọchị 7 maka faịlụ ụgwọ ọnwa, mgbe ahụ anyị gbalịa kaadị gị. Nchebe na-akwụsị naanị mgbe ụbọchị 60 gafere n'enweghị ihe, anyị na-adọ gị aka na ntị ugboro atọ tupu mgbe ahụ.",
+    pay_if_body_self: "Anyị na-anwakwa mwepụ ahụ ọzọ mgbe ụbọchị 7 gasịrị, mgbe ahụ kaadị gị. Nchebe na-akwụsị naanị mgbe ụbọchị 60 gafere n'enweghị ihe, anyị na-adọ gị aka na ntị ugboro atọ tupu mgbe ahụ.",
+    pay_grace: ["ụbọchị faịlụ", "nchere ụbọchị 7", "anwalere kaadị", "amara ụbọchị 60"],
+    pay_grace_self: ["ezigara mwepụ", "nchere ụbọchị 7", "anwalere kaadị", "amara ụbọchị 60"],
     pay_move_title: "Ọ bụrụ na ị kwaga, lara ezumike ma ọ bụ hapụ ọrụ",
     pay_move_body: "Nchebe gị na-eso gị. Ọ na-aghọ ịkwụ ụgwọ kaadị, na otu CSP-ID na otu ụbọchị mmalite.",
     pay_switch: "Kwụọ site na kaadị kama",
     pay_next: "Nnata na-esote",
     src: ["Ụgwọ ọnwa", "Kaadị", "Na-eche"],
+    ct_src_card: "KAADỊ",
+    ct_src_pending: "Ọ NỌGHỊ NA FAỊLỤ",
+    ct_src_pending_self: "AKWADOBEGHỊ",
     ct_note: "Ọnwa na-aghọ akwụkwọ ndụ naanị mgbe ọfịs ụgwọ ọnwa weghachiri faịlụ ya. Tupu mgbe ahụ ọ na-anọ ntụ — anyị agaghị agwa gị na ị kwụrụ mgbe anyị na-amaghị.",
+    ct_note_self: "Ọnwa na-aghọ akwụkwọ ndụ naanị mgbe banki gị kwadoro mwepụ ahụ. Tupu mgbe ahụ ọ na-anọ ntụ — anyị agaghị agwa gị na ị kwụrụ mgbe anyị na-amaghị.",
     ct_legend: ["Akwadoro", "Kwụrụ site na kaadị", "Na-eche faịlụ"],
+    ct_legend_self: ["Akwadoro", "Kwụrụ site na kaadị", "Na-eche nkwado"],
     home_pay_head: "Mwepụ Ọgọst erughị",
+    home_pay_head_self: "Mwepụ banki Ọgọst agaghị",
     home_pay_sub: "Anyị ga-agbalị kaadị gị na 8 Septemba. Ị ka nwere nchebe.",
     home_pay_ok: "₦2,500 na-esote na 28 Septemba",
     more_pay: "Otú m na-akwụ",
@@ -970,6 +1026,7 @@ export const STRINGS: Record<Lang, Strings> = {
     audit_note: "Every stage get time stamp, nobody can change am after. Dial *347*55*84#.",
     paid_title: "Wetin you don pay",
     paid_sub: "Straight from di payroll file. We no fit change am.",
+    paid_sub_self: "Straight from your bank mandate. We no fit change am.",
     across_months: "for 14 months",
     recent: "RECENT",
     deduction: "Payroll deduction",
@@ -1033,14 +1090,23 @@ export const STRINGS: Record<Lang, Strings> = {
     pay_b2_body: "Dial *347*55# pay from any phone, even borrow phone.",
     pay_if_title: "If di deduction no come",
     pay_if_body: "We wait 7 days for di payroll file, den we try your card. Cover only stop after 60 days of nothing, and we warn you three times before.",
+    pay_if_body_self: "We go try di debit again after 7 days, den we try your card. Cover only stop after 60 days of nothing, and we warn you three times before.",
+    pay_grace: ["file due", "7-day wait", "card tried", "60-day grace"],
+    pay_grace_self: ["debit send", "7-day wait", "card tried", "60-day grace"],
     pay_move_title: "If you transfer, retire or leave",
     pay_move_body: "Your cover follow you. E turn card payment, same CSP-ID, same start date.",
     pay_switch: "Pay with card instead",
     pay_next: "Next collection",
     src: ["Payroll", "Card", "Waiting"],
+    ct_src_card: "CARD",
+    ct_src_pending: "E NEVER ENTER FILE",
+    ct_src_pending_self: "E NEVER CLEAR",
     ct_note: "Month only turn green when payroll office return dem remittance file. Before den e stay grey — we no go tell you say you pay when we no know yet.",
+    ct_note_self: "Month only turn green when your bank confirm di debit. Before den e stay grey — we no go tell you say you pay when we no know yet.",
     ct_legend: ["Confirmed", "Paid by card", "Dey wait for file"],
+    ct_legend_self: ["Confirmed", "Paid by card", "Dey wait make e clear"],
     home_pay_head: "August deduction no arrive",
+    home_pay_head_self: "August direct debit no go through",
     home_pay_sub: "We go try your card 8 September. You still dey covered.",
     home_pay_ok: "Next ₦2,500 on 28 September",
     more_pay: "How I dey pay",

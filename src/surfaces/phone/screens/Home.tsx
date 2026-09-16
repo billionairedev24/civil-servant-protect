@@ -12,7 +12,11 @@ export function HomeScreen() {
      so it states the rail's status plainly rather than assuming success. */
   const payRow = late
     ? {
-        head: t.home_pay_head, sub: t.home_pay_sub, icon: 'ph-fill ph-warning-circle',
+        // "The deduction has not arrived" names a payroll event. On self-pay
+        // what failed is the bank debit, and saying otherwise sends the member
+        // to an HR office that was never involved.
+        head: sponsor.payroll ? t.home_pay_head : t.home_pay_head_self,
+        sub: t.home_pay_sub, icon: 'ph-fill ph-warning-circle',
         ic: C.ochre, bc: C.ochreBorder, bg: C.ochreBg, fg: C.ochreInk, subFg: C.ochre,
       }
     : {

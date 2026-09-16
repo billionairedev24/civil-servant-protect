@@ -10,17 +10,22 @@ import { usePhone } from '../state'
  * How you pay. States the real rail, the real backup, and — because payroll
  * deduction has no retry semantics the app controls — the actual grace timeline:
  * file due → 7-day wait → card attempt → 60-day grace.
+ *
+ * On self-pay the first segment is the debit going out, not a file falling due,
+ * because there is no payroll office in that rail to send one.
  */
 export function PayScreen() {
   const { t, sponsor, setSponsor } = usePhone()
   const payroll = sponsor.payroll
 
-  const grace = [
-    { label: 'file due', flex: 2, bg: C.g, fg: C.gd },
-    { label: '7-day wait', flex: 2, bg: C.gSoft, fg: C.mut },
-    { label: 'card tried', flex: 1, bg: C.ochreBorder, fg: C.ochre },
-    { label: '60-day grace', flex: 3, bg: C.clayBorder2, fg: C.clay },
+  const GRACE_BARS = [
+    { flex: 2, bg: C.g, fg: C.gd },
+    { flex: 2, bg: C.gSoft, fg: C.mut },
+    { flex: 1, bg: C.ochreBorder, fg: C.ochre },
+    { flex: 3, bg: C.clayBorder2, fg: C.clay },
   ]
+  const graceLabels = payroll ? t.pay_grace : t.pay_grace_self
+  const grace = GRACE_BARS.map((bar, i) => ({ ...bar, label: graceLabels[i] }))
 
   return (
     <Screen scroll>
@@ -75,7 +80,9 @@ export function PayScreen() {
           <Icon name="ph ph-warning-diamond" size={19} color={C.clay} />
           <span style={{ fontSize: 15.5, fontWeight: 700 }}>{t.pay_if_title}</span>
         </div>
-        <div style={{ fontSize: 13, lineHeight: 1.55, color: C.mut, marginTop: 6 }}>{t.pay_if_body}</div>
+        <div style={{ fontSize: 13, lineHeight: 1.55, color: C.mut, marginTop: 6 }}>
+          {payroll ? t.pay_if_body : t.pay_if_body_self}
+        </div>
         <div style={{ display: 'flex', gap: 5, marginTop: 14 }}>
           {grace.map((g) => (
             <div key={g.label} style={{ flex: g.flex, display: 'flex', flexDirection: 'column', gap: 5 }}>
@@ -110,13 +117,19 @@ export function PayScreen() {
 }
 
 /**
- * Contributions. The trust artefact: taken straight from the payroll file and
- * not editable by us. A month only turns full green once the remittance file
- * returns; card recoveries are a lighter green; the current month says it is
- * waiting rather than claiming a payment nobody has seen.
+ * Contributions. The trust artefact: taken straight from the collection record
+ * and not editable by us. A month only turns full green once that record
+ * confirms it — the remittance file on a payroll rail, the bank on self-pay;
+ * card recoveries are a lighter green; the current month says it is waiting
+ * rather than claiming a payment nobody has seen.
+ *
+ * The prose has to follow the rail. A self-paying member has no payroll office
+ * and no file, so telling them a month is "waiting for the file" is telling
+ * them about a process that does not exist for them.
  */
 export function ContributionsScreen() {
   const { t, sponsor, go } = usePhone()
+  const payroll = sponsor.payroll
 
   const monthStyle = (m: (typeof CONTRIB_MONTHS)[number]) =>
     m === 'waiting'
@@ -126,7 +139,7 @@ export function ContributionsScreen() {
   return (
     <Screen scroll>
       <ScreenTitle style={{ paddingTop: 12 }}>{t.paid_title}</ScreenTitle>
-      <Sub>{t.paid_sub}</Sub>
+      <Sub>{payroll ? t.paid_sub : t.paid_sub_self}</Sub>
 
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginTop: 18 }}>
         <span style={{ fontSize: 36, fontWeight: 700, letterSpacing: '-.035em' }}>{CONTRIB_TOTAL}</span>
@@ -149,7 +162,7 @@ export function ContributionsScreen() {
       </div>
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 13 }}>
-        {t.ct_legend.map((label, i) => (
+        {(payroll ? t.ct_legend : t.ct_legend_self).map((label, i) => (
           <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span
               style={{
@@ -169,7 +182,7 @@ export function ContributionsScreen() {
           background: C.white, fontSize: 13, lineHeight: 1.55, color: C.mut,
         }}
       >
-        {t.ct_note}
+        {payroll ? t.ct_note : t.ct_note_self}
       </div>
 
       <Kicker style={{ marginTop: 26 }}>{t.recent}</Kicker>
@@ -177,7 +190,15 @@ export function ContributionsScreen() {
         {LEDGER.map((r) => {
           const icon = r.src === 2 ? 'ph ph-clock-countdown' : r.src === 1 ? 'ph ph-credit-card' : 'ph-fill ph-check-circle'
           const ic = r.src === 2 ? C.faint : r.src === 1 ? C.gSoft : C.g
-          const source = r.src === 1 ? 'CARD' : r.src === 2 ? 'NOT YET IN THE FILE' : sponsor.ledger
+          // A self-paying member's pending month is not sitting in anyone's
+          // file — it is waiting on their bank — and neither label should be
+          // English-only on a screen the rest of which translates.
+          const source =
+            r.src === 1
+              ? t.ct_src_card
+              : r.src === 2
+                ? payroll ? t.ct_src_pending : t.ct_src_pending_self
+                : sponsor.ledger
           return (
             <div
               key={r.month}
