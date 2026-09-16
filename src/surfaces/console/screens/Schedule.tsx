@@ -1,0 +1,181 @@
+import { Icon } from '../../../components/Icon'
+import { Kicker, Mono } from '../../../components/primitives'
+import { PageSub, PageTitle, Panel } from '../../../components/surface'
+import { C } from '../../../theme/tokens'
+import { FORMAT_NOTES, SEND_LOG, tone } from '../data'
+import { useConsole } from '../state'
+
+/**
+ * The monthly deduction schedule — the thing this whole product exists to send.
+ *
+ * It leaves as a file and arrives on someone's desk. There is no live endpoint
+ * anywhere in this rail, and that single fact shapes every timeline in the app.
+ */
+export function ConsoleSchedule() {
+  const { payroll, profile, format, set, go } = useConsole()
+
+  return (
+    <>
+      <PageTitle>Monthly deduction schedule</PageTitle>
+      <PageSub style={{ lineHeight: 1.55, maxWidth: 640 }}>
+        {payroll
+          ? 'One row per member: service number, NIN, name, amount and the deduction code. It goes out before the payroll cut-off, and the money follows weeks later as a single credit.'
+          : 'Self-paying members are collected by direct debit, so there is no schedule to prepare — this screen only shows the run that replaces it.'}
+      </PageSub>
+
+      {!payroll && (
+        <div
+          style={{
+            display: 'flex', gap: 11, alignItems: 'flex-start', marginTop: 18, padding: '14px 15px',
+            border: `1.5px solid ${C.ochreBorder}`, borderRadius: 12, background: C.ochreBg,
+          }}
+        >
+          <Icon name="ph-fill ph-info" size={19} color={C.ochre} />
+          <div>
+            <div style={{ fontSize: 13.5, fontWeight: 700, color: C.ochreInk }}>
+              Self-paying sponsors have no schedule to send
+            </div>
+            <div style={{ fontSize: 12.5, lineHeight: 1.5, color: C.ochre, marginTop: 3 }}>
+              There is no payroll office in this rail. Money is collected by direct debit — use the{' '}
+              <button
+                type="button"
+                onClick={() => go('debit')}
+                style={{ border: 0, background: 'transparent', padding: 0, color: C.g, font: 'inherit', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}
+              >
+                collection run
+              </button>{' '}
+              instead.
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div
+        style={{
+          display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(290px,1fr))',
+          gap: 14, marginTop: 20, alignItems: 'start',
+        }}
+      >
+        <Panel pad={18}>
+          <Kicker size={9.5}>STEP 1 · WHAT GOES OUT</Kicker>
+          <div style={{ fontSize: 16, fontWeight: 700, marginTop: 8 }}>September 2026 schedule</div>
+          <div style={{ marginTop: 12 }}>
+            {[
+              { k: 'Members on the file', v: '8,440', color: undefined },
+              { k: 'Total to deduct', v: '₦21,144,000', color: undefined },
+              { k: 'Changed since August', v: '+37 · −9 · 14 tier', color: C.g },
+              { k: 'Payroll cut-off', v: '05.09 · 3 days', color: C.clay },
+            ].map((r, i, arr) => (
+              <div
+                key={r.k}
+                style={{
+                  display: 'flex', justifyContent: 'space-between', gap: 12, padding: '10px 0',
+                  borderBottom: i === arr.length - 1 ? undefined : `1px solid ${C.line7}`,
+                }}
+              >
+                <span style={{ fontSize: 13, color: C.mut }}>{r.k}</span>
+                <Mono size={13.5} weight={500} color={r.color}>{r.v}</Mono>
+              </div>
+            ))}
+          </div>
+
+          <Kicker size={9.5} style={{ marginTop: 18 }}>FILE FORMAT</Kicker>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
+            {profile.formats.map((name, i) => {
+              const on = format === i
+              return (
+                <button
+                  key={name}
+                  type="button"
+                  className="chip"
+                  onClick={() => set({ format: i })}
+                  style={{
+                    padding: '8px 13px', borderRadius: 999,
+                    border: `1.5px solid ${on ? C.g : C.line3}`,
+                    background: on ? C.gTint : C.white,
+                    color: on ? C.gd : C.ink,
+                    fontSize: 12.5, fontWeight: on ? 600 : 500,
+                  }}
+                >
+                  {name}
+                </button>
+              )
+            })}
+          </div>
+          <div style={{ fontSize: 12, lineHeight: 1.5, color: C.faint, marginTop: 9 }}>
+            {FORMAT_NOTES[Math.min(format, FORMAT_NOTES.length - 1)]}
+          </div>
+        </Panel>
+
+        <Panel pad={18}>
+          <Kicker size={9.5}>STEP 2 · WHERE IT GOES</Kicker>
+          <div style={{ fontSize: 16, fontWeight: 700, marginTop: 8 }}>{profile.dest}</div>
+          <div style={{ fontSize: 13, lineHeight: 1.55, color: C.mut, marginTop: 6 }}>
+            {payroll
+              ? 'The schedule leaves our system as a file and arrives on someone’s desk. There is no live endpoint anywhere in this rail — that single fact shapes every timeline in the app.'
+              : 'Nothing is sent to an employer. Mandates go straight to the banks through NIBSS and answer the same day.'}
+          </div>
+
+          <div
+            style={{
+              marginTop: 14, padding: '13px 14px', border: `1px solid ${C.gBorder}`,
+              borderRadius: 11, background: C.gTint,
+            }}
+          >
+            <Mono size={10} color={C.g} style={{ display: 'block', letterSpacing: '.1em' }}>DEDUCTION CODE</Mono>
+            <Mono size={17} weight={500} style={{ display: 'block', marginTop: 3 }}>{profile.code}</Mono>
+            <div style={{ fontSize: 12, lineHeight: 1.5, color: C.mut, marginTop: 5 }}>{profile.codeNote}</div>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 16 }}>
+            <button type="button" className="btn btn-md btn-primary" style={{ width: '100%', height: 50, gap: 8 }}>
+              <Icon name="ph ph-paper-plane-tilt" size={17} />
+              {payroll ? `Send to ${profile.destShort}` : 'Present the debit run'}
+            </button>
+            <button type="button" className="btn btn-secondary" style={{ width: '100%', height: 46, fontSize: 14, gap: 8 }}>
+              <Icon name="ph ph-download-simple" size={16} />
+              Download to check first
+            </button>
+          </div>
+          {/* Two-person control. An internal auditor asks about this first. */}
+          <div style={{ fontSize: 12, lineHeight: 1.5, color: C.faint, marginTop: 10 }}>
+            Sending needs a second approver. Amina prepares, Musa approves — no single person can change what payroll
+            deducts.
+          </div>
+        </Panel>
+      </div>
+
+      <Kicker size={9.5} style={{ marginTop: 26 }}>STEP 3 · WHAT CAME BACK · LAST SIX CYCLES</Kicker>
+      <Panel pad={16} style={{ marginTop: 9, padding: '4px 16px' }}>
+        {SEND_LOG.map((lg, i) => {
+          const skin = tone(lg.tone)
+          return (
+            <div
+              key={lg.period}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 12, padding: '13px 0', flexWrap: 'wrap',
+                borderBottom: `1px solid ${i === SEND_LOG.length - 1 ? 'transparent' : C.line7}`,
+              }}
+            >
+              <Mono size={12} color={C.faint} style={{ minWidth: 64 }}>{lg.period}</Mono>
+              <span style={{ flex: 1, minWidth: 150, fontSize: 13.5, fontWeight: 500 }}>{lg.what}</span>
+              <Mono size={12.5} color={C.mut} style={{ minWidth: 96, textAlign: 'right' }}>{lg.amount}</Mono>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 132 }}>
+                <Icon
+                  name={lg.tone === 'green' ? 'ph-fill ph-check-circle' : 'ph-fill ph-circle-notch'}
+                  size={14}
+                  color={skin.ic}
+                />
+                <span style={{ fontSize: 12.5, fontWeight: 500, color: skin.ic }}>{lg.state}</span>
+              </span>
+            </div>
+          )
+        })}
+        <div style={{ padding: '12px 0 14px', fontSize: 12, lineHeight: 1.5, color: C.faint }}>
+          A cycle is only closed when the return file has been reconciled — not when the money lands. One credit covers
+          thousands of members, so the file is the only thing that says who is actually covered.
+        </div>
+      </Panel>
+    </>
+  )
+}

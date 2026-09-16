@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+      # Chromium only — the smoke test drives one browser, and installing the
+      # full set triples the job for nothing.
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      # Drives all 56 screens across the four surfaces, four rails, five
+      # languages and both console device modes, failing on any uncaught
+      # exception or console error.
+      - name: Smoke test
+        run: npm run smoke
