@@ -1,0 +1,58 @@
+{{/*
+  The member web app and the console.
+
+  Both are static builds served by nginx, so they are the same shape and differ
+  only in image and replica count. The member app for phones is not here: it is
+  a React Native build that ships through the Play Store, not a pod.
+*/}}
+{{- range $name, $component := dict "web" .Values.memberWeb "console" .Values.console }}
+{{- if $component.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $.Release.Name }}-{{ $name }}
+  labels:
+    {{- include "csp.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $name }}
+spec:
+  replicas: {{ $component.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ $.Release.Name }}
+      app.kubernetes.io/component: {{ $name }}
+  template:
+    metadata:
+      labels:
+        {{- include "csp.labels" $ | nindent 8 }}
+        app.kubernetes.io/component: {{ $name }}
+    spec:
+      securityContext:
+        {{- include "csp.podSecurity" $ | nindent 8 }}
+      {{- with $.Values.global.imagePullSecrets }}
+      imagePullSecrets: {{ toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ $name }}
+          image: {{ include "csp.image" (list $ $component) }}
+          securityContext:
+            {{- include "csp.containerSecurity" $ | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 15
+          resources: {{ toYaml $component.resources | nindent 12 }}
+          volumeMounts:
+            # nginx writes its cache and pid somewhere; the root stays read-only.
+            - { name: cache, mountPath: /var/cache/nginx }
+            - { name: run, mountPath: /var/run }
+      volumes:
+        - { name: cache, emptyDir: {} }
+        - { name: run, emptyDir: {} }
+{{- end }}
+{{- end }}

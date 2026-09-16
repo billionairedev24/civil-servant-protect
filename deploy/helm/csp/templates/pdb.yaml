@@ -1,0 +1,16 @@
+{{- if .Values.api.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ .Release.Name }}-api
+  labels:
+    {{- include "csp.labels" . | nindent 4 }}
+spec:
+  # A node drain must not take the API to zero. minAvailable rather than
+  # maxUnavailable so this still holds while the HPA is scaling.
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: api
+{{- end }}

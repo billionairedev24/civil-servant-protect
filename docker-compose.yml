@@ -1,0 +1,74 @@
+# Local development.
+#
+# Brings up what the API needs and nothing it does not: Postgres, Redis, and
+# Keycloak for the console's sign-in. The API itself runs from your IDE or from
+# `mvn spring-boot:run`, because you will be restarting it constantly.
+#
+#   docker compose up -d
+#
+# See SETUP.md for what to do next.
+
+name: csp
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: csp
+      POSTGRES_PASSWORD: csp
+      POSTGRES_DB: csp
+      # Deterministic collation: an ORDER BY that differs between a laptop and
+      # Abuja is a very slow bug to find.
+      POSTGRES_INITDB_ARGS: "--locale=C --encoding=UTF8"
+    command:
+      - postgres
+      # pgAudit in production, per the build spec. Locally this is enough to
+      # see what the application actually runs.
+      - -c
+      - log_statement=none
+      - -c
+      - max_connections=100
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ./deploy/local/init-test-db.sql:/docker-entrypoint-initdb.d/10-test-db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U csp -d csp"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    # OTP challenges and rate limits. Nothing here needs to survive a restart,
+    # so persistence is off — which also makes "it works after a restart" honest.
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HEALTH_ENABLED: "true"
+    ports:
+      - "8081:8080"
+    volumes:
+      # The realm, its eight roles, and four console users with known passwords.
+      - ./deploy/local/keycloak-realm.json:/opt/keycloak/data/import/csp-realm.json:ro
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && echo -e 'GET /health/ready HTTP/1.1\\nhost: localhost\\n' >&3 && cat <&3 | grep -q '200 OK'"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+volumes:
+  db-data:

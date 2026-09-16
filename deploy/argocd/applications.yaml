@@ -1,0 +1,48 @@
+# App-of-apps. Apply this one object; it owns the rest.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: csp-environments
+  namespace: argocd
+  finalizers:
+    # Deleting this must tear down what it created, rather than orphaning it.
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: csp
+  source:
+    repoURL: https://gitlab.com/csp/civil-servant-protect.git
+    targetRevision: main
+    path: deploy/argocd/environments
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: csp
+  namespace: argocd
+spec:
+  description: Civil Servant Protect
+  sourceRepos:
+    - https://gitlab.com/csp/civil-servant-protect.git
+  destinations:
+    - namespace: csp-*
+      server: https://kubernetes.default.svc
+  # Namespaced resources only, plus the cluster-scoped ones actually needed.
+  # An application that can create a ClusterRole can grant itself anything.
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+  namespaceResourceWhitelist:
+    - { group: "", kind: "*" }
+    - { group: apps, kind: "*" }
+    - { group: batch, kind: "*" }
+    - { group: networking.k8s.io, kind: "*" }
+    - { group: policy, kind: "*" }
+    - { group: autoscaling, kind: "*" }
+    - { group: monitoring.coreos.com, kind: "*" }

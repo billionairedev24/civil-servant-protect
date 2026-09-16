@@ -1,0 +1,66 @@
+spring:
+  application:
+    name: csp-api
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://127.0.0.1:5432/csp}
+    username: ${DATABASE_USER:csp}
+    password: ${DATABASE_PASSWORD:csp}
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX:10}
+      # Fail fast and let the client retry rather than queueing until the
+      # ingress times out.
+      connection-timeout: 5000
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    # Pinned rather than inherited. Postgres resolves an unqualified schema via
+    # search_path, which is "$user", public — and the application user is called
+    # csp, which is also the name of the schema the migrations create for helper
+    # functions. Left to default, Flyway adopts that schema as its own on the
+    # second run, finds it non-empty with no history table, and refuses to start.
+    schemas: public
+    default-schema: public
+  threads:
+    # Virtual threads: these handlers are almost entirely waiting on Postgres.
+    virtual:
+      enabled: true
+
+server:
+  port: ${PORT:8080}
+  shutdown: graceful
+  # Behind an ingress, so the client address must come from the forwarded
+  # header rather than from the proxy's own.
+  forward-headers-strategy: framework
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      # Liveness is "the process is up"; readiness is "it can actually serve".
+      # A pod with no database should stop taking traffic, not restart forever.
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include: db
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+
+csp:
+  jwt-secret: ${JWT_SECRET:}
+  access-token-ttl: ${ACCESS_TOKEN_TTL:20m}
+  refresh-token-ttl: ${REFRESH_TOKEN_TTL:8h}
+  cors-origins: ${CORS_ORIGINS:http://localhost:5173}
+  otp:
+    echo: ${OTP_ECHO:false}
+    fixed-code: ${OTP_FIXED_CODE:#{null}}
+
+logging:
+  level:
+    root: ${LOG_LEVEL:info}

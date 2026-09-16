@@ -1,0 +1,22 @@
+{{- if .Values.api.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-api
+  labels:
+    {{- include "csp.labels" . | nindent 4 }}
+data:
+  SPRING_PROFILES_ACTIVE: prod
+  DATABASE_URL: {{ include "csp.databaseUrl" . | quote }}
+  SPRING_DATA_REDIS_HOST: {{ required "redis.host is required" .Values.redis.host | quote }}
+  SPRING_DATA_REDIS_PORT: {{ .Values.redis.port | quote }}
+  CSP_KEYCLOAK_ISSUER_URI: {{ .Values.keycloak.issuerUri | quote }}
+  CSP_TOKEN_ISSUER: {{ printf "https://%s" .Values.ingress.hosts.api | quote }}
+  CORS_ORIGINS: {{ printf "https://%s,https://%s" .Values.ingress.hosts.web .Values.ingress.hosts.console | quote }}
+  {{- range $key, $value := .Values.api.env }}
+  {{ $key }}: {{ $value | quote }}
+  {{- end }}
+  # Flyway runs in the migration Job, not on startup. Two pods racing to
+  # migrate the same schema is a bad way to find out about a lock.
+  SPRING_FLYWAY_ENABLED: "false"
+{{- end }}

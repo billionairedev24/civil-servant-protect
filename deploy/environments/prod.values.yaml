@@ -1,0 +1,52 @@
+# prod — GBB Abuja. L3 data; Nigeria only.
+global:
+  imageRegistry: registry.gitlab.com/csp
+  revision: ""   # written by CI
+  imagePullSecrets:
+    - name: gitlab-registry
+
+api:
+  image:
+    digest: ""   # written by CI, promoted by a human
+  resources:
+    requests: { cpu: 1, memory: 2Gi }
+    limits: { cpu: 4, memory: 4Gi }
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    # Roll week: ~3m rows arrive in a burst around the 5th.
+    maxReplicas: 20
+  secrets:
+    # Created by the Vault injector from the in-country HSM-backed mount.
+    # Nothing in this repository ever holds a production credential.
+    database: csp-database
+    jwt: csp-jwt
+    redis: csp-redis
+
+memberWeb: { image: { digest: "" }, replicas: 3 }
+console:   { image: { digest: "" }, replicas: 2 }
+
+postgres:
+  # Patroni HA, three nodes. Terraform owns it; the chart only dials it.
+  host: csp-postgres-rw.csp-prod.svc.cluster.local
+  readHost: csp-postgres-ro.csp-prod.svc.cluster.local
+  database: csp
+redis:
+  host: csp-redis-master.csp-prod.svc.cluster.local
+
+keycloak:
+  issuerUri: https://id.csp.gov.ng/realms/csp
+
+ingress:
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: 12m
+    # The WAF is in front; this is defence in depth, not the only limit.
+    nginx.ingress.kubernetes.io/limit-rps: "50"
+  hosts:
+    api: api.csp.gov.ng
+    web: my.csp.gov.ng
+    console: console.csp.gov.ng
+
+serviceMonitor:
+  enabled: true

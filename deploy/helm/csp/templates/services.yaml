@@ -1,0 +1,21 @@
+{{- range $name, $component := dict "api" .Values.api "web" .Values.memberWeb "console" .Values.console }}
+{{- if $component.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $.Release.Name }}-{{ $name }}
+  labels:
+    {{- include "csp.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $name }}
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+    app.kubernetes.io/component: {{ $name }}
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+{{- end }}
+{{- end }}
