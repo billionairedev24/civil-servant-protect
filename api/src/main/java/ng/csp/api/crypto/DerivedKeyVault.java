@@ -79,9 +79,16 @@ public class DerivedKeyVault implements KeyVault {
     }
   }
 
+  /**
+   * HS256, from the configured secret.
+   *
+   * <p>Not a compromise here: a vault whose keys are already derived from one environment variable
+   * gains nothing from asymmetric signing, and would only add a key pair nobody rotates. Production
+   * runs the HSM vault, which signs ES256 — see Pkcs11KeyVault.
+   */
   @Override
-  public byte[] signingSecret() {
-    return secret.getBytes(StandardCharsets.UTF_8);
+  public Signing signing() {
+    return new Signing.Hmac(secret.getBytes(StandardCharsets.UTF_8));
   }
 
   @Override

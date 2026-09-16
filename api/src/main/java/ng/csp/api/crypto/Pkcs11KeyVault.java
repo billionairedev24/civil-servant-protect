@@ -41,11 +41,21 @@ public class Pkcs11KeyVault implements KeyVault {
   private final KeyStore keyStore;
   private final Provider provider;
   private final char[] pin;
+  private final String previousHmac;
   private final SecureRandom random = new SecureRandom();
 
   public Pkcs11KeyVault(
       @Value("${csp.crypto.hsm.config}") String configPath,
-      @Value("${csp.crypto.hsm.pin}") String pin) {
+      @Value("${csp.crypto.hsm.pin}") String pin,
+      /*
+       * The secret this service signed with before the HSM.
+       *
+       * Set it for one deploy so tokens minted by the previous version keep
+       * working, then unset it. Without that window, cutting over signs out
+       * every member at once — including the ones mid-claim.
+       */
+      @Value("${csp.crypto.previous-hmac-secret:}") String previousHmac) {
+    this.previousHmac = previousHmac;
     this.pin = pin.toCharArray();
     try {
       // SunPKCS11 is configured from a file naming the vendor's shared library
@@ -111,19 +121,63 @@ public class Pkcs11KeyVault implements KeyVault {
   }
 
   /**
-   * Refused, and this is the correct answer.
+   * ES256, signed inside the device.
    *
-   * <p>HS256 needs the key bytes in the signer. Handing them over would mean generating the token
-   * key as extractable, which is the same as not having an HSM while telling an auditor that you do.
+   * <p>What comes back from the keystore is a handle: the {@code PrivateKey} object holds no key
+   * material, and {@code Signature.sign()} on it is a round trip to the hardware. That is the whole
+   * reason member tokens are ES256 and not HS256 — an HMAC signer needs the bytes, so the only way
+   * to sign one with an HSM key is to have generated it extractable, which is the same as not
+   * having an HSM.
+   *
+   * <p>The key id goes in the token header so a verifier can pick the right public key across a
+   * rotation, and the public half is published at {@code /v1/auth/jwks}.
    */
   @Override
-  public byte[] signingSecret() {
-    throw new UnsupportedOperationException(
-        """
-        The HSM will not release the token-signing key, which is the point of having one.
-        HS256 cannot be signed inside the device because the signer needs the key bytes.
-        Move member tokens to ES256 and sign through PKCS#11, where the private key stays \
-        in the hardware — csp.token.algorithm=ES256.""");
+  public Signing signing() {
+    try {
+      var privateKey = (java.security.PrivateKey) keyStore.getKey(Purpose.TOKEN_SIGNING.label(), pin);
+      if (privateKey == null) {
+        throw new IllegalStateException(
+            "No key labelled '%s' in the HSM. Keys are created by a witnessed ceremony, not by "
+                    .formatted(Purpose.TOKEN_SIGNING.label())
+                + "this service.");
+      }
+      var certificate = keyStore.getCertificate(Purpose.TOKEN_SIGNING.label());
+      if (certificate == null) {
+        throw new IllegalStateException(
+            "The HSM holds a private key for '%s' with no certificate, so there is no public key "
+                    .formatted(Purpose.TOKEN_SIGNING.label())
+                + "to publish. Verifiers would have nothing to check a token against.");
+      }
+      var publicKey = certificate.getPublicKey();
+      if (!(publicKey instanceof java.security.interfaces.ECPublicKey ec)) {
+        throw new IllegalStateException(
+            "The token-signing key in the HSM is %s, not EC. ES256 needs a P-256 key."
+                .formatted(publicKey.getAlgorithm()));
+      }
+      // Fingerprint rather than a name, so rotating the key rotates the kid
+      // without anybody having to remember to change a string.
+      var kid = java.util.HexFormat.of().formatHex(
+          java.security.MessageDigest.getInstance("SHA-256").digest(ec.getEncoded()), 0, 8);
+      return new Signing.Ecdsa(privateKey, ec, kid, provider);
+    } catch (IllegalStateException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new IllegalStateException("Could not read the token-signing key from the HSM", e);
+    }
+  }
+
+  @Override
+  public java.util.List<Signing> verifying() {
+    if (previousHmac == null || previousHmac.isBlank()) {
+      return java.util.List.of(signing());
+    }
+    log.warn(
+        "Still accepting tokens signed with the previous HMAC secret. Unset "
+            + "csp.crypto.previous-hmac-secret once every token minted before the cutover has "
+            + "expired — until then, a leak of that secret still mints valid sessions.");
+    return java.util.List.of(
+        signing(), new Signing.Hmac(previousHmac.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
   }
 
   @Override

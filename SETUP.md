@@ -496,11 +496,23 @@ Real, and deliberately not papered over.
    `HSM_ENABLED=true` with a config file and PIN selects it, and the `prod`
    profile refuses to start without it.
 
-   One finding worth stating plainly: **HS256 member tokens cannot be signed
-   inside an HSM.** The signer needs the key bytes, so hardware custody and
-   symmetric signing are incompatible here. Moving member tokens to ES256 is
-   the fix and has not been done — it is a token-format change with a rollover,
-   not a config flag.
+   Member tokens are **HS256 under the config vault and ES256 under the HSM**,
+   because the algorithm is the vault's decision and only ES256 can be signed by
+   a key that stays inside the device. Two consequences worth knowing:
+
+   - The public half is published at `GET /v1/auth/jwks`. Under HS256 that set
+     is empty — a shared secret has no public half, which is why every service
+     wanting to check a member's session today has to be trusted to mint one
+     too. The USSD gateway and the claims service should not be.
+   - Cutting over changes the algorithm, so set `csp.crypto.previous-hmac-secret`
+     for one deploy. Without it, every token minted a minute before the switch
+     stops working — an eight-hour refresh token worthless at the moment of
+     cutover, including for a member halfway through a claim.
+
+   **What is not tested:** the PKCS#11 provider wiring. The ES256 path is
+   covered against a software EC key, which is the same code except where the
+   signature is computed; the hardware itself cannot be exercised here.
+
 7. **Translations are machine-drafted** and have had no native-speaker pass. Ten
    of them were drafted in this session rather than carried from the design
    bundle — see the README.

@@ -53,8 +53,10 @@ public class ProductionSafetyCheck implements InitializingBean {
           same environment variable as the token secret — one leak is both. Set \
           csp.crypto.hsm.enabled=true with the PKCS#11 config and PIN.
 
-          Note that HS256 member tokens cannot be signed inside an HSM; move them to ES256 at the \
-          same time. See KeyVault#signingSecret.""");
+          Member tokens move from HS256 to ES256 with that switch, because the algorithm is the \
+          vault's and only ES256 can be signed by a key that stays in the device. Set \
+          csp.crypto.previous-hmac-secret for one deploy so tokens already in people's hands keep \
+          working, then unset it.""");
     }
   }
 }
