@@ -2,8 +2,8 @@ import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tan
 import type { CspApi } from './client'
 import { useApi } from './provider'
 import type {
-  BeneficiarySet, Claim, ClaimQueueItem, Leaver, Ledger, MemberSummary, MyClaim, NewMember,
-  ProtectionCard, Reconciliation, Roster, ScheduleBatch, ScheduleRow, SponsorClaims,
+  BeneficiarySet, Claim, ClaimQueueItem, DebitRun, Leaver, Ledger, MemberSummary, MyClaim,
+  NewMember, ProtectionCard, Reconciliation, Roster, ScheduleBatch, ScheduleRow, SponsorClaims,
   SponsorDashboard,
 } from './types'
 
@@ -29,6 +29,7 @@ export const keys = {
   claimQueue: () => ['claims', 'queue'] as const,
   sponsorClaims: (sponsorId: string) => [...keys.sponsor(), 'claims', sponsorId] as const,
   leavers: (sponsorId: string) => [...keys.sponsor(), 'leavers', sponsorId] as const,
+  debitRun: (sponsorId: string) => [...keys.sponsor(), 'debit', sponsorId] as const,
   scheduleBatch: (batchId: string) => [...keys.sponsor(), 'schedule', batchId] as const,
   reconciliation: (sponsorId: string, cycleId: string) =>
     [...keys.sponsor(), 'reconciliation', sponsorId, cycleId] as const,
@@ -358,6 +359,24 @@ export function useLeave(sponsorId: string) {
     mutationFn: (input: { memberId: string; reason: Leaver['reason']; lastDay: string }) =>
       api!.leave(sponsorId, input.memberId, { reason: input.reason, lastDay: input.lastDay }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.sponsor() }),
+  })
+}
+
+/**
+ * The direct-debit run.
+ *
+ * <p>Polled while an officer watches it, like the dashboard: a debit rail
+ * answers the same day, so these numbers move during the morning somebody is
+ * looking at them.
+ */
+export function useDebitRun(sponsorId: string, fixture: DebitRun) {
+  const { api } = useApi()
+  return useQuery({
+    queryKey: keys.debitRun(sponsorId),
+    queryFn: () => api!.debitRun(sponsorId),
+    staleTime: 30_000,
+    refetchInterval: 120_000,
+    ...sharedForSponsor(api, fixture, sponsorId),
   })
 }
 

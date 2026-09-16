@@ -94,6 +94,20 @@ public class SponsorController {
     return sponsors.batchStatus(batchId);
   }
 
+  /**
+   * The direct-debit run for the month being collected.
+   *
+   * <p>Answers for a payroll sponsor too. They still run debits — for the people the file missed and
+   * the ones who left service with cover in force — and those members are the ones nobody is
+   * watching, precisely because the main collection looks fine.
+   */
+  @GetMapping("/sponsors/{sponsorId}/collection/direct-debit")
+  @PreAuthorize("hasAuthority('PERM_SPONSOR_READ')")
+  public SponsorService.DebitRun debitRun(SessionUser session, @PathVariable UUID sponsorId) {
+    session.assertSponsorScope(sponsorId);
+    return sponsors.debitRun(sponsorId);
+  }
+
   @GetMapping("/sponsors/{sponsorId}/reconciliation/{cycleId}")
   @PreAuthorize("hasAuthority('PERM_SPONSOR_READ')")
   public SponsorService.Reconciliation reconciliation(

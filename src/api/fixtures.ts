@@ -9,8 +9,8 @@
  */
 import { BENEFICIARIES, CLAIM, CONTRIB_MONTHS, MEMBER } from '../data/member'
 import type {
-  BeneficiarySet, Claim, ClaimQueueItem, Leaver, Ledger, LedgerRow, MemberSummary, MyClaim,
-  ProtectionCard, Reconciliation, Roster, SponsorClaims, SponsorDashboard,
+  BeneficiarySet, Claim, ClaimQueueItem, DebitRun, Leaver, Ledger, LedgerRow, MemberSummary,
+  MyClaim, ProtectionCard, Reconciliation, Roster, SponsorClaims, SponsorDashboard,
 } from './types'
 
 const NAIRA = 100
@@ -332,6 +332,34 @@ export const LEAVERS_FIXTURE: { leavers: Leaver[] } = {
         + 'themselves. Contributions already made are not refunded and not lost — the cover they '
         + 'bought was in force for those months.',
     },
+  ],
+}
+
+/**
+ * A debit run mid-month: most settled the same day, a handful did not.
+ *
+ * The failure mix is the point of the screen. Insufficient funds mostly clears
+ * on the retry after salaries land; a revoked mandate never does, because only
+ * the member can tell their bank to allow it again.
+ */
+export const DEBIT_RUN: DebitRun = {
+  period: '2026-09-01',
+  method: 'direct_debit',
+  counts: { presented: 1240, settled: 1189, awaiting: 0, failed: 51 },
+  failures: [
+    { kind: 'no_funds', count: 41, memberMustAct: false },
+    { kind: 'mandate_revoked', count: 7, memberMustAct: true },
+    { kind: 'card_expired', count: 3, memberMustAct: true },
+  ],
+  timeline: {
+    presented: '2026-09-28',
+    retried: '2026-10-05',
+    cardFallback: '2026-10-12',
+    graceEnds: '2026-11-27',
+  },
+  grace: [
+    { cspId: 'CSP-114-88220', name: 'Chinedu Eze', graceUntil: '2026-10-30', daysLeft: 44 },
+    { cspId: 'CSP-114-88221', name: 'Blessing Umoh', graceUntil: '2026-10-14', daysLeft: 28 },
   ],
 }
 

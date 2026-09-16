@@ -2,43 +2,83 @@ import { Icon } from '../../../components/Icon'
 import { Kicker, Mono } from '../../../components/primitives'
 import { PageSub, PageTitle, Panel } from '../../../components/surface'
 import { C } from '../../../theme/tokens'
-import { REMIT_ROWS, RETRY_STEPS, tone } from '../data'
+import { REMIT_ROWS, tone } from '../data'
 import { useConsole } from '../state'
+import { DEBIT_RUN, SPONSOR_DASHBOARD } from '../../../api/fixtures'
+import { useDebitRun, useSponsorDashboard } from '../../../api/queries'
+import { NotLive, dayFirst, periodLabel, titleCase, useLive } from '../../../api/live'
 
 /**
  * The direct-debit run. On a payroll rail this only covers the people the file
  * missed; on self-pay it is the whole collection — and the only rail that
  * answers the same day.
  */
+/**
+ * What each failure means, and whether anybody here can do something about it.
+ *
+ * The distinction is the reason this screen is worth opening. An empty account
+ * on the 28th is often a full one on the 4th, so that one is retried and needs
+ * nobody. A revoked mandate is the bank being told to stop — only the member can
+ * tell it otherwise, and a screen that offers "retry" for that teaches an
+ * officer to press a button for a fortnight.
+ */
+const DEBIT_FAILURES: Record<string, { title: string; sub: string }> = {
+  no_funds: {
+    title: 'Insufficient funds',
+    sub: 'Most clear on the second attempt, after salaries land',
+  },
+  mandate_revoked: {
+    title: 'Mandate revoked at the bank',
+    sub: 'The member must re-authorise — we cannot do it for them',
+  },
+  card_expired: {
+    title: 'Card expired',
+    sub: 'In-app prompt and an SMS; nothing happens until they replace it',
+  },
+}
+
 export function ConsoleDebit() {
-  const { payroll, profile, go } = useConsole()
+  const { payroll: demoPayroll, profile, go } = useConsole()
+  const { data: dash } = useLive(useSponsorDashboard(SPONSOR_DASHBOARD), SPONSOR_DASHBOARD)
+  const { data: run, failed, live } = useLive(useDebitRun(dash.sponsor.id, DEBIT_RUN), DEBIT_RUN)
 
-  const stats = payroll
-    ? [
-        { v: '58', k: 'Fallback mandates', t: 'neutral' as const },
-        { v: '44', k: 'Settled', t: 'green' as const },
-        { v: '11', k: 'Insufficient funds', t: 'ochre' as const },
-        { v: '3', k: 'Mandate revoked', t: 'clay' as const },
-      ]
-    : [
-        { v: '1,240', k: 'Presented', t: 'neutral' as const },
-        { v: '1,189', k: 'Settled same day', t: 'green' as const },
-        { v: '41', k: 'Insufficient funds', t: 'ochre' as const },
-        { v: '10', k: 'Revoked or expired', t: 'clay' as const },
-      ]
+  /*
+   * Which rail this sponsor is on, from the server when there is one.
+   *
+   * `payroll` in the console's own state is the demo rail switcher — the thing
+   * that re-renders every screen as a different sponsor so four collection
+   * rails can be reviewed without four backends. Live, it is not the officer's
+   * sponsor, and this screen told a self-paying sponsor that they collect
+   * through payroll.
+   */
+  const payroll = live ? run.method === 'payroll' : demoPayroll
 
-  const fails = [
-    { n: payroll ? '11' : '41', title: 'Insufficient funds', sub: 'Most clear on the second attempt, after salaries land', action: 'Retry 04.09', t: 'ochre' as const },
-    { n: payroll ? '2' : '7', title: 'Mandate revoked at the bank', sub: 'Member must re-authorise — we cannot do it for them', action: 'SMS sent', t: 'clay' as const },
-    { n: payroll ? '1' : '3', title: 'Card expired', sub: 'In-app prompt live, two SMS sent', action: 'Awaiting member', t: 'ochre' as const },
-    { n: payroll ? '0' : '1', title: 'Account closed', sub: 'Needs a new bank account before the grace runs out', action: 'Call them', t: 'clay' as const },
+  const counts = run.counts
+  const needMember = run.failures.filter((f) => f.memberMustAct).reduce((n, f) => n + f.count, 0)
+  const retryable = run.failures.filter((f) => !f.memberMustAct).reduce((n, f) => n + f.count, 0)
+
+  const stats = [
+    { v: counts.presented, k: 'Presented', t: 'neutral' as const },
+    { v: counts.settled, k: payroll ? 'Settled' : 'Settled same day', t: 'green' as const },
+    { v: retryable, k: 'Insufficient funds', t: 'ochre' as const },
+    { v: needMember, k: 'Revoked or expired', t: 'clay' as const },
   ]
 
+  /*
+   * The ladder, weighted by what is actually left at each rung rather than by a
+   * fixed set of widths. A bar that always looks the same is decoration.
+   */
   const retryBar = [
-    { flex: 3, bg: C.g },
-    { flex: 2, bg: C.gSoft },
-    { flex: 2, bg: C.ochreBorder },
-    { flex: 5, bg: C.clayBorder2 },
+    { flex: Math.max(1, counts.settled), bg: C.g },
+    { flex: Math.max(1, retryable), bg: C.ochreBorder },
+    { flex: Math.max(1, needMember), bg: C.clayBorder2 },
+  ]
+
+  const steps: [string, string][] = [
+    ['First attempt', run.timeline.presented],
+    ['Second attempt', run.timeline.retried],
+    ['Card fallback', run.timeline.cardFallback],
+    ['Grace ends', run.timeline.graceEnds],
   ]
 
   return (
@@ -60,8 +100,8 @@ export function ConsoleDebit() {
           <div>
             <div style={{ fontSize: 13.5, fontWeight: 700, color: C.ochreInk }}>This sponsor collects through payroll</div>
             <div style={{ fontSize: 12.5, lineHeight: 1.5, color: C.ochre, marginTop: 3 }}>
-              Debits here only cover members who left service or were missed by the file — 58 people this month. The
-              main collection is the{' '}
+              Debits here only cover members who left service or were missed by the file —{' '}
+              {counts.presented.toLocaleString('en-NG')} this month. The main collection is the{' '}
               <button
                 type="button"
                 onClick={() => go('upload')}
@@ -78,14 +118,24 @@ export function ConsoleDebit() {
       <Panel pad={18} style={{ marginTop: 20 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 14, flexWrap: 'wrap' }}>
           <div>
-            <Kicker size={9.5}>RUN MND-2608 · PRESENTED 28.08 06:00</Kicker>
+            <Kicker size={9.5}>
+              {periodLabel(run.period)} · PRESENTED {dayFirst(run.timeline.presented)}
+            </Kicker>
             <div style={{ fontSize: 19, fontWeight: 700, letterSpacing: '-.02em', marginTop: 5 }}>
-              {payroll ? '₦146,000' : '₦3,100,000'} across {payroll ? '58' : '1,240'} mandates
+              {counts.settled.toLocaleString('en-NG')} settled of{' '}
+              {counts.presented.toLocaleString('en-NG')} presented
             </div>
           </div>
-          <button type="button" className="btn btn-sm btn-primary" style={{ height: 44, padding: '0 18px', gap: 7 }}>
+          {/* Only the ones a retry can help. Offering it for a revoked mandate
+              is offering to press a button that cannot work. */}
+          <button
+            type="button"
+            className="btn btn-sm btn-primary"
+            style={{ height: 44, padding: '0 18px', gap: 7 }}
+            disabled={retryable === 0}
+          >
             <Icon name="ph ph-arrows-clockwise" size={16} />
-            Retry failed now
+            {retryable === 0 ? 'Nothing to retry' : `Retry ${retryable.toLocaleString('en-NG')} now`}
           </button>
         </div>
 
@@ -95,7 +145,7 @@ export function ConsoleDebit() {
             return (
               <div key={s.k} style={{ padding: '13px 14px', border: `1px solid ${skin.bc}`, borderRadius: 11, background: skin.bg }}>
                 <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-.025em', color: s.t === 'neutral' ? C.ink : skin.fg }}>
-                  {s.v}
+                  {s.v.toLocaleString('en-NG')}
                 </div>
                 <div style={{ fontSize: 12, lineHeight: 1.35, color: C.mut, marginTop: 2 }}>{s.k}</div>
               </div>
@@ -104,22 +154,38 @@ export function ConsoleDebit() {
         </div>
       </Panel>
 
-      <Kicker size={9.5} style={{ marginTop: 24 }}>WHY DEBITS FAILED</Kicker>
+      {failed && <NotLive what="This run" />}
+
+      <Kicker size={9.5} style={{ marginTop: 24 }}>
+        {run.failures.length > 0 ? 'WHY DEBITS FAILED' : 'NOTHING FAILED THIS RUN'}
+      </Kicker>
       <div style={{ marginTop: 9, display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {fails.map((f) => {
-          const skin = tone(f.t)
+        {run.failures.map((f) => {
+          const skin = tone(f.memberMustAct ? 'clay' : 'ochre')
+          const known = DEBIT_FAILURES[f.kind]
           return (
             <div
-              key={f.title}
+              key={f.kind}
               style={{
                 display: 'flex', alignItems: 'center', gap: 13, padding: '14px 15px',
                 border: `1px solid ${skin.bc}`, borderRadius: 11, background: C.white, flexWrap: 'wrap',
               }}
             >
-              <Mono size={17} weight={500} color={skin.ic} style={{ minWidth: 34 }}>{f.n}</Mono>
+              <Mono size={17} weight={500} color={skin.ic} style={{ minWidth: 34 }}>
+                {f.count.toLocaleString('en-NG')}
+              </Mono>
               <span style={{ flex: 1, minWidth: 180 }}>
-                <span style={{ display: 'block', fontSize: 14, fontWeight: 600 }}>{f.title}</span>
-                <span style={{ display: 'block', fontSize: 12.5, lineHeight: 1.4, color: C.mut, marginTop: 2 }}>{f.sub}</span>
+                {/* A kind the server knows and this screen does not is shown as
+                    itself rather than dropped — a failure nobody can see is
+                    worse than one with an ugly name. */}
+                <span style={{ display: 'block', fontSize: 14, fontWeight: 600 }}>
+                  {known?.title ?? titleCase(f.kind.replace(/_/g, ' '))}
+                </span>
+                {known && (
+                  <span style={{ display: 'block', fontSize: 12.5, lineHeight: 1.4, color: C.mut, marginTop: 2 }}>
+                    {known.sub}
+                  </span>
+                )}
               </span>
               <span
                 style={{
@@ -127,12 +193,51 @@ export function ConsoleDebit() {
                   border: `1px solid ${skin.bc}`, borderRadius: 99, padding: '4px 11px',
                 }}
               >
-                {f.action}
+                {f.memberMustAct ? 'Member must act' : `Retry ${dayFirst(run.timeline.retried)}`}
               </span>
             </div>
           )
         })}
       </div>
+
+      {/* The list this screen exists for on a payroll rail. These members left
+          the schedule with cover in force, and the only thing keeping it in
+          force is a mandate somebody has to ask them to set up — while the main
+          collection reports that everything is fine. */}
+      {run.grace.length > 0 && (
+        <>
+          <Kicker size={9.5} style={{ marginTop: 24 }}>ON GRACE, NOT YET PAYING</Kicker>
+          <div style={{ marginTop: 9, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {run.grace.map((g) => {
+              const skin = tone(g.daysLeft <= 14 ? 'clay' : 'ochre')
+              return (
+                <div
+                  key={g.cspId}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 13, padding: '13px 15px',
+                    border: `1px solid ${C.line}`, borderRadius: 11, background: C.white, flexWrap: 'wrap',
+                  }}
+                >
+                  <span style={{ flex: 1, minWidth: 170 }}>
+                    <span style={{ display: 'block', fontSize: 14, fontWeight: 600 }}>{g.name}</span>
+                    <Mono size={11.5} color={C.faint} style={{ display: 'block', marginTop: 2 }}>
+                      {g.cspId}
+                    </Mono>
+                  </span>
+                  <span
+                    style={{
+                      flex: 'none', fontSize: 12.5, fontWeight: 600, color: skin.ic, background: skin.bg,
+                      border: `1px solid ${skin.bc}`, borderRadius: 99, padding: '4px 11px',
+                    }}
+                  >
+                    {g.daysLeft} days · cover to {dayFirst(g.graceUntil)}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        </>
+      )}
 
       {/* Cover only lapses when the grace period runs out — not on a failed debit. */}
       <Kicker size={9.5} style={{ marginTop: 24 }}>RETRY LADDER</Kicker>
@@ -143,10 +248,12 @@ export function ConsoleDebit() {
           ))}
         </div>
         <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginTop: 11 }}>
-          {RETRY_STEPS.map((s) => (
-            <div key={s.label} style={{ flex: 1, minWidth: 118 }}>
-              <div style={{ fontSize: 12.5, fontWeight: 600, color: tone(s.tone).fg }}>{s.label}</div>
-              <Mono size={11} color={C.faint} style={{ display: 'block', marginTop: 2 }}>{s.when}</Mono>
+          {steps.map(([label, on]) => (
+            <div key={label} style={{ flex: 1, minWidth: 118 }}>
+              <div style={{ fontSize: 12.5, fontWeight: 600 }}>{label}</div>
+              <Mono size={11} color={C.faint} style={{ display: 'block', marginTop: 2 }}>
+                {dayFirst(on)}
+              </Mono>
             </div>
           ))}
         </div>

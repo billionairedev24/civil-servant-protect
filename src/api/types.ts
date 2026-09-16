@@ -202,6 +202,31 @@ export interface Leaver {
   outcome: string
 }
 
+/**
+ * The direct-debit run for the month being collected.
+ *
+ * Counted from the ledger rather than reported by the rail: a presentment is a
+ * contribution row, a settlement is that row confirmed, a failure is an
+ * exception raised against the cycle. A screen fed by NIBSS's own summary would
+ * agree with NIBSS and disagree with the ledger — and the ledger is what pays a
+ * claim.
+ */
+export interface DebitRun {
+  period: string
+  method: Method
+  counts: { presented: number; settled: number; awaiting: number; failed: number }
+  failures: {
+    kind: string
+    count: number
+    /** Nobody can retry a revoked mandate into working. The member has to act. */
+    memberMustAct: boolean
+  }[]
+  /** presented → retried → cardFallback → graceEnds, in that order. */
+  timeline: Record<string, string>
+  /** Leavers whose cover is on grace and who have not paid this month. */
+  grace: { cspId: string; name: string; graceUntil: string; daysLeft: number }[]
+}
+
 export interface Roster {
   members: RosterMember[]
   /** Over the whole sponsor, not the page — a chip counting the page would lie. */

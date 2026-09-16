@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import ng.csp.api.domain.Rails;
 import ng.csp.api.integration.Comms;
 import ng.csp.api.web.ApiException;
 import org.slf4j.Logger;
@@ -40,11 +41,12 @@ public class LeaverService {
   /**
    * How long cover continues after the last payday.
    *
-   * <p>Two months rather than one, because the direct debit that replaces the deduction is set up by
-   * somebody who has just left a job, and a single failed first attempt should not be the end of
-   * twenty years of contributions.
+   * <p>{@link Rails#GRACE_DAYS}, not a number of its own. It is the same sixty days a member gets
+   * when a collection fails, for the same reason — the arrangement that replaces the one that
+   * stopped is set up by somebody with other things happening — and two copies of a figure this
+   * consequential drift apart the first time one of them is revisited.
    */
-  private static final int GRACE_DAYS = 60;
+  private static final int GRACE_DAYS = Rails.GRACE_DAYS;
 
   private static final List<String> REASONS =
       List.of("retired", "transferred", "resigned", "dismissed");

@@ -347,6 +347,35 @@ Three consequences worth knowing:
   marked, with the date their cover runs to — but out of the "not deducted"
   number, which is a to-do list an officer works through.
 
+### The direct-debit run
+
+```bash
+curl -s localhost:8080/v1/sponsors/$SPONSOR/collection/direct-debit \
+  -H "Authorization: Bearer $VIEWER"
+# {"period":"2026-09-01","counts":{"presented":1240,"settled":1189,…},
+#  "failures":[{"kind":"no_funds","count":41,"memberMustAct":false},…],
+#  "timeline":{"presented":"2026-09-28","retried":"2026-10-05",…},
+#  "grace":[{"cspId":"CSP-114-88220","daysLeft":44,…}]}
+```
+
+Every number is counted from the ledger rather than reported by the rail: a
+presentment is a contribution row, a settlement is that row confirmed, a failure
+is an exception raised against the cycle. A screen fed by NIBSS's own summary
+would agree with NIBSS and disagree with the ledger — and the ledger is what
+pays a claim, so that disagreement surfaces at the worst possible moment.
+
+`memberMustAct` is the distinction that makes the screen worth opening. An empty
+account on the 28th is often a full one on the 4th, so `no_funds` is retried and
+needs nobody. A revoked mandate is the bank being told to stop, and only the
+member can tell it otherwise — a console offering "retry" there teaches an
+officer to press a button for a fortnight.
+
+**It answers for payroll sponsors too, and should.** They still run debits, for
+the people the file missed and the ones who left service with cover in force.
+`grace` is that list: leavers whose sixty days are running and who have not paid
+this month. Nobody is watching them, precisely because the main collection looks
+fine.
+
 ### Loading a schedule
 
 ```bash
@@ -559,8 +588,11 @@ Real, and deliberately not papered over.
    Both halves of that screen are live now: adding people, and taking them off
    the schedule when they retire or transfer.
 
-   Still on fixtures: the console's direct-debit run, remittances, reports and
-   settings, and the member's family cover and cover-detail screens.
+   The console's direct-debit run is live too — including the list of leavers
+   whose grace is running and who have not set up a mandate.
+
+   Still on fixtures: the console's remittances, reports and settings, and the
+   member's family cover and cover-detail screens.
 
    A screen that has not been wired says the same numbers it always did — the
    fixtures and the seed agree — so the difference is where the figure comes

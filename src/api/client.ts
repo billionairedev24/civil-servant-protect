@@ -8,9 +8,9 @@
  * possible rather than aspirational.
  */
 import type {
-  BeneficiarySet, BulkEnrolment, Claim, ClaimQueueItem, Enrolled, Leaver, Ledger, MemberSummary,
-  MyClaim, NewMember, ProtectionCard, Reconciliation, Roster, ScheduleBatch, ScheduleRow, Session,
-  SponsorClaims, SponsorDashboard, Tokens,
+  BeneficiarySet, BulkEnrolment, Claim, ClaimQueueItem, DebitRun, Enrolled, Leaver, Ledger,
+  MemberSummary, MyClaim, NewMember, ProtectionCard, Reconciliation, Roster, ScheduleBatch,
+  ScheduleRow, Session, SponsorClaims, SponsorDashboard, Tokens,
 } from './types'
 
 /**
@@ -325,6 +325,11 @@ export class CspApi {
   /** The assessor's queue — every member's claims, not one sponsor's. */
   claimQueue(): Promise<{ claims: ClaimQueueItem[] }> {
     return this.call('GET', '/v1/claims')
+  }
+
+  /** What the bank said this month — and who is on grace with nothing set up. */
+  debitRun(sponsorId: string): Promise<DebitRun> {
+    return this.call('GET', `/v1/sponsors/${sponsorId}/collection/direct-debit`)
   }
 
   /** Claims on one sponsor's members, thinned to what an employer may see. */

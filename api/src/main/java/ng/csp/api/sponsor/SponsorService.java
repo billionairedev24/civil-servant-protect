@@ -2,6 +2,8 @@ package ng.csp.api.sponsor;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -230,6 +232,177 @@ public class SponsorService {
 
   public record Reconciliation(
       String method, int matched, List<ExceptionRow> exceptions, ExceptionSummary summary) {}
+
+  // ── The direct-debit run ────────────────────────────────────────────────────
+
+  public record DebitCounts(int presented, int settled, int awaiting, int failed) {}
+
+  /** One reason a debit did not settle, with what an officer can do about it. */
+  public record DebitFailure(String kind, int count, boolean memberMustAct) {}
+
+  /** A leaver whose cover is running on grace and who has not paid yet. */
+  public record GraceRow(String cspId, String name, LocalDate graceUntil, int daysLeft) {}
+
+  public record DebitRun(
+      LocalDate period,
+      String method,
+      DebitCounts counts,
+      List<DebitFailure> failures,
+      /** First attempt, second attempt, card fallback, and the day cover lapses. */
+      Map<String, LocalDate> timeline,
+      List<GraceRow> grace) {}
+
+  /**
+   * What the bank said, for the month being collected.
+   *
+   * <p>Every number here is counted from rows that exist rather than reported by the rail: a
+   * presentment is a contribution row, a settlement is that row confirmed, a failure is an exception
+   * raised against the cycle. A screen fed by the integration's own summary would agree with NIBSS
+   * and disagree with the ledger, and the ledger is what pays a claim.
+   *
+   * <p>Answers for a payroll sponsor too, and should. Payroll sponsors still run debits — for the
+   * people the file missed and the ones who have left service — and those are exactly the members
+   * nobody is watching, because the main collection looks fine.
+   */
+  public DebitRun debitRun(UUID sponsorId) {
+    var sponsor = sponsorOr404(sponsorId);
+
+    var cycle =
+        db.sql(
+                """
+                SELECT id, period FROM collection_cycles
+                 WHERE sponsor_id = :id ORDER BY period DESC LIMIT 1
+                """)
+            .param("id", sponsorId)
+            .query((rs, n) -> new Object[] {rs.getObject("id", UUID.class), rs.getObject("period", LocalDate.class)})
+            .optional()
+            .orElse(null);
+
+    /*
+     * No cycle yet is a real state, not an error: a sponsor enrolled last week
+     * has members and has collected nothing. The screen should say so rather
+     * than 404, which would read as a broken console.
+     */
+    var period = cycle == null ? LocalDate.now().withDayOfMonth(1) : (LocalDate) cycle[1];
+    var cycleId = cycle == null ? null : (UUID) cycle[0];
+
+    var counts =
+        db.sql(
+                """
+                SELECT count(*)::int AS presented,
+                       count(*) FILTER (WHERE status = 'confirmed')::int AS settled,
+                       count(*) FILTER (WHERE status = 'expected')::int  AS awaiting,
+                       count(*) FILTER (WHERE status = 'failed')::int    AS failed
+                  FROM contributions
+                 WHERE period = :p
+                   AND source = 'direct_debit'
+                   AND member_id IN (SELECT id FROM members WHERE sponsor_id = :s)
+                """)
+            .param("p", period)
+            .param("s", sponsorId)
+            .query(
+                (rs, n) ->
+                    new DebitCounts(
+                        rs.getInt("presented"),
+                        rs.getInt("settled"),
+                        rs.getInt("awaiting"),
+                        rs.getInt("failed")))
+            .single();
+
+    var failures =
+        cycleId == null
+            ? List.<DebitFailure>of()
+            : db.sql(
+                    """
+                    SELECT kind::text AS kind, count(*)::int AS n
+                      FROM reconciliation_exceptions
+                     WHERE cycle_id = :c AND resolved_at IS NULL
+                     GROUP BY kind ORDER BY n DESC
+                    """)
+                .param("c", cycleId)
+                .query((rs, n) -> new String[] {rs.getString("kind"), String.valueOf(rs.getInt("n"))})
+                .list()
+                .stream()
+                .filter(row -> Rails.DEBIT_KINDS.contains(row[0]))
+                .map(
+                    row ->
+                        new DebitFailure(
+                            row[0],
+                            Integer.parseInt(row[1]),
+                            // A revoked mandate or a dead card cannot be retried
+                            // into working. Somebody has to ask the member, and
+                            // a screen that offers "retry" for these teaches an
+                            // officer to press it for a fortnight.
+                            !"no_funds".equals(row[0])))
+                .toList();
+
+    var first = collectionDay(period, sponsor);
+    // Ordered, because the screen reads it as a sequence and a HashMap would
+    // hand it back in whatever order it liked.
+    var timeline = new LinkedHashMap<String, LocalDate>();
+    timeline.put("presented", first);
+    // After salaries land. The commonest failure by far is an account that was
+    // empty on the 28th and is not on the 4th.
+    timeline.put("retried", first.plusDays(Rails.CARD_FALLBACK_DAYS));
+    timeline.put("cardFallback", first.plusDays(Rails.CARD_FALLBACK_DAYS * 2L));
+    timeline.put("graceEnds", first.plusDays(Rails.GRACE_DAYS));
+
+    /*
+     * Leavers whose grace is running, and who have not paid this month.
+     *
+     * The list this screen exists for on a payroll sponsor. These members left
+     * the schedule with cover in force, and the only thing that keeps it in
+     * force is a direct debit somebody has to ask them to set up — while the
+     * main collection reports that everything is fine.
+     */
+    var grace =
+        db.sql(
+                """
+                SELECT m.csp_id, m.display_name, m.grace_until
+                  FROM members m
+                 WHERE m.sponsor_id = :s
+                   AND m.grace_until IS NOT NULL
+                   AND m.grace_until >= CURRENT_DATE
+                   AND NOT EXISTS (
+                     SELECT 1 FROM contributions c
+                      WHERE c.member_id = m.id AND c.period = :p AND c.status = 'confirmed')
+                 ORDER BY m.grace_until
+                 LIMIT 25
+                """)
+            .param("s", sponsorId)
+            .param("p", period)
+            .query(
+                (rs, n) -> {
+                  var until = rs.getObject("grace_until", LocalDate.class);
+                  return new GraceRow(
+                      rs.getString("csp_id"),
+                      rs.getString("display_name"),
+                      until,
+                      (int) ChronoUnit.DAYS.between(LocalDate.now(), until));
+                })
+            .list();
+
+    return new DebitRun(period, sponsor.method(), counts, failures, timeline, grace);
+  }
+
+  /**
+   * The day of the month this sponsor collects on, in the month being collected.
+   *
+   * <p>No clamping and no rolling forward, because the schema will not store a day that needs
+   * either: {@code collection_day} is checked between 1 and 28. That ceiling is not arbitrary —
+   * February has 28 days, so a sponsor collecting on the 30th would either miss February or spill
+   * into March, and a collection that lands in the next period is a month of cover nobody can say
+   * was paid for. The rule belongs in the constraint rather than in arithmetic here.
+   */
+  private LocalDate collectionDay(LocalDate period, SponsorInfo sponsor) {
+    var day =
+        db.sql("SELECT collection_day FROM sponsors WHERE id = :id")
+            .param("id", sponsor.id())
+            .query(Integer.class)
+            .optional()
+            .orElse(28);
+    return period.withDayOfMonth(day);
+  }
 
   public Reconciliation reconciliation(UUID sponsorId, UUID cycleId) {
     var sponsor = sponsorOr404(sponsorId);

@@ -153,13 +153,6 @@ export const LEAVERS = [
   },
 ] as const
 
-export const RETRY_STEPS = [
-  { label: 'First attempt', when: '28.08 · settled 96%', tone: 'green' },
-  { label: 'Second attempt', when: '04.09 · after salaries', tone: 'green' },
-  { label: 'Card fallback', when: '11.09 · card on file', tone: 'ochre' },
-  { label: '60-day grace', when: 'until 27.10', tone: 'clay' },
-] as const
-
 export const REMIT_ROWS = [
   { period: 'JUL 26', amount: '₦20,880,000', ref: 'NIBSS/8712004', state: 'Fully allocated', icon: 'ph-fill ph-check-circle', tone: 'green' },
   { period: 'JUN 26', amount: '₦20,745,000', ref: 'NIBSS/8590117', state: 'Fully allocated', icon: 'ph-fill ph-check-circle', tone: 'green' },
