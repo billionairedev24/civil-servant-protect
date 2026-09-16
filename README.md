@@ -12,14 +12,21 @@ npm install
 npm run dev        # http://localhost:5173
 npm run build      # typecheck + production build
 npm run typecheck
-npm run smoke      # drives all 56 screens in Chromium; needs a build first
+npm test           # smoke + rail branching; needs a build first
+npm run smoke      # drives all 56 screens in Chromium
+npm run test:rails # asserts the four rails actually branch
 npm run a11y       # audits against the spec's accessibility minimums
 ```
 
-`npm run smoke` is the only test, and deliberately so: the app is almost entirely presentational, so the failure worth
-guarding against is a screen that throws or renders blank — which `tsc` cannot see. It drives every screen on every
-surface across all four rails, five languages and both console device modes, and fails on any uncaught exception or
-console error. It has already caught a clipped button and a font that silently never loaded. CI runs it on every PR.
+Two tests, both driving a real browser, both run by CI on every PR.
+
+`npm run smoke` guards the failure `tsc` cannot see: a screen that throws or renders blank. It drives every screen on
+every surface across all four rails, five languages and both console device modes, and fails on any uncaught exception
+or console error. It has already caught a clipped button and a font that silently never loaded.
+
+`npm run test:rails` guards the product's core invariant — that the rail actually branches. 72 assertions on
+member- and officer-facing text, because a wrong branch looks like an HR officer told to upload a schedule on a rail
+that has none, or a member told their salary was docked when it never was. Writing it found exactly that bug.
 
 ## The four surfaces
 
@@ -98,7 +105,11 @@ These are real and deliberate — not oversights to tidy away.
    a minor; phone uses 4471-2098 and 60/40. Both are reproduced as designed rather than silently reconciled — see the
    note at the top of `src/surfaces/web/data.ts`. Worth deciding before these become seed data.
 6. **Benefit figures are illustrative**, pending actuarial, legal and underwriting sign-off.
-7. **Hit targets are below the spec's 44px.** The spec asks for 44px everywhere; the design's chips, nav rows and
+7. **Contributions copy still assumes payroll.** The screen's prose — "Straight from the payroll file", and the note
+   about the payroll office returning a remittance file — reads wrong for a self-paying member, who has no payroll
+   office. The structured labels are rail-aware (`test:rails` asserts it), but the prose needs rail-aware strings in
+   all five locales, which is translation work rather than a code change. Add it to the 34 outstanding keys.
+8. **Hit targets are below the spec's 44px.** The spec asks for 44px everywhere; the design's chips, nav rows and
    table actions are 26–38px. Everything clears the 24px WCAG 2.2 floor, which was worth fixing outright, but going to
    44 would visibly change the density the design was tuned for — so it stays a design call. `npm run a11y` reports
    the count per surface.

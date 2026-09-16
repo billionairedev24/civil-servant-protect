@@ -36,6 +36,13 @@ jobs:
         shell: bash
         run: npm run smoke 2>&1 | tee smoke.log
 
+      # Asserts the collection rail actually branches: a self-paying member is
+      # never told their salary was deducted, and a payroll sponsor is never
+      # offered a debit run as the main collection.
+      - name: Rail branching
+        shell: bash
+        run: npm run test:rails 2>&1 | tee -a smoke.log
+
       # A browser failure needs its output where the change is reviewed, not
       # only in a log archive. The job summary carries the full tail; the
       # ::error:: annotation carries a one-line version, which surfaces on the

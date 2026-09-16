@@ -10,7 +10,9 @@
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit",
     "smoke": "node tests/smoke.mjs",
-    "a11y": "node tests/a11y.mjs"
+    "a11y": "node tests/a11y.mjs",
+    "test:rails": "node tests/rails.mjs",
+    "test": "npm run smoke && npm run test:rails"
   },
   "dependencies": {
     "@fontsource/ibm-plex-mono": "^5.3.0",
