@@ -29,17 +29,18 @@ public class TokenService {
    */
   public static final String CLAIM_KIND = "kind";
 
-  public static final String ISSUER = "csp";
 
   private final NimbusJwtEncoder encoder;
   private final Duration accessTtl;
   private final Duration refreshTtl;
+  private final String issuer;
 
   public TokenService(CspProperties props) {
     var key = new SecretKeySpec(props.jwtSecret().getBytes(), "HmacSHA256");
     this.encoder = new NimbusJwtEncoder(new ImmutableSecret<>(key));
     this.accessTtl = props.accessTokenTtl();
     this.refreshTtl = props.refreshTokenTtl();
+    this.issuer = props.tokenIssuer();
   }
 
   public record Tokens(String accessToken, String refreshToken, long expiresIn) {}
@@ -51,20 +52,30 @@ public class TokenService {
 
   private String mint(SessionUser user, String kind, Duration ttl) {
     var now = Instant.now();
-    var claims =
+    var builder =
         JwtClaimsSet.builder()
-            .issuer(ISSUER)
+            .issuer(issuer)
             .subject(user.userId().toString())
             .issuedAt(now)
             .expiresAt(now.plus(ttl))
             .claim(CLAIM_KIND, kind)
-            .claim(CLAIM_ROLE, user.role().wire())
-            .claim(CLAIM_MEMBER_ID, str(user.memberId()))
-            .claim(CLAIM_SPONSOR_ID, str(user.sponsorId()))
-            .claim(CLAIM_DEVICE_ID, user.deviceId())
-            .build();
+            .claim(CLAIM_ROLE, user.role().wire());
+
+    // Absent rather than null. A member has no sponsor and a browser has no
+    // device, and JwtClaimsSet rejects a null value outright.
+    putIfPresent(builder, CLAIM_MEMBER_ID, str(user.memberId()));
+    putIfPresent(builder, CLAIM_SPONSOR_ID, str(user.sponsorId()));
+    putIfPresent(builder, CLAIM_DEVICE_ID, user.deviceId());
+
+    var claims = builder.build();
     var header = JwsHeader.with(MacAlgorithm.HS256).build();
     return encoder.encode(JwtEncoderParameters.from(header, claims)).getTokenValue();
+  }
+
+  private static void putIfPresent(JwtClaimsSet.Builder builder, String name, String value) {
+    if (value != null) {
+      builder.claim(name, value);
+    }
   }
 
   private static String str(UUID id) {

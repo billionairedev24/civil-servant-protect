@@ -8,9 +8,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import ng.csp.api.auth.SessionUser;
+import ng.csp.api.domain.Nin;
 import ng.csp.api.domain.Pricing;
 import ng.csp.api.domain.Rails;
 import ng.csp.api.web.ApiException;
+import ng.csp.api.web.Rows;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,10 +24,12 @@ public class MemberService {
   private final JdbcClient db;
   /** The context's mapper, so the audit trail is serialised exactly as a response body is. */
   private final ObjectMapper json;
+  private final Nin nin;
 
-  public MemberService(JdbcClient db, ObjectMapper json) {
+  public MemberService(JdbcClient db, ObjectMapper json, Nin nin) {
     this.db = db;
     this.json = json;
+    this.nin = nin;
   }
 
   // ── Records on the wire ────────────────────────────────────────────────────
@@ -246,7 +250,7 @@ public class MemberService {
                         rs.getString("source"),
                         rs.getString("status"),
                         rs.getString("rail_ref"),
-                        rs.getObject("received_at", Instant.class),
+                        Rows.instant(rs, "received_at"),
                         rs.getObject("reverses_id", UUID.class)))
             .list();
 
@@ -265,8 +269,15 @@ public class MemberService {
 
   // ── Beneficiaries ──────────────────────────────────────────────────────────
 
+  /**
+   * A beneficiary as the member sees them.
+   *
+   * <p>No NIN. It is L3 and stored only as an HMAC plus ciphertext, so there is nothing to show
+   * that is not either useless or a leak. {@code ninOnFile} is what a member actually needs to
+   * know — whether a claim will move in days or in weeks.
+   */
   public record Person(
-      UUID id, String name, String relation, String msisdn, String nin, int sharePct) {}
+      UUID id, String name, String relation, String msisdn, boolean ninOnFile, int sharePct) {}
 
   public record BeneficiarySet(List<Person> people, Instant lastConfirmedAt) {}
 
@@ -274,7 +285,8 @@ public class MemberService {
     var people =
         db.sql(
                 """
-                SELECT id, full_name, relation, msisdn, nin, share_pct
+                SELECT id, full_name, relation, msisdn,
+                       nin_hmac IS NOT NULL AS nin_on_file, share_pct
                   FROM beneficiaries WHERE member_id = :id ORDER BY position
                 """)
             .param("id", memberId)
@@ -285,7 +297,7 @@ public class MemberService {
                         rs.getString("full_name"),
                         rs.getString("relation"),
                         rs.getString("msisdn"),
-                        rs.getString("nin"),
+                        rs.getBoolean("nin_on_file"),
                         rs.getInt("share_pct")))
             .list();
     var last =
@@ -337,14 +349,16 @@ public class MemberService {
       var p = people.get(i);
       db.sql(
               """
-              INSERT INTO beneficiaries (member_id, full_name, relation, msisdn, nin, share_pct, position)
-              VALUES (:m, :name, :rel, :msisdn, :nin, :share, :pos)
+              INSERT INTO beneficiaries
+                (member_id, full_name, relation, msisdn, nin_hmac, nin_ciphertext, share_pct, position)
+              VALUES (:m, :name, :rel, :msisdn, :ninHmac, :ninCipher, :share, :pos)
               """)
           .param("m", memberId)
           .param("name", p.name())
           .param("rel", p.relation())
           .param("msisdn", p.msisdn())
-          .param("nin", p.nin())
+          .param("ninHmac", nin.hmac(p.nin()))
+          .param("ninCipher", nin.encrypt(p.nin()))
           .param("share", p.sharePct())
           .param("pos", i)
           .update();

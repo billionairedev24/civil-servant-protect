@@ -25,12 +25,21 @@ public record CspProperties(
     Duration accessTokenTtl,
     Duration refreshTokenTtl,
     List<String> corsOrigins,
+    /**
+     * Issuer for the tokens this service mints.
+     *
+     * <p>Must be a URL: Spring converts the {@code iss} claim to one while decoding, and a bare word
+     * fails conversion and comes back as a flat 401 with nothing in the log to explain it. OIDC
+     * requires a URL issuer in any case.
+     */
+    String tokenIssuer,
     Otp otp) {
 
   public CspProperties {
     accessTokenTtl = accessTokenTtl == null ? Duration.ofMinutes(20) : accessTokenTtl;
     refreshTokenTtl = refreshTokenTtl == null ? Duration.ofHours(8) : refreshTokenTtl;
     corsOrigins = corsOrigins == null ? List.of("http://localhost:5173") : corsOrigins;
+    tokenIssuer = tokenIssuer == null || tokenIssuer.isBlank() ? "https://member-auth.csp.local" : tokenIssuer;
     otp = otp == null ? new Otp(false, null) : otp;
   }
 

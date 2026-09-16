@@ -1,0 +1,32 @@
+# Tests need a real Postgres and Redis. docker compose up -d db redis, or the
+# services: block in .gitlab-ci.yml, provides both.
+spring:
+  datasource:
+    url: ${TEST_DATABASE_URL:jdbc:postgresql://127.0.0.1:5432/csp_test}
+    username: ${TEST_DATABASE_USER:csp}
+    password: ${TEST_DATABASE_PASSWORD:csp}
+  data:
+    redis:
+      host: ${TEST_REDIS_HOST:127.0.0.1}
+      port: ${TEST_REDIS_PORT:6379}
+      # A database of its own, so a test run cannot evict a developer's session.
+      database: 15
+  flyway:
+    schemas: public
+    default-schema: public
+    # Each run starts from nothing, so a migration that only works against an
+    # existing schema fails here rather than in staging — and so a local re-run
+    # is never affected by what the last one left behind.
+    clean-disabled: false
+    clean-on-validation-error: true
+
+csp:
+  jwt-secret: test-secret-that-is-at-least-32-characters-long
+  token-issuer: https://member-auth.csp.test
+  otp:
+    echo: true
+    fixed-code: "000000"
+
+logging:
+  level:
+    root: warn

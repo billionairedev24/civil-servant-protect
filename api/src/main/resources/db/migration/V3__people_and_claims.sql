@@ -44,66 +44,47 @@ CREATE TRIGGER beneficiary_events_append_only
   FOR EACH ROW EXECUTE FUNCTION csp.reject_mutation();
 
 /**
- * Shares must total exactly 100 across a member's set, checked once per
- * statement so a PUT that replaces the whole set is legal while it is in flight
- * and illegal if it settles wrong. A per-row check could never express this.
+ * Shares must total exactly 100 across a member's set.
  *
- * A member with no beneficiaries at all is allowed — that is a new enrolment,
- * not a broken split.
+ * A DEFERRED CONSTRAINT trigger, so the check runs at COMMIT rather than after
+ * each statement. That is precisely the rule: a set being replaced is allowed to
+ * pass through 60% on its way to 100%, and is only wrong if it is still wrong
+ * when the transaction ends. A statement-level trigger cannot express that — it
+ * rejects the first INSERT of a three-person set, which is how an application
+ * that inserts people one at a time discovers this the hard way.
+ *
+ * A member with no beneficiaries at all is allowed: that is a new enrolment, not
+ * a broken split.
  */
 CREATE OR REPLACE FUNCTION csp.check_beneficiary_shares() RETURNS trigger
 LANGUAGE plpgsql AS $$
 DECLARE
-  touched uuid[];
-  bad     record;
+  target uuid;
+  total  int;
 BEGIN
-  -- A transition table exists only on the operation that declared it, so each
-  -- branch may name only the one it has. Referencing the other is a runtime
-  -- error, not a compile-time one, which is how it hides.
-  IF TG_OP = 'INSERT' THEN
-    SELECT array_agg(DISTINCT member_id) INTO touched FROM new_rows;
-  ELSIF TG_OP = 'DELETE' THEN
-    SELECT array_agg(DISTINCT member_id) INTO touched FROM old_rows;
-  ELSE
-    SELECT array_agg(DISTINCT member_id) INTO touched
-      FROM (SELECT member_id FROM new_rows UNION SELECT member_id FROM old_rows) touched_rows;
-  END IF;
+  target := COALESCE(NEW.member_id, OLD.member_id);
+  SELECT COALESCE(SUM(share_pct), 0) INTO total
+    FROM beneficiaries WHERE member_id = target;
 
-  FOR bad IN
-    SELECT member_id, SUM(share_pct) AS total
-    FROM beneficiaries
-    WHERE member_id = ANY (touched)
-    GROUP BY member_id
-    -- 0 is the empty set on its way somewhere; anything else that is not 100 is
-    -- a split that does not add up.
-    HAVING SUM(share_pct) NOT IN (0, 100)
-  LOOP
+  IF total NOT IN (0, 100) THEN
     -- Built with format() rather than RAISE's own placeholders: RAISE parses
     -- '%%%' greedily as a literal percent followed by a placeholder, which
     -- renders "%90" instead of "90%".
     RAISE EXCEPTION '%',
-      format('Beneficiary shares for this member total %s%%, not 100%%.', bad.total)
+      format('Beneficiary shares for this member total %s%%, not 100%%.', total)
       USING ERRCODE = 'check_violation';
-  END LOOP;
+  END IF;
   RETURN NULL;
 END;
 $$;
 
-CREATE TRIGGER beneficiary_shares_insert
-  AFTER INSERT ON beneficiaries
-  REFERENCING NEW TABLE AS new_rows
-  FOR EACH STATEMENT EXECUTE FUNCTION csp.check_beneficiary_shares();
-
-CREATE TRIGGER beneficiary_shares_update
-  AFTER UPDATE ON beneficiaries
-  REFERENCING NEW TABLE AS new_rows OLD TABLE AS old_rows
-  FOR EACH STATEMENT EXECUTE FUNCTION csp.check_beneficiary_shares();
-
--- Without this, removing one of three people leaves 60% behind unchecked.
-CREATE TRIGGER beneficiary_shares_delete
-  AFTER DELETE ON beneficiaries
-  REFERENCING OLD TABLE AS old_rows
-  FOR EACH STATEMENT EXECUTE FUNCTION csp.check_beneficiary_shares();
+-- CONSTRAINT triggers are always AFTER and FOR EACH ROW. Firing once per row is
+-- redundant but harmless: each firing recomputes the same total, and by commit
+-- time every row is in place.
+CREATE CONSTRAINT TRIGGER beneficiary_shares_balance
+  AFTER INSERT OR UPDATE OR DELETE ON beneficiaries
+  DEFERRABLE INITIALLY DEFERRED
+  FOR EACH ROW EXECUTE FUNCTION csp.check_beneficiary_shares();
 
 CREATE TABLE dependants (
   id                uuid PRIMARY KEY DEFAULT gen_random_uuid(),

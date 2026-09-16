@@ -21,7 +21,6 @@
     <java.version>25</java.version>
     <maven.compiler.release>25</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <testcontainers.version>1.21.4</testcontainers.version>
     <springdoc.version>2.8.13</springdoc.version>
   </properties>
 
@@ -50,6 +49,16 @@
       <scope>runtime</scope>
     </dependency>
 
+    <!--
+      Spring Boot 4 split autoconfiguration into per-technology modules, so
+      flyway-core alone is on the classpath but nothing wires it up. Without
+      spring-boot-flyway the app starts against an empty schema and fails on the
+      first query — which is exactly how this was found.
+    -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-flyway</artifactId>
+    </dependency>
     <dependency>
       <groupId>org.flywaydb</groupId>
       <artifactId>flyway-core</artifactId>
@@ -111,26 +120,12 @@
       <artifactId>spring-security-test</artifactId>
       <scope>test</scope>
     </dependency>
-    <!-- Real Postgres and Redis in tests. The rules that matter here — append-only,
-         RLS by rail, the share sum, the hash chain — live in the database, and an
-         in-memory stand-in would test none of them. -->
-    <dependency>
-      <groupId>org.testcontainers</groupId>
-      <artifactId>postgresql</artifactId>
-      <version>${testcontainers.version}</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.testcontainers</groupId>
-      <artifactId>junit-jupiter</artifactId>
-      <version>${testcontainers.version}</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-testcontainers</artifactId>
-      <scope>test</scope>
-    </dependency>
+    <!--
+      Tests run against a real Postgres and Redis, supplied by the environment
+      (docker compose locally, `services:` in GitLab CI). The rules that matter
+      here — append-only, RLS by rail, the share sum, the hash chain — live in
+      the database, and an in-memory stand-in would test none of them.
+    -->
   </dependencies>
 
   <build>

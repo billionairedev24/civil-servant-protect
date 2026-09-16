@@ -10,6 +10,7 @@ import ng.csp.api.auth.Permission;
 import ng.csp.api.auth.SessionUser;
 import ng.csp.api.domain.Rails;
 import ng.csp.api.web.ApiException;
+import ng.csp.api.web.Rows;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -84,8 +85,8 @@ public class SponsorService {
                         rs.getString("rail_ref"),
                         rs.getInt("scheduled_count"),
                         rs.getLong("scheduled_minor"),
-                        rs.getObject("sent_at", Instant.class),
-                        rs.getObject("returned_at", Instant.class)))
+                        Rows.instant(rs, "sent_at"),
+                        Rows.instant(rs, "returned_at")))
             .optional()
             .orElse(null);
 
@@ -277,10 +278,10 @@ public class SponsorService {
                         rs.getLong("received_minor"),
                         rs.getString("proposed_action"),
                         rs.getString("proposed_note"),
-                        rs.getObject("proposed_at", Instant.class),
+                        Rows.instant(rs, "proposed_at"),
                         rs.getString("resolved_action"),
                         rs.getString("resolved_note"),
-                        rs.getObject("resolved_at", Instant.class)))
+                        Rows.instant(rs, "resolved_at")))
             .list();
 
     // The client branches on this, never on the sponsor's name.
@@ -531,7 +532,7 @@ public class SponsorService {
                   role.wire(),
                   role.label(),
                   role.permissions().stream().map(Enum::name).sorted().toList(),
-                  rs.getObject("last_seen_at", Instant.class),
+                  Rows.instant(rs, "last_seen_at"),
                   rs.getObject("disabled_at") != null);
             })
         .list();
@@ -553,7 +554,7 @@ public class SponsorService {
         .query(
             (rs, n) ->
                 new AuditEntry(
-                    rs.getObject("created_at", Instant.class),
+                    Rows.instant(rs, "created_at"),
                     rs.getString("action"),
                     rs.getString("subject_type"),
                     rs.getString("subject_id"),

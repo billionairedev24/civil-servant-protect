@@ -1,20 +1,24 @@
 package ng.csp.api.config;
 
-import com.nimbusds.jose.jwk.source.ImmutableSecret;
+import com.nimbusds.jwt.JWTParser;
 import java.util.List;
 import javax.crypto.spec.SecretKeySpec;
-import ng.csp.api.auth.Role;
+import ng.csp.api.auth.TokenRoles;
 import ng.csp.api.auth.TokenService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
-import org.springframework.security.authorization.method.AuthorizationAdvisorProxyFactory;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.SecurityFilterChain;
@@ -22,14 +26,31 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+/**
+ * Two ways in, on purpose.
+ *
+ * <p>Console roles authenticate against Keycloak — OIDC with TOTP, eight realm roles, SSO-ready for
+ * OAGF later. Members and next of kin get NIN+DOB and an SMS OTP, and a token this service mints
+ * itself. A finance officer has an MDA account; a civil servant on a Tecno has a phone number and
+ * nothing else, and forcing either through the other's mechanism makes it worse for them.
+ *
+ * <p>Both arrive as bearer JWTs, so one decoder dispatches on the issuer: ours are HS256 signed with
+ * the shared secret, Keycloak's are RS256 verified against the realm's JWKS.
+ */
 @Configuration
 @EnableMethodSecurity
 public class SecurityConfig {
 
-  private final CspProperties props;
+  private static final Logger log = LoggerFactory.getLogger(SecurityConfig.class);
 
-  public SecurityConfig(CspProperties props) {
+  private final CspProperties props;
+  private final String keycloakIssuer;
+
+  public SecurityConfig(
+      CspProperties props,
+      @Value("${csp.keycloak.issuer-uri:}") String keycloakIssuer) {
     this.props = props;
+    this.keycloakIssuer = keycloakIssuer;
   }
 
   @Bean
@@ -42,42 +63,74 @@ public class SecurityConfig {
         .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .authorizeHttpRequests(
             auth ->
-                auth
-                    // Liveness and readiness must answer before anything else works.
-                    .requestMatchers("/actuator/health/**", "/actuator/info")
+                auth.requestMatchers("/actuator/health/**", "/actuator/info", "/actuator/prometheus")
                     .permitAll()
                     // Signing in cannot require being signed in.
-                    .requestMatchers(HttpMethod.POST, "/v1/auth/otp", "/v1/auth/verify", "/v1/auth/refresh")
+                    .requestMatchers(
+                        HttpMethod.POST, "/v1/auth/otp", "/v1/auth/verify", "/v1/auth/refresh")
+                    .permitAll()
+                    .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")
                     .permitAll()
                     .anyRequest()
                     .authenticated())
-        .oauth2ResourceServer(oauth -> oauth.jwt(jwt -> jwt.jwtAuthenticationConverter(converter())))
+        .oauth2ResourceServer(
+            oauth -> oauth.jwt(jwt -> jwt.decoder(dispatchingDecoder()).jwtAuthenticationConverter(converter())))
         .build();
   }
 
   /**
-   * HS256 with a shared secret, because this service both mints and verifies.
+   * One decoder, two issuers.
    *
-   * <p>If a second service ever needs to verify these tokens, this becomes an asymmetric key and a
-   * JWKS endpoint — a verifier should never hold something that lets it mint.
+   * <p>Dispatching on the unverified issuer claim is safe because it only picks which verifier runs;
+   * the token still has to pass that verifier's signature check. Choosing by trying both in turn
+   * would work too, and would log a spurious failure for every console request.
    */
   @Bean
-  JwtDecoder jwtDecoder() {
+  JwtDecoder dispatchingDecoder() {
+    var ours = memberTokenDecoder();
+    JwtDecoder keycloak = keycloakIssuer.isBlank() ? null : NimbusJwtDecoder.withIssuerLocation(keycloakIssuer).build();
+
+    if (keycloak == null) {
+      log.warn(
+          "csp.keycloak.issuer-uri is not set — console sign-in is unavailable and only member "
+              + "tokens will be accepted. Fine for local work on the member apps; not for a console.");
+      return ours;
+    }
+
+    return token -> {
+      String issuer;
+      try {
+        var claims = JWTParser.parse(token).getJWTClaimsSet();
+        issuer = claims.getIssuer();
+      } catch (Exception e) {
+        throw new JwtException("Malformed token", e);
+      }
+      return props.tokenIssuer().equals(issuer) ? ours.decode(token) : keycloak.decode(token);
+    };
+  }
+
+  /** HS256 for the tokens this service mints for members. */
+  private JwtDecoder memberTokenDecoder() {
     var key = new SecretKeySpec(props.jwtSecret().getBytes(), "HmacSHA256");
     return NimbusJwtDecoder.withSecretKey(key).macAlgorithm(MacAlgorithm.HS256).build();
   }
 
-  /** Turns the role claim into one authority per permission, so rules read as capabilities. */
+  /**
+   * Turns whichever token arrived into one authority per permission, so rules read as capabilities
+   * rather than as role names.
+   */
   private JwtAuthenticationConverter converter() {
     var converter = new JwtAuthenticationConverter();
     converter.setJwtGrantedAuthoritiesConverter(
         jwt -> {
-          // A refresh token is not an access token. Presenting one here grants nothing.
-          if (!"access".equals(jwt.getClaimAsString(TokenService.CLAIM_KIND))) {
+          var role = TokenRoles.of(jwt, props.tokenIssuer());
+          if (role == null) {
             return List.of();
           }
-          var role = Role.fromWire(jwt.getClaimAsString(TokenService.CLAIM_ROLE));
-          return role.authorities().stream().map(SimpleGrantedAuthority::new).map(a -> (org.springframework.security.core.GrantedAuthority) a).toList();
+          return role.authorities().stream()
+              .map(SimpleGrantedAuthority::new)
+              .map(a -> (GrantedAuthority) a)
+              .toList();
         });
     return converter;
   }
@@ -92,11 +145,5 @@ public class SecurityConfig {
     var source = new UrlBasedCorsConfigurationSource();
     source.registerCorsConfiguration("/**", config);
     return source;
-  }
-
-  /** Lets {@code @PreAuthorize} work on records returned from services. */
-  @Bean
-  static AuthorizationAdvisorProxyFactory.TargetVisitor targetVisitor() {
-    return AuthorizationAdvisorProxyFactory.TargetVisitor.defaultsSkipValueTypes();
   }
 }
