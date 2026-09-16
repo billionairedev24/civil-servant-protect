@@ -5,12 +5,14 @@
  *
  *   npm run a11y
  *
- * Reports rather than gates. Most of what it finds is inherited from the design
- * — the mockups use #8A928C for secondary text, which the spec's own rule
- * ("do not tint text below #5C6560 on white") forbids — and silently
- * re-tinting every screen is a design decision, not a build one. See README,
- * "Known gaps". Exit code is non-zero only for unnamed controls, which are
- * unambiguously a bug.
+ * Contrast currently passes on every surface — see README, "One deliberate
+ * departure from the mockups", for why the palette's secondary greys were
+ * darkened to get there. Hit targets still sit below the spec's 44px because
+ * the design's density depends on it; they clear the 24px WCAG 2.2 floor.
+ *
+ * So this reports rather than gates, and exits non-zero only for a control with
+ * no accessible name — the one finding here that is unambiguously a bug and
+ * never a design decision.
  */
 import { spawn } from 'node:child_process'
 import { connect } from 'node:net'
