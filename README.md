@@ -18,6 +18,9 @@ npm run test:rails # asserts the four rails actually branch
 npm run a11y       # audits against the spec's accessibility minimums
 ```
 
+**Showing this to someone?** [`DEMO.md`](./DEMO.md) is a 10-minute script — every screen as a URL you can open ahead of
+time, the rail comparison worth building the demo around, and what to say when someone asks what is not real.
+
 Three tests, all driving a real browser, all run by CI on every PR.
 
 `npm run smoke` guards the failure `tsc` cannot see: a screen that throws or renders blank. It loads every route in all
