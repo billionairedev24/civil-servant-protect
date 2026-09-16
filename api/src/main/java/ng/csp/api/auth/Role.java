@@ -35,11 +35,16 @@ public enum Role {
   SPONSOR_ADMIN("Admin", Permission.ADMIN_SET),
 
   ASSESSOR("Claims assessor", Set.of(Permission.CLAIM_READ_ANY, Permission.CLAIM_ASSESS)),
+  /**
+   * Runs the scheme. Pays approved claims and cannot assess one — the assessor decides, operations
+   * sends, and neither can do the other's half.
+   */
   CSP_ADMIN(
       "CSP operations",
       Set.of(
           Permission.SPONSOR_READ,
           Permission.CLAIM_READ_ANY,
+          Permission.CLAIM_PAY,
           Permission.MEMBERS_MANAGE,
           Permission.ROLES_MANAGE));
 

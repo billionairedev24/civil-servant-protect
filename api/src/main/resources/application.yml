@@ -60,6 +60,16 @@ csp:
   # default is loopback on any port, which covers `npm run dev` (5173),
   # `npm run preview` (4173) and the browser tests. Deployment replaces it.
   cors-origins: ${CORS_ORIGINS:http://localhost:[*],http://127.0.0.1:[*]}
+  integrations:
+    # `stub` answers locally: no SMS leaves the machine, no NIN reaches NIMC and
+    # no money moves — but every call still goes through the replay log and the
+    # circuit breakers, so the recorded behaviour is the real behaviour.
+    # `http` calls the endpoints below. See SETUP.md.
+    mode: ${INTEGRATIONS_MODE:stub}
+    nimc-url: ${NIMC_URL:}
+    comms-url: ${COMMS_URL:}
+    comms-sender: ${COMMS_SENDER:CSProtect}
+    payout-url: ${PAYOUT_URL:}
   otp:
     echo: ${OTP_ECHO:false}
     fixed-code: ${OTP_FIXED_CODE:#{null}}

@@ -4,6 +4,8 @@ import java.security.SecureRandom;
 import java.util.Optional;
 import java.util.UUID;
 import ng.csp.api.config.CspProperties;
+import ng.csp.api.integration.Comms;
+import ng.csp.api.integration.ReplayLog;
 import ng.csp.api.web.ApiException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,12 +29,14 @@ public class AuthService {
   private final JdbcClient db;
   private final OtpStore otp;
   private final CspProperties props;
+  private final Comms comms;
   private final SecureRandom random = new SecureRandom();
 
-  public AuthService(JdbcClient db, OtpStore otp, CspProperties props) {
+  public AuthService(JdbcClient db, OtpStore otp, CspProperties props, Comms comms) {
     this.db = db;
     this.otp = otp;
     this.props = props;
+    this.comms = comms;
   }
 
   public record Challenge(UUID challengeId, long expiresIn, String devCode) {}
@@ -55,9 +59,27 @@ public class AuthService {
     var code = props.otp().fixedCode() != null ? props.otp().fixedCode() : randomCode();
     var id = otp.create(msisdn, code);
 
+    /*
+     * The code goes out only to a number we know.
+     *
+     * The response above is identical either way — see this method's contract —
+     * so an unknown caller learns nothing, and we do not pay to text a stranger
+     * or let someone use this endpoint as a free SMS gun pointed at a number
+     * they do not own.
+     *
+     * A failure here does not fail the sign-in. The challenge is already in
+     * Redis, `OTP_ECHO` may be on for a demo, and a member who never receives
+     * the SMS is better served by "resend" than by a 500 — the attempt is in
+     * the replay log either way, which is where an operator would look.
+     */
     if (isKnown(msisdn)) {
-      // Where the comms adapter would be called.
-      log.info("otp issued for {}", msisdn);
+      try {
+        comms.sendOtp(msisdn, code, id.toString());
+      } catch (ReplayLog.AlreadyDone e) {
+        log.info("otp for challenge {} was already sent", id);
+      } catch (RuntimeException e) {
+        log.warn("could not send the sign-in code for challenge {}: {}", id, e.getMessage());
+      }
     }
 
     return new Challenge(

@@ -30,5 +30,15 @@ public class ProductionSafetyCheck implements InitializingBean {
           They return or pin the sign-in code, which hands every account to anyone who knows a \
           phone number. Unset both, or do not run with --spring.profiles.active=prod.""");
     }
+
+    if (props.integrations().isStubbed()) {
+      throw new IllegalStateException(
+          """
+          Refusing to start: csp.integrations.mode is 'stub' under the prod profile.
+          Stubbed adapters answer locally — no SMS is sent, no NIN is checked against NIMC and no \
+          payout reaches NIBSS — while every screen reports success. A scheme that silently stops \
+          telling its members anything is worse than one that is plainly down. Set \
+          INTEGRATIONS_MODE=http and configure the endpoints.""");
+    }
   }
 }

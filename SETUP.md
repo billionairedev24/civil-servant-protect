@@ -182,6 +182,57 @@ curl -s -XPOST 'http://localhost:8081/realms/csp/protocol/openid-connect/token' 
   -d 'username=musa' -d 'password=password' | jq -r .access_token
 ```
 
+### The replay log
+
+Every call to an external system is written to `integration_calls` **before**
+it is attempted and completed afterwards. If the process dies mid-call the row
+survives as `attempting`, which is the honest state: we asked, and we do not
+know what happened.
+
+That is the state nobody wants and everybody needs. NIBSS may or may not have
+moved the money; the SMS gateway may or may not have sent the code. A log line
+written only on success answers neither question.
+
+```bash
+# What is stuck, for somebody to work through. Operations only.
+curl -s localhost:8080/v1/operations/integration-calls/stuck \
+  -H "Authorization: Bearer $OPS_TOKEN" | jq
+```
+
+There is no replay button. Replaying a payout is a decision with a bank
+statement behind it, and the claim reference is the idempotency key, so calling
+the operation again is refused rather than duplicated.
+
+L3 data never reaches this table: a phone number is stored as `+234803••••214`,
+an account as `••••6789`, and a NIN or a one-time code as `«withheld»`. It is
+the table somebody exports to a spreadsheet at 2am, which is exactly why.
+
+### Paying a claim
+
+The money path is two decisions by two people, like everything else here:
+
+| | Who | Permission |
+|---|---|---|
+| Assess the claim | Claims assessor | `CLAIM_ASSESS` |
+| Send the money | CSP operations | `CLAIM_PAY` |
+
+Neither role holds the other's permission, and the database says the same thing
+again with `payer_is_not_assessor` — so an account that could approve a payout
+and then make it does not exist, whatever the service layer is asked to do.
+
+```bash
+# The assessor decides.
+curl -s -XPOST localhost:8080/v1/claims/CLM-2026-0091/assess \
+  -H "Authorization: Bearer $ASSESSOR" -H 'Content-Type: application/json' \
+  -d '{"decision":"approve","note":"documents complete","amountMinor":500000000}'
+
+# Operations sends it. NIBSS is asked whose account this is first, and the name
+# it returns is what gets stored — that is what catches a transposed digit.
+curl -s -XPOST localhost:8080/v1/claims/CLM-2026-0091/pay \
+  -H "Authorization: Bearer $OPS" -H 'Content-Type: application/json' \
+  -d '{"bankCode":"058","accountNumber":"0123456789"}'
+```
+
 ---
 
 ## Testing
@@ -364,9 +415,23 @@ Real, and deliberately not papered over.
 4. **No Spring Batch or Kafka.** Schedule upload is synchronous and capped at
    20,000 rows. The spec's 1m-row path needs chunked restartable jobs with Kafka
    between stages; `uploadSchedule` is the seam that job would call.
-5. **No integration adapters.** `nimc-adapter`, `comms`, `payout` and the SFTP
-   poller are named in the spec and not written. Sign-in logs where the SMS
-   provider would be called.
+5. **The integration adapters are stubbed, not absent.** `nimc`, `comms`,
+   `payout` and the SFTP poller each have an interface, a circuit breaker with
+   settings chosen for that system, and a stub that answers locally. Sign-in
+   really calls the comms adapter and an approved claim really calls the payout
+   one; what is missing is an implementation that speaks to NIMC's SOAP
+   endpoint, an SMS aggregator's REST API, NIBSS, and a payroll SFTP host.
+   `INTEGRATIONS_MODE=http` selects those, and the `prod` profile refuses to
+   start without it.
+
+   The stubs are not test mocks: they go through the same replay log and the
+   same breakers, so the recorded behaviour is the real behaviour. They also
+   refuse where the real systems refuse — an 11-digit check on a NIN, a
+   ten-digit one on a NUBAN — so the failure branches are reachable in a demo.
+
+   They also *deliberately do not deliver*. `csp.integrations.mode=stub` is
+   logged as a warning at startup, because a scheme that silently stops telling
+   its members anything is worse than one that is plainly down.
 6. **Keys are not in an HSM**, as above.
 7. **Translations are machine-drafted** and have had no native-speaker pass. Ten
    of them were drafted in this session rather than carried from the design

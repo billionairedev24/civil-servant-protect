@@ -22,7 +22,16 @@ public enum Permission {
 
   // Insurer side
   CLAIM_READ_ANY,
-  CLAIM_ASSESS;
+  CLAIM_ASSESS,
+  /**
+   * Sending an approved claim's money.
+   *
+   * Separate from {@link #CLAIM_ASSESS} on purpose. The assessor decides a claim is good;
+   * operations makes the payment. One account holding both can approve a payout and then make it,
+   * which is the two-person rule with one person in it — and the DB says the same thing with
+   * {@code payer_is_not_assessor}.
+   */
+  CLAIM_PAY;
 
   /**
    * The authority string carried in the token and checked by {@code @PreAuthorize}. Prefixed so it

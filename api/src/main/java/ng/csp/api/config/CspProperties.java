@@ -33,6 +33,7 @@ public record CspProperties(
      * requires a URL issuer in any case.
      */
     String tokenIssuer,
+    Integrations integrations,
     Otp otp) {
 
   public CspProperties {
@@ -43,7 +44,29 @@ public record CspProperties(
             ? List.of("http://localhost:[*]", "http://127.0.0.1:[*]")
             : corsOrigins;
     tokenIssuer = tokenIssuer == null || tokenIssuer.isBlank() ? "https://member-auth.csp.local" : tokenIssuer;
+    integrations = integrations == null ? new Integrations("stub", null, null, null, null) : integrations;
     otp = otp == null ? new Otp(false, null) : otp;
+  }
+
+  /**
+   * Where the four external systems live, and whether we are really calling them.
+   *
+   * <p>{@code stub} is the default because a working checkout should be a working system: a
+   * developer with Postgres and Redis can enrol, sign in and pay a claim without an account at an
+   * SMS aggregator. It is refused under the {@code prod} profile — see {@link
+   * ProductionSafetyCheck} — because a production deploy that silently stops sending SMS is a
+   * scheme whose members are never told anything.
+   */
+  public record Integrations(
+      @Pattern(regexp = "stub|http", message = "csp.integrations.mode is 'stub' or 'http'")
+          String mode,
+      String nimcUrl,
+      String commsUrl,
+      String commsSender,
+      String payoutUrl) {
+    public boolean isStubbed() {
+      return !"http".equals(mode);
+    }
   }
 
   /**
