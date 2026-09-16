@@ -1,7 +1,11 @@
 import { Icon } from '../../../components/Icon'
 import { Kicker, Mono, ScreenTitle, Sub } from '../../../components/primitives'
 import { EN_ONLY } from '../../../i18n'
-import { CONTRIB_MONTHS, CONTRIB_RANGE, CONTRIB_TOTAL, LEDGER, WHY_CHANGED } from '../../../data/member'
+import { WHY_CHANGED } from '../../../data/member'
+import { LEDGER_FIXTURE } from '../../../api/fixtures'
+import { useContributions } from '../../../api/queries'
+import { NotLive, naira, periodLabel, useLive } from '../../../api/live'
+import type { LedgerRow } from '../../../api/types'
 import { C, MONO } from '../../../theme/tokens'
 import { Screen, BackButton } from '../Screen'
 import { usePhone } from '../state'
@@ -131,24 +135,42 @@ export function ContributionsScreen() {
   const { t, sponsor, go } = usePhone()
   const payroll = sponsor.payroll
 
-  const monthStyle = (m: (typeof CONTRIB_MONTHS)[number]) =>
-    m === 'waiting'
+  /* The ledger, live or fixture. Rows come back newest first; the bar chart
+     reads oldest to newest, so it walks the same array backwards rather than
+     asking the server for it twice. */
+  const { data: ledger, failed } = useLive(useContributions(LEDGER_FIXTURE), LEDGER_FIXTURE)
+  const oldestFirst = ledger.rows.slice().reverse()
+  // What a month costs this member, taken from the last month that actually
+  // cleared. A waiting row carries zero — it is what is owed, not what arrived —
+  // and printing ₦0 next to "waiting" reads as "you paid nothing" rather than
+  // "nobody has answered yet".
+  const monthlyMinor = ledger.rows.find((r) => r.status === 'confirmed')?.amountMinor ?? 0
+
+  // Three states, from the row itself: money that arrived through the payroll
+  // file, money the card fallback recovered, and a month still waiting. The
+  // third is not a payment and must never be drawn as one.
+  const bar = (row: LedgerRow) =>
+    row.status !== 'confirmed'
       ? { background: 'transparent', border: `1.5px dashed ${C.line9}` }
-      : { background: m === 'card' ? C.gSoft : C.g, border: '0' }
+      : { background: row.source === 'card' ? C.gSoft : C.g, border: '0' }
 
   return (
     <Screen scroll>
       <ScreenTitle style={{ paddingTop: 12 }}>{t.paid_title}</ScreenTitle>
       <Sub>{payroll ? t.paid_sub : t.paid_sub_self}</Sub>
 
+      {failed && <NotLive what="Your contributions" />}
+
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginTop: 18 }}>
-        <span style={{ fontSize: 36, fontWeight: 700, letterSpacing: '-.035em' }}>{CONTRIB_TOTAL}</span>
+        <span style={{ fontSize: 36, fontWeight: 700, letterSpacing: '-.035em' }}>
+          {naira(ledger.totals.paidMinor)}
+        </span>
         <span style={{ fontSize: 13.5, color: C.mut }}>{t.across_months}</span>
       </div>
 
       <div style={{ display: 'flex', gap: 3, height: 38, marginTop: 14 }}>
-        {CONTRIB_MONTHS.map((m, i) => (
-          <div key={i} style={{ flex: 1, borderRadius: 3, ...monthStyle(m) }} />
+        {oldestFirst.map((row) => (
+          <div key={row.period} style={{ flex: 1, borderRadius: 3, ...bar(row) }} />
         ))}
       </div>
       <div
@@ -157,8 +179,8 @@ export function ContributionsScreen() {
           fontSize: 10.5, color: C.faint, marginTop: 7,
         }}
       >
-        <span>{CONTRIB_RANGE[0]}</span>
-        <span>{CONTRIB_RANGE[1]}</span>
+        <span>{periodLabel(oldestFirst[0]?.period)}</span>
+        <span>{periodLabel(oldestFirst[oldestFirst.length - 1]?.period)}</span>
       </div>
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 13 }}>
@@ -187,21 +209,26 @@ export function ContributionsScreen() {
 
       <Kicker style={{ marginTop: 26 }}>{t.recent}</Kicker>
       <div style={{ marginTop: 6 }}>
-        {LEDGER.map((r) => {
-          const icon = r.src === 2 ? 'ph ph-clock-countdown' : r.src === 1 ? 'ph ph-credit-card' : 'ph-fill ph-check-circle'
-          const ic = r.src === 2 ? C.faint : r.src === 1 ? C.gSoft : C.g
+        {ledger.rows.slice(0, 4).map((r) => {
+          /* `src` used to be a fixture index; it is now derived from the row.
+             0 — arrived on the rail, 1 — recovered by the card fallback,
+             2 — still waiting. The translated labels are indexed by it, so the
+             mapping stays here rather than spreading through the JSX. */
+          const src: 0 | 1 | 2 = r.status !== 'confirmed' ? 2 : r.source === 'card' ? 1 : 0
+          const icon = src === 2 ? 'ph ph-clock-countdown' : src === 1 ? 'ph ph-credit-card' : 'ph-fill ph-check-circle'
+          const ic = src === 2 ? C.faint : src === 1 ? C.gSoft : C.g
           // A self-paying member's pending month is not sitting in anyone's
           // file — it is waiting on their bank — and neither label should be
           // English-only on a screen the rest of which translates.
           const source =
-            r.src === 1
+            src === 1
               ? t.ct_src_card
-              : r.src === 2
+              : src === 2
                 ? payroll ? t.ct_src_pending : t.ct_src_pending_self
                 : sponsor.ledger
           return (
             <div
-              key={r.month}
+              key={r.period}
               style={{
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12,
                 padding: '14px 0', borderBottom: `1px solid ${C.line5}`,
@@ -215,10 +242,10 @@ export function ContributionsScreen() {
                       that it says only what actually happened. Both labels are
                       existing translated copy. */}
                   <div style={{ fontSize: 15, fontWeight: 500 }}>
-                    {r.src === 1 ? t.pay_b_head : sponsor.payroll ? t.deduction : t.pay_s_head}
+                    {src === 1 ? t.pay_b_head : sponsor.payroll ? t.deduction : t.pay_s_head}
                   </div>
                   <Mono size={11.5} color={C.faint} style={{ display: 'block', marginTop: 2 }}>
-                    {r.month} · {source}
+                    {periodLabel(r.period)} · {source}
                   </Mono>
                 </div>
               </div>
@@ -227,15 +254,17 @@ export function ContributionsScreen() {
                     rather than the icon's tint — C.gSoft is a decorative green
                     that measures 2.0:1 on cream. Which rail paid it is already
                     said by the icon and by the state line below. */}
-                <div style={{ fontSize: 15, fontWeight: 700, color: r.src === 2 ? C.mut : C.ink }}>
-                  ₦2,500
+                <div style={{ fontSize: 15, fontWeight: 700, color: src === 2 ? C.mut : C.ink }}>
+                  {/* A waiting month shows what is due, not what arrived —
+                      the row carries zero until the rail answers. */}
+                  {naira(src === 2 ? monthlyMinor : r.amountMinor)}
                 </div>
                 {/* `src` states are named for the payroll rail ("Payroll"), so a
                     cleared self-pay month borrows the rail-neutral "Confirmed"
                     from the legend rather than naming a deduction that never
                     happened. Both are already translated in all five locales. */}
                 <div style={{ fontSize: 11.5, color: C.faint, marginTop: 1 }}>
-                  {sponsor.payroll || r.src !== 0 ? t.src[r.src] : t.ct_legend[0]}
+                  {sponsor.payroll || src !== 0 ? t.src[src] : t.ct_legend[0]}
                 </div>
               </div>
             </div>

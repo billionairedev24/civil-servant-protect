@@ -2,7 +2,8 @@ import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tan
 import type { CspApi } from './client'
 import { useApi } from './provider'
 import type {
-  BeneficiarySet, Claim, Ledger, MemberSummary, ProtectionCard, Reconciliation, SponsorDashboard,
+  BeneficiarySet, Claim, Ledger, MemberSummary, MyClaim, ProtectionCard, Reconciliation,
+  SponsorDashboard,
 } from './types'
 
 /**
@@ -19,6 +20,7 @@ export const keys = {
   contributions: (params: object = {}) => [...keys.member(), 'contributions', params] as const,
   card: () => [...keys.member(), 'card'] as const,
   beneficiaries: () => [...keys.member(), 'beneficiaries'] as const,
+  claims: () => [...keys.member(), 'claims'] as const,
   claim: (ref: string) => ['claim', ref] as const,
   sponsor: () => ['sponsor'] as const,
   dashboard: () => [...keys.sponsor(), 'dashboard'] as const,
@@ -93,12 +95,32 @@ export function useBeneficiaries(fixture: BeneficiarySet): UseQueryResult<Benefi
   })
 }
 
+/**
+ * The member's claim list.
+ *
+ * Read before the detail, because the detail needs a reference and the app has
+ * no other way to learn one. A member with no claims gets an empty list, which
+ * the tracking screen renders as "nothing open" rather than as an error.
+ */
+export function useMyClaims(fixture: { claims: MyClaim[] }): UseQueryResult<{ claims: MyClaim[] }> {
+  const { api } = useApi()
+  return useQuery({
+    queryKey: keys.claims(),
+    queryFn: () => api!.myClaims(),
+    ...shared(api, fixture),
+  })
+}
+
 export function useClaim(ref: string, fixture: Claim): UseQueryResult<Claim> {
   const { api } = useApi()
   return useQuery({
     queryKey: keys.claim(ref),
     queryFn: () => api!.claim(ref),
     ...shared(api, fixture),
+    // The reference comes from a list that has to load first. Asking for
+    // `/v1/claims/` in the meantime is a guaranteed 404 and, worse, one that
+    // would put the screen into its failed state for a second.
+    enabled: api !== null && ref !== '',
   })
 }
 

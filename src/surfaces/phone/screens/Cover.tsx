@@ -1,9 +1,10 @@
 import { Icon } from '../../../components/Icon'
 import { Kicker, Mono, ScreenTitle, Sub } from '../../../components/primitives'
 import { EN_ONLY, fill } from '../../../i18n'
-import {
-  BENEFICIARIES, FAMILY_COVER, MEMBER, SCHEDULE_VALUES, TIER_NAMES,
-} from '../../../data/member'
+import { FAMILY_COVER, MEMBER, SCHEDULE_VALUES, TIER_NAMES } from '../../../data/member'
+import { BENEFICIARY_SET, MEMBER_SUMMARY, PROTECTION_CARD } from '../../../api/fixtures'
+import { useBeneficiaries, useCard, useConfirmBeneficiaries, useSummary } from '../../../api/queries'
+import { NotLive, dayFirst, useLive } from '../../../api/live'
 import { C } from '../../../theme/tokens'
 import { Screen } from '../Screen'
 import { usePhone } from '../state'
@@ -13,10 +14,20 @@ import { TierList } from './Setup'
     whole point of it is that it works when nothing else does. */
 export function ProtectionCardScreen() {
   const { t, sponsor } = usePhone()
+  /* The card and the name on it come from two different reads: the card is the
+     signed offline token and is cached for an hour, the summary is who the
+     member is. Both stand in their fixture while in flight. */
+  const { data: card, failed, live } = useLive(useCard(PROTECTION_CARD), PROTECTION_CARD)
+  const { data: summary } = useLive(useSummary(MEMBER_SUMMARY), MEMBER_SUMMARY)
+
   return (
     <Screen scroll>
       <ScreenTitle style={{ paddingTop: 12 }}>{t.card_title}</ScreenTitle>
       <Sub>{t.card_sub}</Sub>
+      {/* A card that could not be refreshed still opens at a hospital gate —
+          that is the point of an offline token — so this says the figures are
+          not live rather than hiding the card. */}
+      {failed && <NotLive what="Your card" />}
 
       <div
         style={{
@@ -42,11 +53,13 @@ export function ProtectionCardScreen() {
               borderRadius: 5, padding: '3px 7px',
             }}
           >
-            STANDARD
+            {card.tier.toUpperCase()}
           </Mono>
         </div>
 
-        <div style={{ fontSize: 24, fontWeight: 700, marginTop: 18, letterSpacing: '-.02em' }}>{MEMBER.fullName}</div>
+        <div style={{ fontSize: 24, fontWeight: 700, marginTop: 18, letterSpacing: '-.02em' }}>
+          {summary.member.fullName}
+        </div>
         <div style={{ fontSize: 13.5, lineHeight: 1.45, opacity: 0.7, marginTop: 3 }}>
           {MEMBER.role}
           <br />
@@ -56,11 +69,13 @@ export function ProtectionCardScreen() {
         <div style={{ display: 'flex', gap: 26, marginTop: 18 }}>
           <div>
             <Mono size={8.5} style={{ letterSpacing: '.12em', opacity: 0.6 }}>{t.csp_id}</Mono>
-            <Mono size={16} weight={500} style={{ display: 'block', marginTop: 3 }}>{MEMBER.cspId}</Mono>
+            <Mono size={16} weight={500} style={{ display: 'block', marginTop: 3 }}>{card.cspId}</Mono>
           </div>
           <div>
             <Mono size={8.5} style={{ letterSpacing: '.12em', opacity: 0.6 }}>{t.in_force}</Mono>
-            <Mono size={16} weight={500} style={{ display: 'block', marginTop: 3 }}>{MEMBER.inForceSince}</Mono>
+            <Mono size={16} weight={500} style={{ display: 'block', marginTop: 3 }}>
+              {dayFirst(card.inForceSince)}
+            </Mono>
           </div>
         </div>
 
@@ -72,7 +87,12 @@ export function ProtectionCardScreen() {
         >
           <div>
             <Mono size={8.5} style={{ letterSpacing: '.12em', opacity: 0.6 }}>COLLECTED BY</Mono>
-            <div style={{ fontSize: 13.5, fontWeight: 600, marginTop: 3 }}>{sponsor.short}</div>
+            {/* Live, this is the member's actual sponsor. On fixtures it follows
+                the rail switcher, which is how the demo shows the same card
+                collected four different ways. */}
+            <div style={{ fontSize: 13.5, fontWeight: 600, marginTop: 3 }}>
+              {live ? card.collectedBy : sponsor.short}
+            </div>
           </div>
           <Mono
             size={9}
@@ -173,27 +193,36 @@ export function BenefitsScreen() {
     12-month dispute, so this screen nags and the share validator is visible. */
 export function BeneficiariesScreen() {
   const { t, benes, set, go } = usePhone()
-  const shown = BENEFICIARIES.slice(0, benes)
+  const { data: nominated, failed, live } = useLive(useBeneficiaries(BENEFICIARY_SET), BENEFICIARY_SET)
+
+  /* Live, the set is whatever the member has named. On fixtures the `benes`
+     control adds a third person who holds no share, which is the demo's way of
+     showing the unshared state — the very thing this screen exists to catch. */
+  const shown = live ? nominated.people : nominated.people.slice(0, benes)
 
   return (
     <Screen scroll>
       <ScreenTitle style={{ paddingTop: 12 }}>{t.benes_title}</ScreenTitle>
       <Sub>{t.benes_sub}</Sub>
+      {failed && <NotLive what="Who you have named" />}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 9, marginTop: 16 }}>
         {shown.map((b) => (
-          <div key={b.name} className="card" style={{ padding: 16 }}>
+          <div key={b.id} className="card" style={{ padding: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
               <div>
                 <div style={{ fontSize: 16, fontWeight: 600 }}>{b.name}</div>
                 <div style={{ fontSize: 13, color: C.mut, marginTop: 2 }}>
-                  {t.fam_n[b.relIndex]} · {b.phone}
+                  {/* No number on file is its own fact — this screen exists so a
+                      claims officer can reach these people, and an em dash says
+                      "we cannot" where a blank says nothing. */}
+                  {b.relation} · {b.msisdn ?? EN_ONLY.benes_no_number}
                 </div>
               </div>
-              <div style={{ fontSize: 21, fontWeight: 700, color: C.g }}>{b.share}%</div>
+              <div style={{ fontSize: 21, fontWeight: 700, color: C.g }}>{b.sharePct}%</div>
             </div>
             <div style={{ height: 5, borderRadius: 3, background: C.line8, marginTop: 12, overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${b.share}%`, background: C.g }} />
+              <div style={{ height: '100%', width: `${b.sharePct}%`, background: C.g }} />
             </div>
           </div>
         ))}
@@ -227,7 +256,7 @@ export function BeneficiariesScreen() {
 
         <div style={{ fontSize: 14.5, fontWeight: 600 }}>{t.shares_title}</div>
         <div style={{ fontSize: 13, lineHeight: 1.5, color: C.mut, marginTop: 3 }}>
-          {benes === 3 ? EN_ONLY.benes_unshared : EN_ONLY.benes_balanced}
+          {shareSummary(shown)}
         </div>
       </div>
 
@@ -241,11 +270,31 @@ export function BeneficiariesScreen() {
 
 /** Annual re-confirmation. Runs once a year against the payroll cycle. */
 export function BeneConfirmScreen() {
-  const { t, go } = usePhone()
-  const rows = [
-    { b: BENEFICIARIES[0], ok: true, note: EN_ONLY.beneconf_named_since },
-    { b: BENEFICIARIES[1], ok: false, note: EN_ONLY.beneconf_unreachable },
-  ]
+  const { go } = usePhone()
+  const { data: nominated, failed } = useLive(useBeneficiaries(BENEFICIARY_SET), BENEFICIARY_SET)
+  const confirm = useConfirmBeneficiaries()
+
+  /* Only the payees. Someone named with no share is not who a claim pays, and
+     this screen's whole question is "are these still the right people to send
+     the money to" — see PAYEES in src/data/member. */
+  const rows = nominated.people
+    .filter((b) => b.sharePct > 0)
+    .map((b) => ({
+      b,
+      // A beneficiary we cannot telephone is the practical failure this annual
+      // check exists to find — a claims officer with no number has to trace a
+      // grieving family through an HR office.
+      ok: b.msisdn !== null,
+      note: b.msisdn !== null ? EN_ONLY.beneconf_named_since : EN_ONLY.beneconf_unreachable,
+    }))
+
+  /* Confirming is a write, so it gets the two states a write needs: it cannot
+     be pressed twice, and a refusal says so instead of navigating away as if it
+     had worked. */
+  const yes = () => {
+    if (confirm.isPending) return
+    confirm.mutate(undefined, { onSuccess: () => go('home') })
+  }
 
   return (
     <Screen scroll>
@@ -264,18 +313,19 @@ export function BeneConfirmScreen() {
         {EN_ONLY.beneconf_title}
       </div>
       <div style={{ fontSize: 14.5, lineHeight: 1.55, color: C.mut, marginTop: 8 }}>{EN_ONLY.beneconf_sub}</div>
+      {failed && <NotLive what="Who you have named" />}
 
       <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 9 }}>
         {rows.map(({ b, ok, note }) => (
-          <div key={b.name} className="card" style={{ padding: 16 }}>
+          <div key={b.id} className="card" style={{ padding: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
               <div>
                 <div style={{ fontSize: 16, fontWeight: 600 }}>{b.name}</div>
                 <div style={{ fontSize: 13, color: C.mut, marginTop: 2 }}>
-                  {t.fam_n[b.relIndex]} · {b.phone}
+                  {b.relation} · {b.msisdn ?? EN_ONLY.benes_no_number}
                 </div>
               </div>
-              <div style={{ fontSize: 21, fontWeight: 700, color: C.g }}>{b.share}%</div>
+              <div style={{ fontSize: 21, fontWeight: 700, color: C.g }}>{b.sharePct}%</div>
             </div>
             <div
               style={{
@@ -304,9 +354,32 @@ export function BeneConfirmScreen() {
         <div style={{ fontSize: 13, lineHeight: 1.55, color: C.ochre, marginTop: 5 }}>{EN_ONLY.beneconf_ignore_body}</div>
       </div>
 
+      {confirm.isError && (
+        <div
+          role="alert"
+          style={{
+            display: 'flex', alignItems: 'flex-start', gap: 9, marginTop: 14, padding: '12px 13px',
+            border: `1px solid ${C.clayBorder2}`, borderRadius: 10, background: C.clayBg,
+          }}
+        >
+          <Icon name="ph-fill ph-warning-circle" size={17} color={C.clay} />
+          <span style={{ fontSize: 13, lineHeight: 1.45, color: C.clayInk }}>
+            {confirm.error instanceof Error
+              ? confirm.error.message
+              : 'We could not record that. Try again.'}
+          </span>
+        </div>
+      )}
+
       <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <button type="button" className="btn btn-xl btn-primary" style={{ width: '100%' }} onClick={() => go('home')}>
-          {EN_ONLY.beneconf_yes}
+        <button
+          type="button"
+          className="btn btn-xl btn-primary"
+          style={{ width: '100%' }}
+          disabled={confirm.isPending}
+          onClick={yes}
+        >
+          {confirm.isPending ? '…' : EN_ONLY.beneconf_yes}
         </button>
         <button type="button" className="btn btn-lg btn-secondary" style={{ width: '100%' }} onClick={() => go('benes')}>
           {EN_ONLY.beneconf_changed}
@@ -366,4 +439,26 @@ export function FamilyScreen() {
       </div>
     </Screen>
   )
+}
+
+/**
+ * The one line under "How it is shared".
+ *
+ * Says the arithmetic when it adds up and names the problem when it does not.
+ * Derived from the set, because the member looking at this screen is the one
+ * whose family it describes.
+ */
+function shareSummary(people: { name: string; sharePct: number }[]): string {
+  const paid = people.filter((b) => b.sharePct > 0)
+  const unpaid = people.filter((b) => b.sharePct === 0)
+  const total = paid.reduce((sum, b) => sum + b.sharePct, 0)
+
+  if (unpaid.length === 1) return fill(EN_ONLY.benes_unshared_one, { name: unpaid[0].name })
+  if (unpaid.length > 1) {
+    return fill(EN_ONLY.benes_unshared_many, { names: unpaid.map((b) => b.name).join(', ') })
+  }
+  if (paid.length === 0) return 'Nobody is named yet. A claim cannot be paid until someone is.'
+  // "60% + 40% = 100%". A total that is not 100 is worth showing as the sum it
+  // actually is, because that is the number the member has to change.
+  return `${paid.map((b) => `${b.sharePct}%`).join(' + ')} = ${total}%.`
 }

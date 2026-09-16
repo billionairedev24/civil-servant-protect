@@ -129,6 +129,15 @@ export interface Claim {
   documents: { key: string; state: string; filename: string | null; uploadedAt: string | null }[]
 }
 
+/** A row in the member's own claim list. The detail comes from `Claim`. */
+export interface MyClaim {
+  ref: string
+  type: string
+  state: string
+  amountMinor: number | null
+  openedAt: string
+}
+
 export interface SponsorDashboard {
   sponsor: {
     id: string
