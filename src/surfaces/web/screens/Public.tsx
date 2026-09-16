@@ -3,7 +3,7 @@ import { Kicker, Mono } from '../../../components/primitives'
 import { TIER_NAMES, TIER_PRICES } from '../../../data/member'
 import { C, MONO } from '../../../theme/tokens'
 import { WEB_MEMBER } from '../data'
-import { ParityNote } from '../ui'
+import { ParityNote } from '../../../components/surface'
 import { useWeb } from '../state'
 
 /**

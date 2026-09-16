@@ -3,7 +3,7 @@ import { Kicker } from '../../../components/primitives'
 import { LANGS, type Lang } from '../../../i18n'
 import { C, MONO } from '../../../theme/tokens'
 import { PHONE_ONLY, SESSIONS, WEB_MEMBER, WEB_ONLY } from '../data'
-import { FeatureRow, PageSub, PageTitle, Panel } from '../ui'
+import { FeatureRow, PageSub, PageTitle, Panel } from '../../../components/surface'
 import { useWeb } from '../state'
 
 /**

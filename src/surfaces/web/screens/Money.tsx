@@ -2,7 +2,7 @@ import { Icon } from '../../../components/Icon'
 import { Kicker, Mono } from '../../../components/primitives'
 import { C, MONO } from '../../../theme/tokens'
 import { BENE_RULES, WEB_BENEFICIARIES, ledgerFor, railRef } from '../data'
-import { PageSub, PageTitle, Panel, StatusPill, Table, TableHead } from '../ui'
+import { PageSub, PageTitle, Panel, StatusPill, Table, TableHead } from '../../../components/surface'
 import { useWeb } from '../state'
 
 /**

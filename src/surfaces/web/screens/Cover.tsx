@@ -5,7 +5,7 @@ import { C, MONO } from '../../../theme/tokens'
 import {
   SCHEDULE_MATRIX, WEB_FAMILY, WEB_MEMBER, WEB_ONLY_COVER, ledgerFor,
 } from '../data'
-import { FeatureRow, PageSub, PageTitle, Panel, StatusPill, Table, TableHead } from '../ui'
+import { FeatureRow, PageSub, PageTitle, Panel, StatusPill, Table, TableHead } from '../../../components/surface'
 import { useWeb } from '../state'
 
 export function WebDashboard() {

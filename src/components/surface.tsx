@@ -1,7 +1,7 @@
 import type { CSSProperties, ReactNode } from 'react'
-import { Icon } from '../../components/Icon'
-import { Kicker } from '../../components/primitives'
-import { C, MONO } from '../../theme/tokens'
+import { Icon } from './Icon'
+import { Kicker } from './primitives'
+import { C, MONO } from '../theme/tokens'
 
 /** White panel — the web surface's default container. */
 export function Panel({

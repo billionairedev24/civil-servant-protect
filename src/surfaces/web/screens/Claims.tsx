@@ -3,7 +3,7 @@ import { Kicker, Mono } from '../../../components/primitives'
 import { CLAIM, CLAIM_STAGES } from '../../../data/member'
 import { C, MONO } from '../../../theme/tokens'
 import { WEB_CLAIM_SUMMARY } from '../data'
-import { PageTitle, Panel } from '../ui'
+import { PageTitle, Panel } from '../../../components/surface'
 import { useWeb } from '../state'
 
 const CL_ICONS = [
