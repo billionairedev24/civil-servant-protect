@@ -1,0 +1,313 @@
+/* Civil Servant Protect — ground rules and the button system.
+   Values are the design bundle's; see src/theme/tokens.ts for the same palette
+   in TS, used where a colour is picked by data rather than by class. */
+
+:root {
+  --paper: #edebe4;
+  --surface: #f7f6f2;
+  --white: #ffffff;
+
+  --ink: #14181b;
+  --mut: #5c6560;
+  --faint: #8a928c;
+  --ghost: #a9a69b;
+
+  --g: #046a38;
+  --gd: #03502a;
+  --gdd: #023f21;
+  --g-tint: #f1f6f3;
+  --g-tint-2: #e8f1ec;
+  --g-soft: #8abba1;
+  --g-border: #c9ddd2;
+  --g-border-2: #a9c5b6;
+  --g-border-3: #c3d9cd;
+
+  --line: #e2e1da;
+  --line-2: #dad8ce;
+  --line-3: #d7d5cc;
+  --line-4: #d3d1c6;
+  --line-5: #e7e5de;
+
+  --clay: #b4451f;
+  --clay-bg: #fbefea;
+  --clay-ink: #8a3416;
+
+  --ochre: #8a5a00;
+  --ochre-bg: #fbf4e4;
+  --ochre-border: #e0cfa6;
+  --ochre-ink: #6b4c08;
+
+  --mono: 'IBM Plex Mono', monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: 'Public Sans', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--g);
+}
+a:hover {
+  color: var(--gd);
+}
+
+button {
+  font-family: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+button:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--g);
+  outline-offset: 2px;
+}
+
+::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.rise {
+  animation: rise 0.25s ease;
+}
+
+/* ── The button system ──────────────────────────────────────────────────────
+   Four fixed heights, one pill geometry. The prototype went through three
+   rounds of fixes to land here, and two of them matter enough to keep as
+   comments:
+     · flex-shrink:0 on every tier. Without it, scroll-heavy screens squeeze the
+       54px pills flat.
+     · pill radius (999px) so an action never reads as a card or an input. */
+
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    transform 0.12s,
+    box-shadow 0.15s;
+  white-space: nowrap;
+}
+
+.btn-xl {
+  height: 54px;
+  padding: 0 20px;
+  font-size: 16px;
+}
+.btn-lg {
+  height: 52px;
+  padding: 0 20px;
+  font-size: 15px;
+}
+.btn-md {
+  height: 50px;
+  padding: 0 18px;
+  font-size: 15px;
+}
+.btn-sm {
+  height: 44px;
+  padding: 0 16px;
+  font-size: 14px;
+}
+.btn-xs {
+  height: 40px;
+  padding: 0 16px;
+  font-size: 13.5px;
+}
+
+.btn-primary {
+  border: 0;
+  background: var(--g);
+  color: var(--surface);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 8px 18px -10px rgba(4, 106, 56, 0.7);
+}
+.btn-primary:hover {
+  background: var(--gd);
+}
+.btn-primary:active {
+  background: var(--gdd);
+  transform: translateY(1px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+.btn-sm.btn-primary,
+.btn-xs.btn-primary {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 6px 14px -9px rgba(4, 106, 56, 0.65);
+}
+
+.btn-secondary {
+  border: 1.5px solid var(--line-4);
+  background: var(--white);
+  color: var(--ink);
+}
+.btn-secondary:hover {
+  border-color: var(--g);
+  color: var(--g);
+}
+
+/* Outlined green — used where the action is green but must not out-shout a
+   primary on the same row. */
+.btn-outline {
+  border: 1.5px solid var(--g);
+  background: transparent;
+  color: var(--g);
+}
+.btn-outline:hover {
+  background: var(--g-tint);
+}
+
+/* Tinted — "add another person" and friends. Replaced the dashed add-buttons,
+   which read as drop zones. */
+.btn-tinted {
+  border: 1.5px solid var(--g-border-3);
+  background: var(--g-tint);
+  color: var(--g);
+}
+.btn-tinted:hover {
+  background: #e4efe9;
+}
+
+/* On the green card: outlined in the card's own foreground. */
+.btn-on-green {
+  border: 1.5px solid rgba(242, 247, 244, 0.5);
+  background: transparent;
+  color: #f2f7f4;
+}
+.btn-on-green:hover {
+  background: rgba(242, 247, 244, 0.14);
+}
+
+.btn-ghost {
+  border: 0;
+  background: transparent;
+  color: var(--mut);
+  font-weight: 500;
+}
+.btn-ghost:hover {
+  color: var(--ink);
+}
+
+/* Quiet text action. Replaced the full-width tinted pill that read as an input
+   — "Something is wrong — tell HR" was the screen that forced this. */
+.btn-link {
+  display: inline-block;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--g);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: var(--g-border-2);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.btn-link:hover {
+  text-decoration-color: var(--g);
+}
+
+/* Back sits at the TOP-LEFT of every wizard, never at the bottom next to the
+   primary — that pairing produced an orphan circular button. */
+.btn-back {
+  align-self: flex-start;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 0;
+  border: 0;
+  background: transparent;
+  color: var(--mut);
+  font-size: 14.5px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.btn-back:hover {
+  color: var(--ink);
+}
+
+/* ── Selectable surfaces ───────────────────────────────────────────────────── */
+
+.card {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--white);
+}
+
+.pick {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  width: 100%;
+  text-align: left;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s;
+}
+.pick:hover {
+  border-color: var(--g);
+}
+
+.chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  white-space: nowrap;
+  border-radius: 99px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.chip:hover {
+  border-color: var(--g);
+}
+
+.row-hover:hover {
+  background: var(--hover-2, #f1f0ea);
+}
+
+.nav-item:hover {
+  background: #e3e1d8;
+}
+
+.mono {
+  font-family: var(--mono);
+}
