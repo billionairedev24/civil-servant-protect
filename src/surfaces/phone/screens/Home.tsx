@@ -1,5 +1,7 @@
 import { Icon } from '../../../components/Icon'
 import { Kicker, Mono } from '../../../components/primitives'
+import { MEMBER_SUMMARY } from '../../../api/fixtures'
+import { useSummary } from '../../../api/queries'
 import { CLAIM, MEMBER, payeeNames } from '../../../data/member'
 import { C } from '../../../theme/tokens'
 import { Screen } from '../Screen'
@@ -7,6 +9,17 @@ import { usePhone } from '../state'
 
 export function HomeScreen() {
   const { t, sponsor, offline, late, go } = usePhone()
+
+  /* Live when VITE_API_URL is set, the fixture otherwise — and the fixture also
+     shows while the request is in flight. A member opening this screen to check
+     whether their deduction arrived should see last month's figures at once
+     rather than a spinner; the live values replace them a moment later. */
+  /* Live when VITE_API_URL is set, the fixture otherwise — and the fixture is
+     also what shows while the request is in flight, because a member opening
+     this to check whether their deduction arrived should see last month's
+     figures at once rather than a spinner. */
+  const { data: summary } = useSummary(MEMBER_SUMMARY)
+  const memberName = summary?.member.name ?? MEMBER.name
 
   /* The pay row is the first thing a member checks when a payslip looks wrong,
      so it states the rail's status plainly rather than assuming success. */
@@ -29,7 +42,7 @@ export function HomeScreen() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', paddingTop: 10 }}>
         <div>
           <div style={{ fontSize: 13, color: C.faint }}>{t.greeting}</div>
-          <div style={{ fontSize: 21, fontWeight: 700, letterSpacing: '-.02em' }}>{MEMBER.name}</div>
+          <div style={{ fontSize: 21, fontWeight: 700, letterSpacing: '-.02em' }}>{memberName}</div>
         </div>
         <button
           type="button"

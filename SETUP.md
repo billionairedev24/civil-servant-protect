@@ -80,8 +80,34 @@ API docs are at http://localhost:8080/swagger-ui.html.
 
 ```bash
 npm install
-npm run dev        # http://localhost:5173
+npm run dev                                   # fixtures, no backend needed
+VITE_API_URL=http://localhost:8080 npm run dev  # live, against the API
 ```
+
+`VITE_API_URL` is the only switch. Unset, the screens read `src/data` exactly as
+they always have — which is how the design gets reviewed and how the
+rail-branching tests run, neither of which should need Postgres. Set, the same
+screens read the API.
+
+Data access is **TanStack Query** (`src/api/`):
+
+| | |
+|---|---|
+| `types.ts` | the wire types, hand-written against the spec's contracts |
+| `client.ts` | `fetch` only, no React — so the React Native build can share it |
+| `queries.ts` | one hook per resource, with the query keys in one place |
+| `fixtures.ts` | the existing fixtures re-expressed in the API's shape |
+
+Fixtures are passed as `placeholderData`, not `initialData`: they render
+instantly and the query still runs, so the cache never treats hard-coded data as
+fresh. A member opening the app to check whether their deduction arrived sees
+last month's figures at once, and the live values replace them a moment later.
+
+Retries are deliberate. Transport failures retry twice with backoff; a 401, 403,
+404 or 409 never does — a refusal from the maker–checker rule is a decision, not
+a blip, and retrying it three times only makes the officer wait. Mutations never
+retry at all, because retrying "close the cycle" is retrying a decision someone
+is accountable for.
 
 ## 4. Sign in
 
