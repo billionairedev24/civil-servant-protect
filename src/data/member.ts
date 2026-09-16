@@ -33,7 +33,10 @@ export const MEMBER = {
   inForceSince: '16.07.2025',
   device: 'Tecno Spark 10',
   phoneMasked: '0803 •• •• 214',
-  phoneEntry: '803 000 214',
+  // The national number without the leading 0, grouped as it is keyed in. Must
+  // stay consistent with phoneMasked above and with the seeded +2348030000214
+  // on the API — a digit out here is a sign-in that fails for no visible reason.
+  phoneEntry: '803 0000 214',
   bank: 'GTBank ••4471',
 } as const
 
@@ -172,3 +175,18 @@ export const WHY_CHANGED = {
   ],
   total: '₦3,700',
 } as const
+
+/**
+ * Initials from whatever name we have.
+ *
+ * A live session carries the name on the record — "Adaeze Nkiru Okafor" — so
+ * taking the first and last word gives AO rather than the ANO a naive split
+ * would produce. A single-word name gives one letter, not a crash.
+ */
+export function initialsOf(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return ''
+  const first = parts[0][0]
+  const last = parts.length > 1 ? parts[parts.length - 1][0] : ''
+  return (first + last).toUpperCase()
+}

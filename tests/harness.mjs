@@ -7,6 +7,8 @@
  * the same way a member or an officer would — by going there.
  */
 import { spawn } from 'node:child_process'
+import { existsSync, readdirSync, statSync } from 'node:fs'
+import { join } from 'node:path'
 import { connect } from 'node:net'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { chromium } from 'playwright'
@@ -112,11 +114,34 @@ export async function startPreview(port, timeoutMs = 60_000) {
   )
 }
 
+/**
+ * Where a usable Chromium is, if Playwright's own copy is not.
+ *
+ * A sandbox image ships one browser build and pins PLAYWRIGHT_BROWSERS_PATH at
+ * it; the Playwright in package.json wants the build number it was released
+ * with. When those drift the launch fails with "download new browsers", which
+ * is misleading — there is a browser, it is just numbered differently. Rather
+ * than pin the image or re-download 150MB per run, take the one that is there.
+ */
+function installedChromium() {
+  if (process.env.CHROMIUM_PATH) return process.env.CHROMIUM_PATH
+  const root = process.env.PLAYWRIGHT_BROWSERS_PATH
+  if (!root || !existsSync(root)) return null
+  const candidates = readdirSync(root)
+    .filter((name) => name.startsWith('chromium'))
+    // Headless shell first: smaller, and every test here is headless anyway.
+    .sort((a, b) => Number(b.includes('headless')) - Number(a.includes('headless')))
+    .flatMap((name) => [
+      join(root, name, 'chrome-linux', 'headless_shell'),
+      join(root, name, 'chrome-linux', 'chrome'),
+      join(root, name),
+    ])
+  return candidates.find((path) => existsSync(path) && statSync(path).isFile()) ?? null
+}
+
 export function launchBrowser() {
-  // In sandboxes the bundled browser lives outside node_modules.
-  return chromium.launch(
-    process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {},
-  )
+  const executablePath = installedChromium()
+  return chromium.launch(executablePath ? { executablePath } : {})
 }
 
 /** Build a URL with the demo's query string: rail, language, scenario flags. */

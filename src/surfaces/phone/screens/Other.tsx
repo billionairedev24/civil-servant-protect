@@ -2,19 +2,30 @@ import { Icon } from '../../../components/Icon'
 import { Kicker, Mono } from '../../../components/primitives'
 import { EN_ONLY, LANGS, type Lang } from '../../../i18n'
 import { collectionFor, exceptionColors } from '../../../data/collection'
-import { MEMBER } from '../../../data/member'
+import { MEMBER, initialsOf } from '../../../data/member'
 import { C } from '../../../theme/tokens'
 import { Screen, BackButton } from '../Screen'
 import { usePhone } from '../state'
 import { MORE_ICONS, MORE_TARGETS } from '../nav'
+import { useAuth } from '../../../api/auth'
 
 export function ProfileScreen() {
   const { t, lang, setLang, go } = usePhone()
+  const { session, signOut } = useAuth()
 
   // `more_i` carries six labels; "How you pay" is spliced in at index 1 because
   // the payment rail became a first-class screen only in v3.
   const labels = [...t.more_i]
   labels.splice(1, 0, t.more_pay)
+
+  // The last row is "Sign out". Dropping the tokens has to happen before the
+  // navigation, or the auth gate lets the app stay open behind it.
+  const open = (i: number) => {
+    if (MORE_TARGETS[i] === 'auth') signOut()
+    go(MORE_TARGETS[i])
+  }
+
+  const name = session?.name ?? MEMBER.name
 
   return (
     <Screen scroll>
@@ -26,10 +37,10 @@ export function ProfileScreen() {
             fontSize: 17, fontWeight: 700, color: C.g,
           }}
         >
-          {MEMBER.initials}
+          {initialsOf(name)}
         </div>
         <div>
-          <div style={{ fontSize: 18, fontWeight: 700 }}>{MEMBER.name}</div>
+          <div style={{ fontSize: 18, fontWeight: 700 }}>{name}</div>
           <Mono size={12} color={C.mut} style={{ display: 'block', marginTop: 2 }}>
             CSP-ID {MEMBER.cspId}
           </Mono>
@@ -38,7 +49,7 @@ export function ProfileScreen() {
 
       <Kicker style={{ marginTop: 24 }}>{t.language}</Kicker>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginTop: 9 }}>
-        {LANGS.map(([code, name]) => {
+        {LANGS.map(([code, label]) => {
           const on = lang === code
           return (
             <button
@@ -54,7 +65,7 @@ export function ProfileScreen() {
                 fontSize: 13.5, fontWeight: on ? 600 : 500,
               }}
             >
-              {name}
+              {label}
             </button>
           )
         })}
@@ -66,7 +77,7 @@ export function ProfileScreen() {
             key={title}
             type="button"
             className="row-hover"
-            onClick={() => go(MORE_TARGETS[i])}
+            onClick={() => open(i)}
             style={{
               display: 'flex', alignItems: 'center', gap: 13, width: '100%', textAlign: 'left',
               padding: '16px 2px', border: 0, borderBottom: `1px solid ${C.line5}`,
@@ -285,3 +296,4 @@ export function BeneficiaryPortalScreen() {
     </Screen>
   )
 }
+

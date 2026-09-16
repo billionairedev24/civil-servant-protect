@@ -100,7 +100,8 @@
         "sponsor_ref": [
           "CSP-114"
         ]
-      }
+      },
+      "id": "11111111-0000-4000-8000-000000000001"
     },
     {
       "username": "musa",
@@ -123,7 +124,8 @@
         "sponsor_ref": [
           "CSP-114"
         ]
-      }
+      },
+      "id": "11111111-0000-4000-8000-000000000002"
     },
     {
       "username": "ngozi",
@@ -146,7 +148,8 @@
         "sponsor_ref": [
           "CSP-114"
         ]
-      }
+      },
+      "id": "11111111-0000-4000-8000-000000000003"
     },
     {
       "username": "ibrahim",
@@ -169,7 +172,8 @@
         "sponsor_ref": [
           "CSP-114"
         ]
-      }
+      },
+      "id": "11111111-0000-4000-8000-000000000004"
     },
     {
       "username": "assessor",
@@ -192,7 +196,32 @@
         "sponsor_ref": [
           ""
         ]
-      }
+      },
+      "id": "11111111-0000-4000-8000-000000000005"
+    },
+    {
+      "username": "ops",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "CSP",
+      "lastName": "Operations",
+      "email": "ops@csp.ng",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "password",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "csp_admin"
+      ],
+      "attributes": {
+        "sponsor_ref": [
+          ""
+        ]
+      },
+      "id": "11111111-0000-4000-8000-000000000006"
     }
   ]
 }

@@ -1,6 +1,9 @@
 import { useLocation, useNavigate } from 'react-router-dom'
+import { useAuth } from '../../api/auth'
+import { ConsoleSignIn } from './SignIn'
 import { Icon } from '../../components/Icon'
 import { Mono } from '../../components/primitives'
+import { initialsOf } from '../../data/member'
 import { BP, useMediaQuery } from '../../components/useMediaQuery'
 import type { SponsorId } from '../../data/sponsors'
 import { C } from '../../theme/tokens'
@@ -52,6 +55,11 @@ export function SponsorConsoleApp({
   const navigate = (to: ConsoleScreen) =>
     nav({ pathname: CONSOLE_URLS[to], search: window.location.search })
 
+  // Live and signed out: the front door, not a dashboard full of empty panels.
+  // On fixtures `signedIn` is always true, so the demo is unchanged.
+  const { signedIn } = useAuth()
+  if (!signedIn) return <ConsoleSignIn />
+
   return (
     <ConsoleStateProvider
       sponsorId={sponsorId}
@@ -100,6 +108,7 @@ function Shell() {
 
 function SideNav() {
   const { screen, sponsor, payroll, go } = useConsole()
+  const officer = useOfficer()
 
   const badgeFor = (badge?: 'recon' | 'claims') =>
     badge === 'recon' ? (payroll ? '57' : '51') : badge === 'claims' ? '4' : ''
@@ -196,13 +205,13 @@ function SideNav() {
             fontSize: 11.5, fontWeight: 700, color: C.mut,
           }}
         >
-          AB
+          {officer.initials}
         </div>
         <div style={{ minWidth: 0, flex: 1 }}>
           <div style={{ fontSize: 12.5, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            Amina Bello
+            {officer.name}
           </div>
-          <div style={{ fontSize: 11, color: C.faint }}>Preparer</div>
+          <div style={{ fontSize: 11, color: C.faint }}>{officer.role}</div>
         </div>
         <Icon name="ph ph-caret-up-down" size={13} color={C.ghost2} />
       </div>
@@ -212,6 +221,7 @@ function SideNav() {
 
 function MobileHeader() {
   const { sponsor } = useConsole()
+  const officer = useOfficer()
   return (
     <header
       style={{
@@ -239,8 +249,9 @@ function MobileHeader() {
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontSize: 11, fontWeight: 700, color: C.mut,
         }}
+        title={`${officer.name} · ${officer.role}`}
       >
-        AB
+        {officer.initials}
       </div>
     </header>
   )
@@ -278,4 +289,18 @@ function MobileTabs() {
       })}
     </nav>
   )
+}
+
+/**
+ * Whoever is actually signed in.
+ *
+ * The design bundle put "Amina Bello · Preparer" in the chrome of every screen,
+ * which is fine for a picture and wrong for a console where what you may do
+ * depends on who you are. Live, this is the name and role label the server
+ * returned; on fixtures it stays Amina, so the demo reads as designed.
+ */
+function useOfficer() {
+  const { session } = useAuth()
+  const name = session?.name ?? 'Amina Bello'
+  return { name, role: session?.roleLabel ?? 'Preparer', initials: initialsOf(name) }
 }

@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createContext, useContext, useMemo, useState } from 'react'
-import { ApiError, CspApi, memoryTokenStore } from './client'
+import { ApiError, CspApi, deviceTokenStore, memoryTokenStore } from './client'
 
 /**
  * Where the data comes from.
@@ -18,14 +18,42 @@ const API_URL = (import.meta.env?.VITE_API_URL as string | undefined)?.trim() ??
 
 export const LIVE = API_URL !== ''
 
+/**
+ * Where this surface keeps its tokens.
+ *
+ * The console and the member app hold sessions of different value to an
+ * attacker and are used in different rooms, so they should not store them the
+ * same way. A finance officer's token unlocks a whole payroll's roster on a
+ * shared secretariat PC — that one lives in memory and dies with the tab, and
+ * the spec's twenty-minute idle timeout says the same thing. A member's token
+ * unlocks their own record on their own handset, and the spec gives them a
+ * device-bound refresh token so they are not re-sent an SMS code for scrolling.
+ *
+ * In production these are separate deployments on separate hosts; they share a
+ * bundle only here, so the path is what tells them apart. It is read once, at
+ * load, because a session should not change how it is stored halfway through.
+ */
+function tokenStoreForSurface() {
+  const onConsole =
+    typeof window !== 'undefined' && window.location.pathname.startsWith('/console')
+  return onConsole ? memoryTokenStore() : deviceTokenStore()
+}
+
 interface ApiContext {
   /** Null when running on fixtures. */
   api: CspApi | null
   live: boolean
-  signedOut: boolean
+  /**
+   * Bumped each time the client gives up on a session.
+   *
+   * A counter rather than a flag: someone signs in again after an expiry, and a
+   * latch that never resets would leave the shell unable to notice the *next*
+   * one.
+   */
+  expiries: number
 }
 
-const Ctx = createContext<ApiContext>({ api: null, live: false, signedOut: false })
+const Ctx = createContext<ApiContext>({ api: null, live: false, expiries: 0 })
 
 /**
  * Query defaults, chosen for what this product actually is.
@@ -81,16 +109,16 @@ function makeQueryClient(): QueryClient {
 }
 
 export function ApiProvider({ children }: { children: React.ReactNode }) {
-  const [signedOut, setSignedOut] = useState(false)
+  const [expiries, setExpiries] = useState(0)
   const [queryClient] = useState(makeQueryClient)
 
   const api = useMemo(() => {
     if (!LIVE) return null
     return new CspApi({
       baseUrl: API_URL,
-      tokens: memoryTokenStore(),
+      tokens: tokenStoreForSurface(),
       onSignedOut: () => {
-        setSignedOut(true)
+        setExpiries((n) => n + 1)
         // Nothing cached survives a sign-out. On a shared office machine the
         // next person must not see the last one's roster from cache.
         queryClient.clear()
@@ -98,7 +126,7 @@ export function ApiProvider({ children }: { children: React.ReactNode }) {
     })
   }, [queryClient])
 
-  const value = useMemo(() => ({ api, live: LIVE, signedOut }), [api, signedOut])
+  const value = useMemo(() => ({ api, live: LIVE, expiries }), [api, expiries])
 
   return (
     <Ctx.Provider value={value}>

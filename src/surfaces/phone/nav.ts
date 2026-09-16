@@ -35,6 +35,19 @@ export const NAV: readonly { id: PhoneScreen; label: string; group: string }[] =
   { id: 'bene', label: 'Beneficiary', group: 'ROLE' },
 ]
 
+/**
+ * Screens reachable without a session.
+ *
+ * Signing in, and the enrolment run that happens before there is an account to
+ * sign in to. Everything else needs a member behind it, and on a live build
+ * asking for one of those while signed out sends you here rather than to a
+ * screen whose every request would 401.
+ */
+export const PUBLIC_SCREENS: readonly PhoneScreen[] = [
+  'splash', 'auth', 'phone', 'otp',
+  'sponsor', 'verify', 'enrol', 'enroldone', 'onboard',
+]
+
 /** Screens that keep the bottom tab bar. Wizards and auth deliberately do not. */
 export const TABBED: readonly PhoneScreen[] = [
   'home', 'id', 'benefits', 'benes', 'track', 'contrib', 'family', 'more', 'pay',

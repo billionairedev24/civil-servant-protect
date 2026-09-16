@@ -1,6 +1,7 @@
 import { Icon } from '../../../components/Icon'
 import { Kicker, Mono } from '../../../components/primitives'
 import { MEMBER_SUMMARY } from '../../../api/fixtures'
+import { initialsOf } from '../../../data/member'
 import { useSummary } from '../../../api/queries'
 import { CLAIM, MEMBER, payeeNames } from '../../../data/member'
 import { C } from '../../../theme/tokens'
@@ -52,7 +53,7 @@ export function HomeScreen() {
             background: C.white, color: C.g, fontSize: 13.5, fontWeight: 700, cursor: 'pointer',
           }}
         >
-          {MEMBER.initials}
+          {initialsOf(memberName)}
         </button>
       </div>
 

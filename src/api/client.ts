@@ -68,6 +68,60 @@ export function memoryTokenStore(): TokenStore {
   }
 }
 
+/** Where the device-bound refresh token is written. */
+const DEVICE_KEY = 'csp.device'
+
+/**
+ * Keeps the refresh token on the device and the access token in memory.
+ *
+ * This is the browser stand-in for what the native app does with the Android
+ * Keystore. The spec gives the member a *device-bound* refresh token for a
+ * reason: someone checking whether last month's deduction landed should not be
+ * sent back to an SMS code because they pulled down to refresh. On a phone,
+ * losing the session that way is a bug, not a safeguard.
+ *
+ * The access token stays in memory. It is the one attached to every request and
+ * it lives twenty minutes; writing it down buys nothing. The refresh token is in
+ * sessionStorage rather than localStorage so it dies with the tab — a handset
+ * passed around a family does not carry one person's session into the next
+ * person's browsing.
+ */
+export function deviceTokenStore(): TokenStore {
+  let access = ''
+  const readRefresh = () => {
+    try {
+      return sessionStorage.getItem(DEVICE_KEY) ?? ''
+    } catch {
+      // Private mode, or storage disabled by policy. Degrade to memory-only:
+      // the session still works, it just does not survive a reload.
+      return ''
+    }
+  }
+  return {
+    read: () => {
+      const refreshToken = readRefresh()
+      if (!access && !refreshToken) return null
+      return { accessToken: access, refreshToken }
+    },
+    write: (tokens) => {
+      access = tokens.accessToken
+      try {
+        sessionStorage.setItem(DEVICE_KEY, tokens.refreshToken)
+      } catch {
+        /* see read() */
+      }
+    },
+    clear: () => {
+      access = ''
+      try {
+        sessionStorage.removeItem(DEVICE_KEY)
+      } catch {
+        /* see read() */
+      }
+    },
+  }
+}
+
 export interface ClientOptions {
   baseUrl: string
   tokens?: TokenStore
@@ -110,6 +164,18 @@ export class CspApi {
 
   signOut(): void {
     this.tokens.clear()
+  }
+
+  /**
+   * Whether anything is held that could still be redeemed.
+   *
+   * True after a reload on the phone, where the access token is gone but the
+   * device-bound refresh token is not — the shell should show the app and let
+   * the first request refresh, rather than the sign-in screen.
+   */
+  hasSession(): boolean {
+    const held = this.tokens.read()
+    return Boolean(held?.accessToken || held?.refreshToken)
   }
 
   session(): Promise<Session> {
@@ -201,7 +267,20 @@ export class CspApi {
     if (body !== undefined) headers['Content-Type'] = 'application/json'
 
     const held = this.tokens.read()
-    if (!options.anonymous && held) {
+
+    // A cold start on the phone carries the device-bound refresh token but no
+    // access token — the access token was only ever in memory. Redeeming it up
+    // front is one round trip; discovering the same thing from a 401 is two.
+    if (!options.anonymous && !options.retried && held && !held.accessToken && held.refreshToken) {
+      if (!(await this.refresh())) {
+        this.tokens.clear()
+        this.onSignedOut?.()
+        throw new ApiError(401, 'unauthenticated', 'Your session has ended. Sign in again.')
+      }
+      return this.call<T>(method, path, body, { ...options, retried: true })
+    }
+
+    if (!options.anonymous && held?.accessToken) {
       headers.Authorization = `Bearer ${held.accessToken}`
     }
 

@@ -56,7 +56,10 @@ csp:
   jwt-secret: ${JWT_SECRET:}
   access-token-ttl: ${ACCESS_TOKEN_TTL:20m}
   refresh-token-ttl: ${REFRESH_TOKEN_TTL:8h}
-  cors-origins: ${CORS_ORIGINS:http://localhost:5173}
+  # Origin patterns, not exact origins — see SecurityConfig#corsSource. The
+  # default is loopback on any port, which covers `npm run dev` (5173),
+  # `npm run preview` (4173) and the browser tests. Deployment replaces it.
+  cors-origins: ${CORS_ORIGINS:http://localhost:[*],http://127.0.0.1:[*]}
   otp:
     echo: ${OTP_ECHO:false}
     fixed-code: ${OTP_FIXED_CODE:#{null}}

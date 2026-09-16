@@ -5,6 +5,7 @@ import { MEMBER } from '../../../data/member'
 import { C } from '../../../theme/tokens'
 import { RECON_PAYROLL, RECON_SELF, tone } from '../data'
 import { useConsole } from '../state'
+import { useAuth } from '../../../api/auth'
 
 /**
  * Reconciliation queue. The core screen of the console: matching one lump-sum
@@ -185,6 +186,11 @@ export function ConsoleRecon() {
  */
 export function ConsoleException() {
   const { payroll, profile, go } = useConsole()
+  // Maker-checker, in the console as well as in the aspect layer and the DB
+  // constraint. Three places, because the first two are conveniences and only
+  // the third cannot be gone around.
+  const { can } = useAuth()
+  const mayResolve = can('EXCEPTION_RESOLVE')
 
   const filePanel = payroll
     ? [
@@ -390,11 +396,22 @@ export function ConsoleException() {
             type="button"
             className="btn btn-sm btn-primary"
             style={{ height: 44, padding: '0 20px' }}
+            disabled={!mayResolve}
+            title={mayResolve ? undefined : 'Your role can propose a resolution but not apply one.'}
             onClick={() => go('recon')}
           >
-            Resolve and go to next
+            {mayResolve ? 'Resolve and go to next' : 'Send for approval'}
           </button>
         </div>
+        {/* Greyed out with the reason, not hidden. A preparer who cannot find
+            the button assumes the console is broken; one who is told an approver
+            has to sign it off has learned how the control works. */}
+        {!mayResolve && (
+          <div style={{ fontSize: 12.5, lineHeight: 1.5, color: C.faint, marginTop: 9 }}>
+            Resolving an exception is an approver's decision, and it cannot be the
+            same person who proposed it. Yours goes to the approver's queue.
+          </div>
+        )}
       </Panel>
     </>
   )

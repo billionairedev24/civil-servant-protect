@@ -1,9 +1,10 @@
-import { useNavigate, useParams } from 'react-router-dom'
+import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { Icon } from '../../components/Icon'
 import type { Lang } from '../../i18n'
 import type { SponsorId } from '../../data/sponsors'
 import { C } from '../../theme/tokens'
-import { TABBED, TAB_ICONS, TAB_TARGETS, type PhoneScreen } from './nav'
+import { useAuth } from '../../api/auth'
+import { PUBLIC_SCREENS, TABBED, TAB_ICONS, TAB_TARGETS, type PhoneScreen } from './nav'
 import { PhoneStateProvider, usePhone } from './state'
 import {
   BiometricScreen, OtpScreen, PhoneNumberScreen, SignInScreen, SplashScreen,
@@ -73,8 +74,18 @@ export function MemberMobileApp({
   // cannot do.
   const { screen } = useParams()
   const nav = useNavigate()
-  const current = (screen && screen in SCREENS ? screen : 'home') as PhoneScreen
+  const asked = (screen && screen in SCREENS ? screen : 'home') as PhoneScreen
   const navigate = (to: PhoneScreen) => nav({ pathname: `/m/${to}`, search: window.location.search })
+
+  // Live and signed out, a deep link into the app goes to the phone-number
+  // screen instead of a home screen whose every request would 401. A redirect
+  // rather than a substitution, so the address bar says what is on screen —
+  // otherwise /m/home shows a sign-in form and a reload repeats the detour.
+  // On fixtures `signedIn` is always true, so the demo still opens anywhere.
+  const { signedIn } = useAuth()
+  if (!signedIn && !PUBLIC_SCREENS.includes(asked)) {
+    return <Navigate to={{ pathname: '/m/phone', search: window.location.search }} replace />
+  }
 
   return (
     <PhoneStateProvider
@@ -82,7 +93,7 @@ export function MemberMobileApp({
       setLang={setLang}
       sponsorId={sponsorId}
       setSponsor={setSponsor}
-      screen={current}
+      screen={asked}
       navigate={navigate}
       demo={demo}
     >
