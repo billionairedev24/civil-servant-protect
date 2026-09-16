@@ -174,6 +174,32 @@ export interface RosterMember {
   collectionState: 'confirmed' | 'expected' | 'failed' | 'reversed' | null
   lastPeriod: string | null
   hasBeneficiary: boolean
+  /*
+   * Null for almost everybody, and set together when they are not. The second
+   * is the date that matters: cover continues to it whatever happens, so it is
+   * what an officer chases a direct debit against.
+   */
+  leftOn?: string | null
+  graceUntil?: string | null
+}
+
+/**
+ * Somebody who has come off the schedule.
+ *
+ * Not somebody who has been deleted — the deduction stops, the cover does not.
+ * `outcome` is the sentence the server composes for this reason and this date,
+ * kept there rather than here so the console and the SMS cannot disagree about
+ * what a member was told.
+ */
+export interface Leaver {
+  memberId: string
+  cspId: string
+  name: string
+  serviceNo: string | null
+  reason: 'retired' | 'transferred' | 'resigned' | 'dismissed'
+  leftOn: string
+  graceUntil: string
+  outcome: string
 }
 
 export interface Roster {
@@ -224,6 +250,9 @@ export interface ScheduleRow {
   amountMinor: number
 }
 
+/** The four cover tiers, as the API spells them. */
+export type Tier = 'basic' | 'standard' | 'enhanced' | 'executive'
+
 /**
  * Somebody a sponsor is putting on the scheme.
  *
@@ -232,9 +261,6 @@ export interface ScheduleRow {
  * and a public enrolment endpoint would only be a way to attach a phone number
  * you control to a civil servant whose details you have read.
  */
-/** The four cover tiers, as the API spells them. */
-export type Tier = 'basic' | 'standard' | 'enhanced' | 'executive'
-
 export interface NewMember {
   nin: string
   fullName: string

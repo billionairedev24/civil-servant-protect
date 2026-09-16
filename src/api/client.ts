@@ -8,8 +8,8 @@
  * possible rather than aspirational.
  */
 import type {
-  BeneficiarySet, BulkEnrolment, Claim, ClaimQueueItem, Enrolled, Ledger, MemberSummary, MyClaim,
-  NewMember, ProtectionCard, Reconciliation, Roster, ScheduleBatch, ScheduleRow, Session,
+  BeneficiarySet, BulkEnrolment, Claim, ClaimQueueItem, Enrolled, Leaver, Ledger, MemberSummary,
+  MyClaim, NewMember, ProtectionCard, Reconciliation, Roster, ScheduleBatch, ScheduleRow, Session,
   SponsorClaims, SponsorDashboard, Tokens,
 } from './types'
 
@@ -296,6 +296,26 @@ export class CspApi {
   /** The same thing for a list, which answers with what it could not do. */
   enrolAll(sponsorId: string, members: NewMember[]): Promise<BulkEnrolment> {
     return this.call('POST', `/v1/sponsors/${sponsorId}/members/batch`, { members })
+  }
+
+  /**
+   * Take somebody off the schedule.
+   *
+   * <p>A POST to `.../leave` rather than a DELETE of the member, because nothing
+   * is deleted: the deduction stops and the cover continues to the grace date in
+   * the answer. The verb is the argument.
+   */
+  leave(
+    sponsorId: string,
+    memberId: string,
+    body: { reason: Leaver['reason']; lastDay: string },
+  ): Promise<Leaver> {
+    return this.call('POST', `/v1/sponsors/${sponsorId}/members/${memberId}/leave`, body)
+  }
+
+  /** Who has left, whose grace runs out soonest last. */
+  leavers(sponsorId: string): Promise<{ leavers: Leaver[] }> {
+    return this.call('GET', `/v1/sponsors/${sponsorId}/leavers`)
   }
 
   roster(sponsorId: string, search?: string, limit = 50): Promise<Roster> {

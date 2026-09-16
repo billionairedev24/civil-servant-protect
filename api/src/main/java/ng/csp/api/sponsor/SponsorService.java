@@ -514,7 +514,15 @@ public class SponsorService {
       /** The latest contribution's status: confirmed, expected, failed — or null if never any. */
       String collectionState,
       String lastPeriod,
-      boolean hasBeneficiary) {}
+      boolean hasBeneficiary,
+      /*
+       * Null for almost everybody. Set together or not at all: the last day on
+       * the payroll and the day cover stops being free — the second is what an
+       * officer is chasing a direct debit against, and what somebody will be
+       * asked about at a claim.
+       */
+      LocalDate leftOn,
+      LocalDate graceUntil) {}
 
   /** The chip counts, so the filters say something true rather than something fixed. */
   public record RosterCounts(int all, int paid, int notDeducted, int noBeneficiary) {}
@@ -536,7 +544,8 @@ public class SponsorService {
                         * unnominated. The flag is maintained by trigger on a row
                         * the sponsor can see. See V10.
                         */
-                       m.has_payee_beneficiary AS has_beneficiary
+                       m.has_payee_beneficiary AS has_beneficiary,
+                       m.left_payroll_on, m.grace_until
                   FROM members m
                   /*
                    * The most recent contribution, whatever its state. LATERAL
@@ -574,7 +583,9 @@ public class SponsorService {
                         rs.getObject("in_force_since", LocalDate.class),
                         rs.getString("collection_state"),
                         String.valueOf(rs.getObject("last_period", LocalDate.class)),
-                        rs.getBoolean("has_beneficiary")))
+                        rs.getBoolean("has_beneficiary"),
+                        rs.getObject("left_payroll_on", LocalDate.class),
+                        rs.getObject("grace_until", LocalDate.class)))
             .list();
 
     /*
@@ -589,7 +600,16 @@ public class SponsorService {
                 """
                 SELECT count(*)::int AS all_members,
                        count(*) FILTER (WHERE c.status = 'confirmed')::int AS paid,
-                       count(*) FILTER (WHERE c.status IS DISTINCT FROM 'confirmed')::int
+                       /*
+                        * Leavers excluded. Somebody who came off the payroll in
+                        * August is not a collection that failed — they are a
+                        * direct debit to chase, which is a different screen and
+                        * a different piece of work. Counting them here puts a
+                        * number in front of an officer that they cannot act on
+                        * and cannot make go down.
+                        */
+                       count(*) FILTER (WHERE c.status IS DISTINCT FROM 'confirmed'
+                                          AND m.left_payroll_on IS NULL)::int
                          AS not_deducted,
                        count(*) FILTER (WHERE NOT m.has_payee_beneficiary)::int
                          AS no_beneficiary

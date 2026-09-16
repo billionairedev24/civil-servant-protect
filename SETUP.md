@@ -303,6 +303,38 @@ The console screen is **Members → Add members**. It parses the staff list in t
 browser and shows what it read — which header each field came from, how many
 rows, which lines it will not send — before anybody is created by it.
 
+### Somebody leaving
+
+```bash
+# Comes off the payroll. Nothing is deleted.
+curl -s -XPOST localhost:8080/v1/sponsors/$SPONSOR/members/$MEMBER/leave \
+  -H "Authorization: Bearer $ADMIN" -H 'Content-Type: application/json' \
+  -d '{"reason":"retired","lastDay":"2026-09-30"}'
+# {"cspId":"CSP-114-88224","leftOn":"2026-09-30","graceUntil":"2026-11-29",
+#  "outcome":"Cover continues to 2026-11-29. A retiree keeps their CSP-ID, …"}
+
+curl -s localhost:8080/v1/sponsors/$SPONSOR/leavers -H "Authorization: Bearer $VIEWER"
+```
+
+A `POST` to `.../leave` rather than a `DELETE` of the member, and the verb is
+the argument. **Coming off the schedule stops the deduction. It does not cancel
+the cover.** A member who retires on the 30th is covered on the 1st, and their
+family is owed the same money they were owed a week earlier. What changes is who
+collects the contribution — sixty days of grace from the last payday, which is
+time to set up a direct debit and time for somebody to deal with it if the first
+attempt fails.
+
+Three consequences worth knowing:
+
+- **A death is not a reason.** It is a claim, and `deceased` is refused with a
+  message saying so. An officer closing a payroll record is the wrong person, in
+  the wrong screen, with no assessor anywhere near it.
+- **Leaving twice is refused.** The second call would move the grace date, which
+  is how cover ends earlier than the member was told it would.
+- **A leaver stops counting as a failed collection.** They stay on the roster,
+  marked, with the date their cover runs to — but out of the "not deducted"
+  number, which is a to-do list an officer works through.
+
 ### Loading a schedule
 
 ```bash
@@ -336,8 +368,9 @@ and none of them is visible on a file that fits in one chunk.
 cd api && mvn verify
 
 # Frontends
-npm test            # smoke, rail branching, accessibility
-npm run test:rails  # the four collection rails
+npm test             # CSV, smoke, rails, layout, accessibility
+npm run test:rails   # the four collection rails
+npm run test:layout  # every route at five widths
 npm run a11y
 
 # Helm chart, without installing Helm
@@ -347,6 +380,13 @@ python3 deploy/helm/check-templates.py
 The API tests use `csp_test`, which compose creates alongside `csp`. They wipe
 their schema on every run, so they will not touch the database you are
 developing against.
+
+`test:layout` opens every route at 390, 768, 1024, 1440 and 2000 pixels and
+fails on two things: anything that makes the page scroll sideways, and a page
+that uses less than two thirds of the window it was given. Both have happened —
+two pills in a row that could not wrap pushed a button 68px off a handset, and
+the member web app was capped at 830px, so on a secretariat monitor the content
+sat in a third of the screen with the rest empty.
 
 **Why the tests need a real database.** Every rule worth testing here lives in
 Postgres: the ledger's append-only triggers, row-level security by rail, the
@@ -504,10 +544,11 @@ Real, and deliberately not papered over.
    upload, and the console's **Add and remove members** screen, which enrols
    people for real — one at a time or from a staff list.
 
+   Both halves of that screen are live now: adding people, and taking them off
+   the schedule when they retire or transfer.
+
    Still on fixtures: the console's direct-debit run, remittances, reports and
-   settings; the member's family cover and cover-detail screens; and the
-   *removal* half of the members screen — taking somebody off the schedule is
-   not an endpoint yet, and the leaver cards there are still illustrative.
+   settings, and the member's family cover and cover-detail screens.
 
    A screen that has not been wired says the same numbers it always did — the
    fixtures and the seed agree — so the difference is where the figure comes

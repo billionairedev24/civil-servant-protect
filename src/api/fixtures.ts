@@ -9,7 +9,7 @@
  */
 import { BENEFICIARIES, CLAIM, CONTRIB_MONTHS, MEMBER } from '../data/member'
 import type {
-  BeneficiarySet, Claim, ClaimQueueItem, Ledger, LedgerRow, MemberSummary, MyClaim,
+  BeneficiarySet, Claim, ClaimQueueItem, Leaver, Ledger, LedgerRow, MemberSummary, MyClaim,
   ProtectionCard, Reconciliation, Roster, SponsorClaims, SponsorDashboard,
 } from './types'
 
@@ -301,6 +301,40 @@ export const CLAIM_QUEUE: { claims: ClaimQueueItem[] } = {
 }
 
 /** Claims on the federal sponsor's members, as that sponsor sees them. */
+/**
+ * Three people who have come off the schedule.
+ *
+ * The same three the console has always shown, now in the shape the API
+ * answers with — and with the outcome sentence the server composes rather than
+ * one written here, so the demo cannot say something the product would not.
+ */
+export const LEAVERS_FIXTURE: { leavers: Leaver[] } = {
+  leavers: [
+    {
+      memberId: 'fx-lv-1', cspId: 'CSP-114-88220', name: 'Chinedu Eze', serviceNo: '5510-8842',
+      reason: 'retired', leftOn: '2026-08-31', graceUntil: '2026-10-30',
+      outcome:
+        'Cover continues to 2026-10-30. A retiree keeps their CSP-ID, their start date and their '
+        + 'price — set up a direct debit before then and nothing else changes.',
+    },
+    {
+      memberId: 'fx-lv-2', cspId: 'CSP-114-88221', name: 'Blessing Umoh', serviceNo: '9930-2214',
+      reason: 'transferred', leftOn: '2026-08-15', graceUntil: '2026-10-14',
+      outcome:
+        'Cover continues to 2026-10-14. If the new MDA runs the scheme they go onto its schedule; '
+        + 'otherwise a direct debit. Either way they keep their CSP-ID and their start date.',
+    },
+    {
+      memberId: 'fx-lv-3', cspId: 'CSP-114-88222', name: 'Sadiq Aliyu', serviceNo: '1182-6640',
+      reason: 'dismissed', leftOn: '2026-07-31', graceUntil: '2026-09-29',
+      outcome:
+        'Cover continues to 2026-09-29. After that it lapses unless they set up a direct debit '
+        + 'themselves. Contributions already made are not refunded and not lost — the cover they '
+        + 'bought was in force for those months.',
+    },
+  ],
+}
+
 export const SPONSOR_CLAIMS: SponsorClaims = {
   claims: [
     {
