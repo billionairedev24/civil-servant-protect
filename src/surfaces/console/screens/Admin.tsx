@@ -2,11 +2,36 @@ import { Icon } from '../../../components/Icon'
 import { Kicker, Mono } from '../../../components/primitives'
 import { PageSub, PageTitle, Panel } from '../../../components/surface'
 import { C } from '../../../theme/tokens'
-import { CONSOLE_USERS, PERIODS, RECENT_EXPORTS, REPORTS, tone } from '../data'
+import { PERIODS, RECENT_EXPORTS, REPORTS, tone } from '../data'
 import { useConsole } from '../state'
+import { AUDIT_TRAIL, CONSOLE_USERS_FIXTURE, SPONSOR_DASHBOARD } from '../../../api/fixtures'
+import { useAuditTrail, useConsoleUsers, useSponsorDashboard } from '../../../api/queries'
+import { NotLive, dayFirst, useLive } from '../../../api/live'
+import { initialsOf } from '../../../data/member'
+
+/**
+ * When somebody was last here, in the words an admin uses.
+ *
+ * "Never signed in" is the one that matters: an account nobody has used is an
+ * account nobody would notice being used.
+ */
+function lastSeen(at: string | null): string {
+  if (!at) return 'Never signed in'
+  const days = Math.floor((Date.now() - new Date(at).getTime()) / 86_400_000)
+  if (days <= 0) return 'Today'
+  if (days === 1) return 'Yesterday'
+  if (days < 21) return `${days} days ago`
+  return dayFirst(at)
+}
 
 export function ConsoleSettings() {
   const { payroll, profile, sponsor } = useConsole()
+  const { data: dash } = useLive(useSponsorDashboard(SPONSOR_DASHBOARD), SPONSOR_DASHBOARD)
+  const { data: people, failed } = useLive(
+    useConsoleUsers(dash.sponsor.id, CONSOLE_USERS_FIXTURE),
+    CONSOLE_USERS_FIXTURE,
+  )
+  const { data: trail } = useLive(useAuditTrail(dash.sponsor.id, AUDIT_TRAIL), AUDIT_TRAIL)
 
   const settings = [
     { k: 'Deduction code', v: profile.code, note: 'Quoted on every row of the schedule' },
@@ -33,13 +58,25 @@ export function ConsoleSettings() {
         Who can act on behalf of {sponsor.org}, and the details that decide how money is collected.
       </PageSub>
 
+      {failed && <NotLive what="This list" />}
+
       <Kicker size={9.5} style={{ marginTop: 22 }}>PEOPLE WITH ACCESS</Kicker>
       <div style={{ marginTop: 9, display: 'flex', flexDirection: 'column', gap: 7 }}>
-        {CONSOLE_USERS.map((u) => {
-          const skin = tone(u.tone)
+        {people.users.map((u) => {
+          /* Green for the two who move money between them, ochre for an
+             account nobody has used, neutral for read-only. The colour is the
+             authority, not the person. */
+          const t = u.disabled
+            ? ('clay' as const)
+            : u.lastSeenAt === null
+              ? ('ochre' as const)
+              : u.permissions.length > 1
+                ? ('green' as const)
+                : ('neutral' as const)
+          const skin = tone(t)
           return (
             <div
-              key={u.email}
+              key={u.id}
               style={{
                 display: 'flex', alignItems: 'center', gap: 13, padding: '13px 15px',
                 border: `1px solid ${C.line}`, borderRadius: 11, background: C.white, flexWrap: 'wrap',
@@ -48,28 +85,36 @@ export function ConsoleSettings() {
               <div
                 style={{
                   flex: 'none', width: 32, height: 32, borderRadius: '50%',
-                  background: u.tone === 'neutral' ? C.hover : skin.bg,
+                  background: t === 'neutral' ? C.hover : skin.bg,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 12, fontWeight: 700, color: u.tone === 'neutral' ? C.mut : skin.fg,
+                  fontSize: 12, fontWeight: 700, color: t === 'neutral' ? C.mut : skin.fg,
                 }}
               >
-                {u.initials}
+                {initialsOf(u.name)}
               </div>
               <div style={{ flex: 1, minWidth: 150 }}>
                 <div style={{ fontSize: 14, fontWeight: 600 }}>{u.name}</div>
-                <div style={{ fontSize: 12, color: C.faint, marginTop: 1 }}>{u.email}</div>
+                <div style={{ fontSize: 12, color: C.faint, marginTop: 1 }}>
+                  {u.email ?? 'No email on file'}
+                </div>
               </div>
               <span
                 style={{
-                  flex: 'none', fontSize: 12.5, fontWeight: 600, color: u.tone === 'neutral' ? C.mut : skin.fg,
-                  background: u.tone === 'neutral' ? C.white : skin.bg,
-                  border: `1px solid ${u.tone === 'neutral' ? C.line : skin.bc}`,
+                  flex: 'none', fontSize: 12.5, fontWeight: 600, color: t === 'neutral' ? C.mut : skin.fg,
+                  background: t === 'neutral' ? C.white : skin.bg,
+                  border: `1px solid ${t === 'neutral' ? C.line : skin.bc}`,
                   borderRadius: 99, padding: '4px 11px', minWidth: 78, textAlign: 'center',
                 }}
+                /* What the role may actually do, rather than a word for it.
+                   This screen hands out authority; the tooltip is the list the
+                   server checks. */
+                title={u.permissions.join(', ').toLowerCase().replace(/_/g, ' ')}
               >
-                {u.role}
+                {u.roleLabel}
               </span>
-              <span style={{ flex: 'none', fontSize: 12, color: C.faint, minWidth: 104 }}>{u.last}</span>
+              <span style={{ flex: 'none', fontSize: 12, color: C.faint, minWidth: 104 }}>
+                {u.disabled ? 'Disabled' : lastSeen(u.lastSeenAt)}
+              </span>
               <button
                 type="button"
                 aria-label={`Actions for ${u.name}`}
@@ -100,6 +145,38 @@ export function ConsoleSettings() {
           A preparer builds the schedule, an approver releases it. Nobody can change what payroll deducts on their own —
           this is the control an internal auditor will ask about first.
         </div>
+      </div>
+
+      {/* The trail itself, not a promise that one exists.
+          "Showing your working" is the whole design of the maker–checker rule,
+          and a control an officer cannot see is one they have to take on
+          trust — which is what an auditor is there to not do. */}
+      <Kicker size={9.5} style={{ marginTop: 26 }}>
+        {trail.entries.length > 0 ? 'WHAT HAS BEEN DONE HERE' : 'NOTHING RECORDED YET'}
+      </Kicker>
+      <div style={{ marginTop: 9, display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {trail.entries.slice(0, 8).map((e, i) => (
+          <div
+            key={`${e.at}-${i}`}
+            style={{
+              display: 'flex', alignItems: 'baseline', gap: 12, padding: '11px 14px',
+              border: `1px solid ${C.line7}`, borderRadius: 10, background: '#FDFDFB', flexWrap: 'wrap',
+            }}
+          >
+            <Mono size={11.5} color={C.faint} style={{ flex: 'none', minWidth: 92 }}>
+              {dayFirst(e.at)}
+            </Mono>
+            <span style={{ flex: 1, minWidth: 180, fontSize: 13 }}>
+              {/* The action as the server recorded it. Prettified, never
+                  reworded: "exception.resolved" is what the audit row says and
+                  what somebody will search for. */}
+              {e.action.replace(/[._]/g, ' ')}
+            </span>
+            <span style={{ flex: 'none', fontSize: 12.5, color: C.mut }}>
+              {e.actorName ?? 'System'}
+            </span>
+          </div>
+        ))}
       </div>
 
       <Kicker size={9.5} style={{ marginTop: 26 }}>COLLECTION DETAILS</Kicker>

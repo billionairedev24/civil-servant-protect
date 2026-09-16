@@ -9,8 +9,9 @@
  */
 import { BENEFICIARIES, CLAIM, CONTRIB_MONTHS, MEMBER } from '../data/member'
 import type {
-  BeneficiarySet, Claim, ClaimQueueItem, DebitRun, Dependant, Leaver, Ledger, LedgerRow,
-  MemberSummary, MyClaim, ProtectionCard, Reconciliation, Roster, SponsorClaims, SponsorDashboard,
+  AuditEntry, BeneficiarySet, Claim, ClaimQueueItem, ConsoleUser, DebitRun, Dependant, Leaver,
+  Ledger, LedgerRow, MemberSummary, MyClaim, ProtectionCard, Reconciliation, Roster, SponsorClaims,
+  SponsorDashboard,
 } from './types'
 
 const NAIRA = 100
@@ -211,6 +212,59 @@ export const SPONSOR_DASHBOARD: SponsorDashboard = {
     open: 57,
     byKind: { unmatched: 31, no_deduction: 12, wrong_amount: 5, left_service: 9 },
   },
+}
+
+/**
+ * Who can act for this sponsor, in the API's shape.
+ *
+ * The same four the settings screen has always shown, now carrying the
+ * permissions each role actually holds — because a screen that hands out
+ * authority should show what it is handing out, not a role name and a guess.
+ */
+export const CONSOLE_USERS_FIXTURE: { users: ConsoleUser[] } = {
+  users: [
+    {
+      id: 'fx-u-1', name: 'Amina Bello', email: 'a.bello@education.gov.ng',
+      role: 'sponsor_preparer', roleLabel: 'Preparer',
+      permissions: ['EXCEPTION_PROPOSE', 'SCHEDULE_UPLOAD', 'SPONSOR_READ'],
+      lastSeenAt: '2026-09-16T08:40:00Z', disabled: false,
+    },
+    {
+      id: 'fx-u-2', name: 'Musa Danjuma', email: 'm.danjuma@education.gov.ng',
+      role: 'sponsor_approver', roleLabel: 'Approver',
+      permissions: ['CYCLE_CLOSE', 'EXCEPTION_PROPOSE', 'EXCEPTION_RESOLVE', 'SCHEDULE_UPLOAD', 'SPONSOR_READ'],
+      lastSeenAt: '2026-09-14T15:02:00Z', disabled: false,
+    },
+    {
+      id: 'fx-u-3', name: 'Ngozi Eze', email: 'n.eze@education.gov.ng',
+      role: 'sponsor_viewer', roleLabel: 'Viewer',
+      permissions: ['SPONSOR_READ'], lastSeenAt: '2026-08-26T11:20:00Z', disabled: false,
+    },
+    {
+      id: 'fx-u-4', name: 'Ibrahim Sule', email: 'i.sule@education.gov.ng',
+      role: 'sponsor_admin', roleLabel: 'Admin',
+      permissions: ['EXCEPTION_PROPOSE', 'MEMBERS_MANAGE', 'ROLES_MANAGE', 'SCHEDULE_UPLOAD', 'SPONSOR_READ'],
+      lastSeenAt: null, disabled: false,
+    },
+  ],
+}
+
+/** The sponsor's own audit trail: who did what, and when. */
+export const AUDIT_TRAIL: { entries: AuditEntry[] } = {
+  entries: [
+    {
+      at: '2026-09-14T15:02:00Z', action: 'exception.resolved', subjectType: 'exception',
+      subjectId: 'fixture-ex-1', actorName: 'Musa Danjuma', actorRole: 'sponsor_approver',
+    },
+    {
+      at: '2026-09-14T14:58:00Z', action: 'exception.proposed', subjectType: 'exception',
+      subjectId: 'fixture-ex-1', actorName: 'Amina Bello', actorRole: 'sponsor_preparer',
+    },
+    {
+      at: '2026-08-21T09:00:00Z', action: 'schedule.sent', subjectType: 'cycle',
+      subjectId: 'fixture-cycle', actorName: 'Amina Bello', actorRole: 'sponsor_preparer',
+    },
+  ],
 }
 
 /**

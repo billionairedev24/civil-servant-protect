@@ -620,8 +620,12 @@ Real, and deliberately not papered over.
    The member's family cover is live on both surfaces — the web app adds and
    removes people at the server's quoted price; the phone lists them.
 
-   Still on fixtures: the console's remittances, reports and settings, and the
-   member's cover-detail screen.
+   The console's **settings** screen is live: who can act for this sponsor, what
+   each role may actually do, when each last signed in, and the sponsor's own
+   audit trail.
+
+   Still on fixtures: the console's remittances and reports, and the member's
+   cover-detail screen. The last of those is not only wiring — see gap 8.
 
    A screen that has not been wired says the same numbers it always did — the
    fixtures and the seed agree — so the difference is where the figure comes
@@ -683,4 +687,19 @@ Real, and deliberately not papered over.
    of them were drafted in this session rather than carried from the design
    bundle — see the README.
 8. **Benefit figures are illustrative**, pending actuarial, legal and
-   underwriting sign-off.
+   underwriting sign-off — and the design and the API do not currently agree
+   about them, which is a product decision rather than a wiring one.
+
+   `Pricing.SCHEDULE` sells six benefits: death, accident extra, disability, a
+   weekly income, a funeral advance and hospital cash. The screens show seven,
+   named differently — accident medical bills, funeral assistance and children's
+   education — and five of the figures differ from the server's. Basic death
+   cover reads ₦3,000,000 on the web app and ₦2,000,000 in the API; executive
+   reads ₦15,000,000 against ₦20,000,000.
+
+   So the cover-detail screen is deliberately still on fixtures. Wiring it would
+   mean choosing which of the two is right, and that is a decision for whoever
+   owns the product — with the translated labels behind it, which need a native
+   speaker per language rather than a developer with a dictionary. Everything
+   needed to wire it exists: `GET /v1/products/schedule` serves the schedule
+   with a wording version and an effective date.

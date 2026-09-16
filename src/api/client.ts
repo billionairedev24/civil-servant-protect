@@ -8,10 +8,10 @@
  * possible rather than aspirational.
  */
 import type {
-  AddedDependant, BeneficiarySet, BulkEnrolment, Claim, ClaimQueueItem, DebitRun, Dependant,
-  Enrolled, Leaver, Ledger, MemberSummary, MyClaim, NewMember, ProtectionCard, Reconciliation,
-  RemovedDependant, Roster, ScheduleBatch, ScheduleRow, Session, SponsorClaims, SponsorDashboard,
-  Tokens,
+  AddedDependant, AuditEntry, BeneficiarySet, BulkEnrolment, Claim, ClaimQueueItem, ConsoleUser,
+  DebitRun, Dependant, Enrolled, Leaver, Ledger, MemberSummary, MyClaim, NewMember, ProtectionCard,
+  Reconciliation, RemovedDependant, Roster, ScheduleBatch, ScheduleRow, Session, SponsorClaims,
+  SponsorDashboard, Tokens,
 } from './types'
 
 /**
@@ -344,6 +344,16 @@ export class CspApi {
   /** The assessor's queue — every member's claims, not one sponsor's. */
   claimQueue(): Promise<{ claims: ClaimQueueItem[] }> {
     return this.call('GET', '/v1/claims')
+  }
+
+  /** Who can act for this sponsor, and what each role may do. Admin only. */
+  consoleUsers(sponsorId: string): Promise<{ users: ConsoleUser[] }> {
+    return this.call('GET', `/v1/sponsors/${sponsorId}/users`)
+  }
+
+  /** The sponsor's own audit trail. */
+  auditTrail(sponsorId: string): Promise<{ entries: AuditEntry[] }> {
+    return this.call('GET', `/v1/sponsors/${sponsorId}/audit`)
   }
 
   /** What the bank said this month — and who is on grace with nothing set up. */

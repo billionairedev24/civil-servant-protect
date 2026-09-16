@@ -191,13 +191,6 @@ export const CONSOLE_CLAIMS = [
   },
 ] as const
 
-export const CONSOLE_USERS = [
-  { name: 'Amina Bello', email: 'a.bello@education.gov.ng', role: 'Preparer', initials: 'AB', tone: 'green', last: 'Active now' },
-  { name: 'Musa Danjuma', email: 'm.danjuma@education.gov.ng', role: 'Approver', initials: 'MD', tone: 'green', last: '2 days ago' },
-  { name: 'Ngozi Eze', email: 'n.eze@education.gov.ng', role: 'Viewer', initials: 'NE', tone: 'neutral', last: '3 weeks ago' },
-  { name: 'Ibrahim Sule', email: 'i.sule@education.gov.ng', role: 'Admin', initials: 'IS', tone: 'ochre', last: 'Never signed in' },
-] as const
-
 export const REPORTS = [
   { title: 'Deduction schedule', sub: 'What you asked payroll to deduct, per member, for the period.', icon: 'ph ph-list-numbers', tone: 'neutral' },
   { title: 'Remittance reconciliation', sub: 'Credits received against the file, with every variance and how it was resolved. This is the one auditors ask for.', icon: 'ph ph-git-diff', tone: 'green' },

@@ -153,20 +153,31 @@ public class DemoSeed implements CommandLineRunner {
      * the realm mints a random subject, resolveOidcUser finds nobody, and the
      * first sign-in silently creates a *second* Amina Bello alongside this one.
      */
-    record Staff(String subject, String name, String email, String role) {}
+    /*
+     * `lastSeenDaysAgo` is part of the story, not decoration. An account nobody
+     * has ever used is the one an administrator should be looking at on the
+     * settings screen — and with every account showing "never signed in", which
+     * is what this seed produced, that signal says nothing at all. Three people
+     * who use this console and one who has never opened it is the shape of a
+     * real ministry.
+     */
+    record Staff(String subject, String name, String email, String role, Integer lastSeenDaysAgo) {}
     for (var s :
         List.of(
-            new Staff(KC_AMINA, "Amina Bello", "a.bello@education.gov.ng", "sponsor_preparer"),
-            new Staff(KC_MUSA, "Musa Danjuma", "m.danjuma@education.gov.ng", "sponsor_approver"),
-            new Staff(KC_NGOZI, "Ngozi Eze", "n.eze@education.gov.ng", "sponsor_viewer"),
-            new Staff(KC_IBRAHIM, "Ibrahim Sule", "i.sule@education.gov.ng", "sponsor_admin"))) {
+            new Staff(KC_AMINA, "Amina Bello", "a.bello@education.gov.ng", "sponsor_preparer", 0),
+            new Staff(KC_MUSA, "Musa Danjuma", "m.danjuma@education.gov.ng", "sponsor_approver", 2),
+            new Staff(KC_NGOZI, "Ngozi Eze", "n.eze@education.gov.ng", "sponsor_viewer", 23),
+            new Staff(KC_IBRAHIM, "Ibrahim Sule", "i.sule@education.gov.ng", "sponsor_admin", null))) {
       db.sql(
               """
-              INSERT INTO users (oidc_subject, full_name, email, role, sponsor_id)
-              VALUES (:s, :n, :e, CAST(:r AS user_role), :sp)
+              INSERT INTO users (oidc_subject, full_name, email, role, sponsor_id, last_seen_at)
+              VALUES (:s, :n, :e, CAST(:r AS user_role), :sp,
+                      CASE WHEN CAST(:days AS int) IS NULL THEN NULL
+                           ELSE now() - make_interval(days => CAST(:days AS int)) END)
               """)
           .param("s", s.subject()).param("n", s.name()).param("e", s.email())
           .param("r", s.role()).param("sp", sponsorIds.get("federal"))
+          .param("days", s.lastSeenDaysAgo())
           .update();
     }
     // No sponsor_id: an assessor reads claims across rails and CSP operations

@@ -2,9 +2,9 @@ import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tan
 import type { CspApi } from './client'
 import { useApi } from './provider'
 import type {
-  BeneficiarySet, Claim, ClaimQueueItem, DebitRun, Dependant, Leaver, Ledger, MemberSummary,
-  MyClaim, NewMember, ProtectionCard, Reconciliation, Roster, ScheduleBatch, ScheduleRow,
-  SponsorClaims, SponsorDashboard,
+  AuditEntry, BeneficiarySet, Claim, ClaimQueueItem, ConsoleUser, DebitRun, Dependant, Leaver,
+  Ledger, MemberSummary, MyClaim, NewMember, ProtectionCard, Reconciliation, Roster, ScheduleBatch,
+  ScheduleRow, SponsorClaims, SponsorDashboard,
 } from './types'
 
 /**
@@ -31,6 +31,8 @@ export const keys = {
   sponsorClaims: (sponsorId: string) => [...keys.sponsor(), 'claims', sponsorId] as const,
   leavers: (sponsorId: string) => [...keys.sponsor(), 'leavers', sponsorId] as const,
   debitRun: (sponsorId: string) => [...keys.sponsor(), 'debit', sponsorId] as const,
+  consoleUsers: (sponsorId: string) => [...keys.sponsor(), 'users', sponsorId] as const,
+  audit: (sponsorId: string) => [...keys.sponsor(), 'audit', sponsorId] as const,
   scheduleBatch: (batchId: string) => [...keys.sponsor(), 'schedule', batchId] as const,
   reconciliation: (sponsorId: string, cycleId: string) =>
     [...keys.sponsor(), 'reconciliation', sponsorId, cycleId] as const,
@@ -412,6 +414,34 @@ export function useDebitRun(sponsorId: string, fixture: DebitRun) {
     queryFn: () => api!.debitRun(sponsorId),
     staleTime: 30_000,
     refetchInterval: 120_000,
+    ...sharedForSponsor(api, fixture, sponsorId),
+  })
+}
+
+/**
+ * Who can act for this sponsor.
+ *
+ * <p>Admin only, and the server enforces it — a viewer opening the settings
+ * screen sees the fixture standing in and a notice, not somebody else's list of
+ * who holds authority.
+ */
+export function useConsoleUsers(sponsorId: string, fixture: { users: ConsoleUser[] }) {
+  const { api } = useApi()
+  return useQuery({
+    queryKey: keys.consoleUsers(sponsorId),
+    queryFn: () => api!.consoleUsers(sponsorId),
+    staleTime: 60_000,
+    ...sharedForSponsor(api, fixture, sponsorId),
+  })
+}
+
+/** The sponsor's own audit trail. */
+export function useAuditTrail(sponsorId: string, fixture: { entries: AuditEntry[] }) {
+  const { api } = useApi()
+  return useQuery({
+    queryKey: keys.audit(sponsorId),
+    queryFn: () => api!.auditTrail(sponsorId),
+    staleTime: 30_000,
     ...sharedForSponsor(api, fixture, sponsorId),
   })
 }

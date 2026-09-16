@@ -204,6 +204,34 @@ export interface SponsorDashboard {
   exceptions: { total: number; open: number; byKind: Record<string, number> }
 }
 
+/**
+ * Somebody who can act on a sponsor's behalf in the console.
+ *
+ * `permissions` is the same list `can()` checks, so the screen that hands out
+ * authority shows exactly what it is handing out rather than a role name and a
+ * guess about what it means.
+ */
+export interface ConsoleUser {
+  id: string
+  name: string
+  email: string | null
+  role: string
+  roleLabel: string
+  permissions: string[]
+  lastSeenAt: string | null
+  disabled: boolean
+}
+
+/** One line of a sponsor's own audit trail. Showing your working is the point. */
+export interface AuditEntry {
+  at: string
+  action: string
+  subjectType: string | null
+  subjectId: string | null
+  actorName: string | null
+  actorRole: string | null
+}
+
 export interface RosterMember {
   id: string
   cspId: string
