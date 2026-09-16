@@ -29,12 +29,26 @@ jobs:
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
 
-      # Drives all 56 screens across the four surfaces, four rails, five
-      # languages and both console device modes, failing on any uncaught
-      # exception or console error.
+      # Loads every route in all three applications — 48 of them — plus each
+      # rail, language and scenario flag, failing on any uncaught exception or
+      # console error. Because screens are addresses now, this also proves deep
+      # links and refresh work.
       - name: Smoke test
         shell: bash
         run: npm run smoke 2>&1 | tee smoke.log
+
+      # Asserts the collection rail actually branches: a self-paying member is
+      # never told their salary was deducted, and a payroll sponsor is never
+      # offered a debit run as the main collection.
+      - name: Rail branching
+        shell: bash
+        run: npm run test:rails 2>&1 | tee -a smoke.log
+
+      # Reports contrast and hit-target findings; fails only on a control with
+      # no accessible name, which is always a bug and never a design decision.
+      - name: Accessibility audit
+        shell: bash
+        run: npm run a11y 2>&1 | tee -a smoke.log
 
       # A browser failure needs its output where the change is reviewed, not
       # only in a log archive. The job summary carries the full tail; the

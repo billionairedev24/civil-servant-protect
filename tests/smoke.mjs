@@ -1,5 +1,6 @@
 /**
- * Smoke test: drive every screen on every surface and fail on any runtime error.
+ * Smoke test: visit every route in all three applications and fail on any
+ * runtime error.
  *
  * This is deliberately not a unit test suite. The app is almost entirely
  * presentational, so the failure mode worth guarding against is a screen that
@@ -8,107 +9,28 @@
  *
  *   npm run smoke
  *
- * Starts `vite preview` against the built output, drives the UI in Chromium,
- * and exits non-zero on any uncaught exception or console error.
+ * Starts `vite preview` against the built output, walks the routes in Chromium,
+ * and exits non-zero on any uncaught exception or console error. Because each
+ * screen has its own address, this is a plain page load per screen rather than
+ * a click path — which also proves deep links and refresh work.
  */
-import { spawn } from 'node:child_process'
-import { connect } from 'node:net'
-import { setTimeout as sleep } from 'node:timers/promises'
-import { chromium } from 'playwright'
+import {
+  CONSOLE_ROUTES, LANGS, PHONE_ROUTES, RAIL_IDS, WEB_ROUTES,
+  launchBrowser, startPreview, withParams,
+} from './harness.mjs'
 
 const PORT = Number(process.env.SMOKE_PORT ?? 4180)
-// 127.0.0.1 rather than localhost, for binding and for browsing. On some CI
-// runners `localhost` resolves to ::1 first, so a server bound to one stack and
-// a client probing the other never meet.
-const HOST = '127.0.0.1'
-const BASE = `http://${HOST}:${PORT}/`
-
-const SURFACES = ['Phone', 'Web', 'Console', 'Spec']
-const RAILS = ['Federal', 'State', 'Employer', 'Self-pay']
-const LANGS = ['EN', 'HA', 'YO', 'IG', 'PCM']
-
-const PHONE_SCREENS = [
-  'Splash + language', 'Sign in', 'Phone number', 'SMS code', 'Fingerprint', 'Who pays you',
-  'NIN + BVN check', 'Enrolment', 'Cover starts', 'Home', 'How you pay', 'Contributions',
-  'Protection card', 'Cover + tiers', 'Who gets paid', 'Report accident', 'Make a claim',
-  'Track claim', 'Family cover', 'Profile', 'Confirm beneficiaries', 'Why it changed',
-  'Employer onboarding', 'Sponsor console', 'Beneficiary',
-]
-
-const WEB_SCREENS = [
-  'Sign in', 'Choose cover', 'Dashboard', 'Cover detail', 'Protection card', 'Family cover',
-  'Contributions', 'Beneficiaries', 'Make a claim', 'Track claim', 'Profile + settings',
-  'Next-of-kin portal',
-]
-
-const CONSOLE_SCREENS = [
-  'Dashboard', 'Monthly schedule', 'Reconciliation', 'Exception detail', 'Direct-debit run',
-  'Remittances', 'Members', 'Add / remove', 'Claims', 'Settings and roles', 'Reports',
-]
-
-const SPEC_SECTIONS = [
-  'Overview', 'What lives where', 'Data + API', 'Copy keys', 'Validation', 'Screen states',
-  'Breakpoints', 'Rail branching',
-]
-
-/**
- * Readiness is a raw TCP connect rather than a fetch: an HTTP proxy in the
- * environment can swallow requests to localhost, and we only need to know the
- * listener is up.
- */
-function portOpen(port) {
-  return new Promise((resolve) => {
-    const socket = connect({ host: HOST, port })
-    const done = (ok) => {
-      socket.destroy()
-      resolve(ok)
-    }
-    socket.once('connect', () => done(true))
-    socket.once('error', () => done(false))
-    socket.setTimeout(1000, () => done(false))
-  })
-}
-
-// --strictPort so a busy port fails loudly instead of vite quietly moving to
-// the next one and leaving us driving a stale build on the wrong address.
-const server = spawn(
-  'npx',
-  ['vite', 'preview', '--host', HOST, '--port', String(PORT), '--strictPort'],
-  { stdio: ['ignore', 'pipe', 'pipe'] },
-)
-
-// Keep the server's own output so a startup failure can explain itself rather
-// than being reported as a bare timeout.
-let serverOutput = ''
-server.stdout?.on('data', (d) => (serverOutput += d))
-server.stderr?.on('data', (d) => (serverOutput += d))
-server.on('error', (e) => (serverOutput += `spawn failed: ${e.message}\n`))
-
-async function waitForServer(port, timeoutMs = 60_000) {
-  const deadline = Date.now() + timeoutMs
-  while (Date.now() < deadline) {
-    if (await portOpen(port)) return
-    if (server.exitCode !== null) break
-    await sleep(250)
-  }
-  throw new Error(
-    `preview server did not start on ${BASE}\n` +
-      `  exit code: ${server.exitCode ?? 'still running'}\n` +
-      `  output: ${serverOutput.trim() || '(none)'}\n` +
-      '  Has `npm run build` been run, or is the port already taken?',
-  )
-}
 
 let browser
+let server
 let failed = false
 
 try {
-  await waitForServer(PORT)
+  const started = await startPreview(PORT)
+  server = started.server
+  const { base } = started
 
-  browser = await chromium.launch(
-    // In sandboxes the bundled browser lives outside node_modules.
-    process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {},
-  )
+  browser = await launchBrowser()
   const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } })
 
   const problems = []
@@ -117,64 +39,68 @@ try {
     if (m.type() === 'error') problems.push(`console: ${m.text()}`)
   })
 
-  // 'load' rather than 'networkidle': networkidle is timing-sensitive and
-  // Playwright discourages it. What actually matters is that the shell has
-  // painted, so wait for the surface tabs.
-  await page.goto(BASE, { waitUntil: 'load', timeout: 60_000 })
-  await page.getByRole('button', { name: 'Phone', exact: true }).first().waitFor({ timeout: 30_000 })
-
-  const surface = (name) => page.getByRole('button', { name, exact: true }).click()
-  const open = async (label) => {
-    // Nav buttons carry their group label in the accessible name, so this is a
-    // substring match by design.
-    await page.getByRole('button', { name: label }).first().click()
-    await page.waitForTimeout(40)
+  /**
+   * Load a route and assert it actually painted. A React error boundary or a
+   * bad route would leave an all-but-empty document, which `pageerror` alone
+   * does not always catch.
+   */
+  const visit = async (url, params, label) => {
+    const target = withParams(base, url, params)
+    await page.goto(target, { waitUntil: 'load', timeout: 60_000 })
+    const text = (await page.locator('body').innerText()).trim()
+    if (text.length < 20) {
+      problems.push(`${label}: ${url} rendered ${text.length} characters — blank`)
+    }
+    return text
   }
 
-  for (const s of SURFACES) {
-    await surface(s)
-    await page.waitForTimeout(150)
-    const count = await page.locator('button').count()
-    if (count < 10) throw new Error(`${s} surface rendered only ${count} controls — likely blank`)
-    console.log(`  ${s.padEnd(8)} ${count} controls`)
+  for (const r of PHONE_ROUTES) await visit(r.url, {}, 'phone')
+  console.log(`  member app (mobile)   ${PHONE_ROUTES.length} routes`)
+
+  for (const r of WEB_ROUTES) await visit(r.url, {}, 'web')
+  console.log(`  member app (web)      ${WEB_ROUTES.length} routes`)
+
+  for (const r of CONSOLE_ROUTES) await visit(r.url, {}, 'console')
+  console.log(`  sponsor console       ${CONSOLE_ROUTES.length} routes`)
+
+  // The rail keys most of the copy, so every rail gets the money screens.
+  for (const rail of RAIL_IDS) {
+    await visit('/m/pay', { rail }, 'phone')
+    await visit('/m/contrib', { rail }, 'phone')
+    await visit('/contributions', { rail }, 'web')
+    await visit('/console/reconciliation', { rail }, 'console')
   }
+  console.log(`  rails                 ${RAIL_IDS.length} × 4 money screens`)
 
-  await surface('Phone')
-  for (const s of PHONE_SCREENS) await open(s)
-  console.log(`  phone    ${PHONE_SCREENS.length} screens`)
+  // Five languages on the densest screen, where a long translation breaks
+  // layout first.
+  for (const lang of LANGS) await visit('/m/home', { lang }, 'phone')
+  console.log(`  languages             ${LANGS.length}`)
 
-  for (const r of RAILS) await open(r)
-  for (const l of LANGS) await open(l)
-  console.log(`  rails    ${RAILS.length} · langs ${LANGS.length}`)
-
-  await surface('Console')
-  for (const device of ['Phone', 'Desktop']) {
-    await page.locator('button').filter({ hasText: new RegExp(`^${device}$`) }).last().click()
-    for (const s of CONSOLE_SCREENS) await open(s)
+  // Scenario flags: a late deduction and an offline handset.
+  for (const demo of ['late', 'offline', 'sun', 'late,offline']) {
+    await visit('/m/home', { demo }, 'phone')
+    await visit('/m/contrib', { demo }, 'phone')
   }
-  console.log(`  console  ${CONSOLE_SCREENS.length} screens × 2 devices`)
+  console.log('  scenarios             4')
 
-  await surface('Web')
-  for (const s of WEB_SCREENS) await open(s)
-  console.log(`  web      ${WEB_SCREENS.length} screens`)
-
-  await surface('Spec')
-  for (const s of SPEC_SECTIONS) await open(s)
-  console.log(`  spec     ${SPEC_SECTIONS.length} sections`)
+  // An address nobody owns must land somewhere sensible, not on a blank page.
+  const stray = await visit('/m/not-a-screen', {}, 'phone')
+  if (!stray.length) problems.push('unknown route rendered nothing')
 
   if (problems.length) {
     failed = true
     console.error(`\n✗ ${problems.length} runtime problem(s):`)
     for (const p of problems) console.error(`  ${p}`)
   } else {
-    console.log('\n✓ every screen rendered, no exceptions or console errors')
+    console.log('\n✓ every route rendered, no exceptions or console errors')
   }
 } catch (err) {
   failed = true
   console.error(`\n✗ ${err.message}`)
 } finally {
   await browser?.close()
-  server.kill('SIGTERM')
+  server?.kill('SIGTERM')
 }
 
 process.exit(failed ? 1 : 0)

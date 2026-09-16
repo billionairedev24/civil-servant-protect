@@ -189,15 +189,33 @@ export function ContributionsScreen() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
                 <Icon name={icon} size={19} color={ic} />
                 <div>
-                  <div style={{ fontSize: 15, fontWeight: 500 }}>{r.src === 1 ? t.pay_b_head : t.deduction}</div>
+                  {/* A self-paying member has no payroll deduction, so the row
+                      must not call it one — the whole point of this screen is
+                      that it says only what actually happened. Both labels are
+                      existing translated copy. */}
+                  <div style={{ fontSize: 15, fontWeight: 500 }}>
+                    {r.src === 1 ? t.pay_b_head : sponsor.payroll ? t.deduction : t.pay_s_head}
+                  </div>
                   <Mono size={11.5} color={C.faint} style={{ display: 'block', marginTop: 2 }}>
                     {r.month} · {source}
                   </Mono>
                 </div>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: 15, fontWeight: 700, color: ic }}>₦2,500</div>
-                <div style={{ fontSize: 11.5, color: C.faint, marginTop: 1 }}>{t.src[r.src]}</div>
+                {/* The amount is the row's most important number, so it is ink
+                    rather than the icon's tint — C.gSoft is a decorative green
+                    that measures 2.0:1 on cream. Which rail paid it is already
+                    said by the icon and by the state line below. */}
+                <div style={{ fontSize: 15, fontWeight: 700, color: r.src === 2 ? C.mut : C.ink }}>
+                  ₦2,500
+                </div>
+                {/* `src` states are named for the payroll rail ("Payroll"), so a
+                    cleared self-pay month borrows the rail-neutral "Confirmed"
+                    from the legend rather than naming a deduction that never
+                    happened. Both are already translated in all five locales. */}
+                <div style={{ fontSize: 11.5, color: C.faint, marginTop: 1 }}>
+                  {sponsor.payroll || r.src !== 0 ? t.src[r.src] : t.ct_legend[0]}
+                </div>
               </div>
             </div>
           )

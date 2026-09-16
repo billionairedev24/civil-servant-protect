@@ -5,43 +5,32 @@
  *
  *   npm run a11y
  *
- * Contrast currently passes on every surface — see README, "One deliberate
- * departure from the mockups", for why the palette's secondary greys were
- * darkened to get there. Hit targets still sit below the spec's 44px because
- * the design's density depends on it; they clear the 24px WCAG 2.2 floor.
+ * Every route in all three applications is audited, each at the viewport it is
+ * actually used on — the member app on a 390-wide handset, the web app and the
+ * console on a monitor, and the console again narrow, because an HR officer in
+ * a state secretariat often has nothing else.
+ *
+ * Contrast currently passes everywhere — see README, "One deliberate departure
+ * from the mockups", for why the palette's secondary greys were darkened to get
+ * there. Hit targets still sit below the spec's 44px because the design's
+ * density depends on it; they clear the 24px WCAG 2.2 floor.
  *
  * So this reports rather than gates, and exits non-zero only for a control with
  * no accessible name — the one finding here that is unambiguously a bug and
  * never a design decision.
  */
-import { spawn } from 'node:child_process'
-import { connect } from 'node:net'
-import { setTimeout as sleep } from 'node:timers/promises'
-import { chromium } from 'playwright'
+import {
+  CONSOLE_ROUTES, PHONE_ROUTES, WEB_ROUTES, launchBrowser, startPreview, withParams,
+} from './harness.mjs'
 
-const HOST = '127.0.0.1'
 const PORT = Number(process.env.A11Y_PORT ?? 4188)
-const BASE = `http://${HOST}:${PORT}/`
-const SURFACES = ['Phone', 'Web', 'Console', 'Spec']
 
-const server = spawn(
-  'npx',
-  ['vite', 'preview', '--host', HOST, '--port', String(PORT), '--strictPort'],
-  { stdio: ['ignore', 'pipe', 'pipe'] },
-)
-let serverOutput = ''
-server.stdout?.on('data', (d) => (serverOutput += d))
-server.stderr?.on('data', (d) => (serverOutput += d))
-
-function portOpen(port) {
-  return new Promise((resolve) => {
-    const s = connect({ host: HOST, port })
-    const done = (ok) => (s.destroy(), resolve(ok))
-    s.once('connect', () => done(true))
-    s.once('error', () => done(false))
-    s.setTimeout(1000, () => done(false))
-  })
-}
+const PASSES = [
+  { name: 'member app · handset', viewport: { width: 390, height: 844 }, routes: PHONE_ROUTES },
+  { name: 'member app · desk', viewport: { width: 1600, height: 1000 }, routes: WEB_ROUTES },
+  { name: 'console · desk', viewport: { width: 1600, height: 1000 }, routes: CONSOLE_ROUTES },
+  { name: 'console · handset', viewport: { width: 390, height: 844 }, routes: CONSOLE_ROUTES },
+]
 
 /** Runs in the page. Composites alpha down the ancestor chain so a translucent
     pill over a dark header is measured against the dark header, not the pill. */
@@ -78,12 +67,26 @@ const AUDIT = () => {
 
   const unnamed = []
   const smallTargets = []
-  const contrast = new Map()
+  const contrast = []
+  let controls = 0
+
+  /** A label wrapping the control, or pointing at it by id, names it too. */
+  const labelled = (el) =>
+    !!el.closest('label') || (el.id && document.querySelector(`label[for="${CSS.escape(el.id)}"]`))
 
   for (const el of document.querySelectorAll('button, a[href], input, select, textarea')) {
     const r = el.getBoundingClientRect()
     if (!r.width || !r.height) continue
-    const name = (el.getAttribute('aria-label') || el.innerText || el.value || '').trim()
+    // visibility:hidden takes a control out of the accessibility tree too, so
+    // it is not a missing name — it is not a control at all.
+    if (getComputedStyle(el).visibility === 'hidden') continue
+    controls++
+    const name = (
+      el.getAttribute('aria-label') ||
+      el.innerText ||
+      el.value ||
+      (labelled(el) ? 'label' : '')
+    ).trim()
     if (!name) unnamed.push(el.outerHTML.slice(0, 120).replace(/\s+/g, ' '))
     // 24px is the WCAG 2.2 AA floor; the spec asks for 44. Report both.
     if (r.height < 44 || r.width < 24) {
@@ -106,63 +109,65 @@ const AUDIT = () => {
     const needed = size >= 24 || (size >= 18.66 && bold) ? 3 : 4.5
     if (cr >= needed) continue
 
-    const key = `${cs.color} on rgb(${bg.map(Math.round).join(',')}) @ ${size}px`
-    const entry = contrast.get(key) ?? {
-      count: 0,
+    contrast.push({
+      style: `${cs.color} on rgb(${bg.map(Math.round).join(',')}) @ ${size}px`,
       ratio: cr.toFixed(2),
       needed,
       sample: el.innerText.trim().slice(0, 44),
-    }
-    entry.count++
-    contrast.set(key, entry)
+    })
   }
 
-  return {
-    unnamed,
-    smallTargets,
-    contrast: [...contrast.entries()]
-      .map(([style, v]) => ({ style, ...v }))
-      .sort((a, b) => b.count - a.count),
-  }
+  return { unnamed, smallTargets, contrast, controls }
 }
 
 let browser
+let server
 let unnamedTotal = 0
 
 try {
-  const deadline = Date.now() + 60_000
-  while (!(await portOpen(PORT))) {
-    if (Date.now() > deadline || server.exitCode !== null) {
-      throw new Error(`preview did not start on ${BASE}\n${serverOutput.trim()}`)
+  const started = await startPreview(PORT)
+  server = started.server
+  const { base } = started
+
+  browser = await launchBrowser()
+
+  for (const pass of PASSES) {
+    const page = await browser.newPage({ viewport: pass.viewport })
+
+    const unnamed = new Set()
+    const contrast = new Map()
+    let under44 = 0
+    let under24 = 0
+    let controls = 0
+
+    for (const route of pass.routes) {
+      await page.goto(withParams(base, route.url), { waitUntil: 'load', timeout: 60_000 })
+      const r = await page.evaluate(AUDIT)
+
+      for (const html of r.unnamed) unnamed.add(`${route.url}  ${html}`)
+      controls += r.controls
+      under44 += r.smallTargets.filter((t) => t.h < 44).length
+      under24 += r.smallTargets.filter((t) => t.h < 24 || t.w < 24).length
+
+      for (const c of r.contrast) {
+        const entry = contrast.get(c.style) ?? { count: 0, ratio: c.ratio, needed: c.needed, sample: c.sample }
+        entry.count++
+        contrast.set(c.style, entry)
+      }
     }
-    await sleep(250)
-  }
 
-  browser = await chromium.launch(
-    process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {},
-  )
-  const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } })
-  await page.goto(BASE, { waitUntil: 'load', timeout: 60_000 })
-  await page.getByRole('button', { name: 'Phone', exact: true }).first().waitFor()
+    await page.close()
+    unnamedTotal += unnamed.size
 
-  for (const surface of SURFACES) {
-    await page.getByRole('button', { name: surface, exact: true }).click()
-    await page.waitForTimeout(300)
-    const r = await page.evaluate(AUDIT)
-    unnamedTotal += r.unnamed.length
+    console.log(`\n── ${pass.name} ${'─'.repeat(Math.max(2, 46 - pass.name.length))} ${pass.routes.length} routes @ ${pass.viewport.width}px`)
+    console.log(`controls with no accessible name: ${unnamed.size}`)
+    ;[...unnamed].slice(0, 5).forEach((h) => console.log(`    ${h}`))
+    console.log(`hit targets below 44px: ${under44} of ${controls} controls  (below the 24px WCAG floor: ${under24})`)
 
-    console.log(`\n── ${surface} ${'─'.repeat(52 - surface.length)}`)
-
-    console.log(`controls with no accessible name: ${r.unnamed.length}`)
-    r.unnamed.slice(0, 5).forEach((h) => console.log(`    ${h}`))
-
-    const under44 = r.smallTargets.filter((t) => t.h < 44).length
-    const under24 = r.smallTargets.filter((t) => t.h < 24 || t.w < 24).length
-    console.log(`hit targets below 44px: ${under44}  (below the 24px WCAG floor: ${under24})`)
-
-    console.log(`text styles below their contrast threshold: ${r.contrast.length}`)
-    for (const c of r.contrast.slice(0, 6)) {
-      console.log(`    ${c.ratio} / ${c.needed}  ×${String(c.count).padStart(2)}  ${c.style}  "${c.sample}"`)
+    const worst = [...contrast.entries()].map(([style, v]) => ({ style, ...v })).sort((a, b) => b.count - a.count)
+    console.log(`text styles below their contrast threshold: ${worst.length}`)
+    for (const c of worst.slice(0, 6)) {
+      console.log(`    ${c.ratio} / ${c.needed}  ×${String(c.count).padStart(3)}  ${c.style}  "${c.sample}"`)
     }
   }
 
@@ -177,7 +182,7 @@ try {
   unnamedTotal = 1
 } finally {
   await browser?.close()
-  server.kill('SIGTERM')
+  server?.kill('SIGTERM')
 }
 
 process.exit(unnamedTotal ? 1 : 0)

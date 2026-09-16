@@ -33,10 +33,9 @@ export const APP_SCREENS: readonly WebScreen[] = [
   'home', 'benefits', 'card', 'family', 'contrib', 'benes', 'claim', 'track', 'profile',
 ]
 
-export const SIDE_GROUPS = ['ACCESS', 'COVER', 'MONEY', 'PEOPLE', 'CLAIMS', 'ADMIN', 'PUBLIC'] as const
 export const APP_GROUPS = ['COVER', 'MONEY', 'PEOPLE', 'CLAIMS', 'ADMIN'] as const
 
-/** Shown in the fake address bar — the route each screen would really own. */
+/** The route each screen owns. */
 export const URLS: Record<WebScreen, string> = {
   signin: '/sign-in',
   enrol: '/enrol/cover',
@@ -52,4 +51,17 @@ export const URLS: Record<WebScreen, string> = {
   beneportal: '/next-of-kin',
 }
 
-export const WEB_FRAME = { w: 1180, h: 830, breakpoint: '≥1024' } as const
+/**
+ * Which screen a URL resolves to. Exact first, then the two paths that carry a
+ * record id — a claim reference is part of the address, so `/claims/<anything>`
+ * has to land on the tracker rather than 404 onto the dashboard.
+ */
+export function webScreenForPath(pathname: string): WebScreen {
+  const path = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname
+  const exact = (Object.keys(URLS) as WebScreen[]).find((id) => URLS[id] === path)
+  if (exact) return exact
+  if (path.startsWith('/claims/')) return 'track'
+  if (path.startsWith('/enrol')) return 'enrol'
+  return 'home'
+}
+

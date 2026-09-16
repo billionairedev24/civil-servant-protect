@@ -76,7 +76,11 @@ export function AccidentScreen() {
           type="button"
           className="btn btn-xl btn-primary"
           style={{ flex: 1 }}
-          onClick={() => (accStep < 3 ? set({ accStep: accStep + 1 }) : set({ screen: 'track', accStep: 0 }))}
+          onClick={() => {
+            if (accStep < 3) return set({ accStep: accStep + 1 })
+            set({ accStep: 0 })
+            go('track')
+          }}
         >
           {accStep < 3 ? t.continue : t.acc_send}
         </button>
@@ -230,7 +234,11 @@ export function ClaimScreen() {
           type="button"
           className="btn btn-xl btn-primary"
           style={{ flex: 1 }}
-          onClick={() => (clStep < 4 ? set({ clStep: clStep + 1 }) : set({ screen: 'track', clStep: 0 }))}
+          onClick={() => {
+            if (clStep < 4) return set({ clStep: clStep + 1 })
+            set({ clStep: 0 })
+            go('track')
+          }}
         >
           {t.cl_cta[clStep]}
         </button>

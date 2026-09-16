@@ -1,6 +1,6 @@
 import { Icon } from '../../../components/Icon'
 import { Kicker, Mono } from '../../../components/primitives'
-import { LANGS, type Lang } from '../../../i18n'
+import { EN_ONLY, LANGS, type Lang } from '../../../i18n'
 import { MEMBER } from '../../../data/member'
 import { C, MONO } from '../../../theme/tokens'
 import { Screen, BackButton } from '../Screen'
@@ -236,22 +236,27 @@ export function OtpScreen() {
         {t.voice_fallback}
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8 }}>
-        {keys.map((k, i) => (
-          <button
-            key={i}
-            type="button"
-            disabled={k === ''}
-            onClick={() => k !== '' && pressKey(k === '⌫' ? 'del' : k)}
-            style={{
-              padding: '15px 0', border: `1px solid ${C.line}`, borderRadius: 10,
-              background: k === '' ? 'transparent' : C.white, color: C.ink,
-              fontSize: 22, fontWeight: 500, cursor: k === '' ? 'default' : 'pointer',
-              visibility: k === '' ? 'hidden' : undefined,
-            }}
-          >
-            {k}
-          </button>
-        ))}
+        {keys.map((k, i) =>
+          // The blank cell left of the zero is spacing, so it is a spacer — not
+          // a hidden, disabled, unnamed button sitting in the tab order.
+          k === '' ? (
+            <div key={i} aria-hidden="true" />
+          ) : (
+            <button
+              key={i}
+              type="button"
+              aria-label={k === '⌫' ? EN_ONLY.otp_delete : k}
+              onClick={() => pressKey(k === '⌫' ? 'del' : k)}
+              style={{
+                padding: '15px 0', border: `1px solid ${C.line}`, borderRadius: 10,
+                background: C.white, color: C.ink,
+                fontSize: 22, fontWeight: 500, cursor: 'pointer',
+              }}
+            >
+              {k}
+            </button>
+          ),
+        )}
       </div>
     </Screen>
   )

@@ -3,21 +3,24 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Civil Servant Protect — member phone app, member web, sponsor console and implementation spec on one shell.",
+  "description": "Civil Servant Protect — the member app, the member web app and the sponsor console.",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit",
     "smoke": "node tests/smoke.mjs",
-    "a11y": "node tests/a11y.mjs"
+    "a11y": "node tests/a11y.mjs",
+    "test:rails": "node tests/rails.mjs",
+    "test": "npm run smoke && npm run test:rails && npm run a11y"
   },
   "dependencies": {
     "@fontsource/ibm-plex-mono": "^5.3.0",
     "@fontsource/public-sans": "^5.3.0",
     "@phosphor-icons/web": "^2.1.1",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.30.6"
   },
   "devDependencies": {
     "@types/react": "^18.3.12",

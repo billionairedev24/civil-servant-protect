@@ -53,34 +53,4 @@ export const MORE_TARGETS: readonly PhoneScreen[] = [
   'contrib', 'pay', 'benes', 'id', 'family', 'hr', 'auth',
 ]
 
-export const LANG_NOTE: Record<string, string> = {
-  en: 'Base copy. Everything else is translated from these strings.',
-  ha: 'Hausa — largest first-language group in the northern MDAs.',
-  yo: 'Yorùbá with full diacritics; the type has to carry the marks.',
-  ig: 'Igbo with diacritics; longer strings, so layouts must stretch.',
-  pcm: 'Nigerian Pidgin — the register most people actually speak in.',
-}
 
-/** Right-rail commentary, kept as design notes rather than product copy. */
-export const V3_CHANGES: readonly { t: string; b: string }[] = [
-  {
-    t: 'One record, four sponsors',
-    b: 'Federal (IPPIS), state payroll, private employer, and self-paying. Switch the sponsor in the left rail — the enrolment door, the pay screen, the card and the console all follow. Identity, CSP-ID, cover and claims are identical in every case.',
-  },
-  {
-    t: 'Payroll is a batch, not an API',
-    b: 'There is no live deduction endpoint. The console now shows the real cycle: schedule out, weeks with the payroll office, return file in, then reconciliation — and an exceptions queue that blocks the next run.',
-  },
-  {
-    t: 'Contributions tell the truth',
-    b: "A month only turns green when the remittance file comes back. Card months are marked separately, and the current month reads 'waiting' rather than claiming a payment we cannot see.",
-  },
-  {
-    t: 'Cover survives the payroll office',
-    b: 'Card fallback is on file from day one, with a 7-day wait, an SMS, then a 60-day grace. Transfer, retirement or exit converts the member to direct debit keeping the same CSP-ID and start date.',
-  },
-  {
-    t: 'Identity is honest about its sources',
-    b: 'NIN through a licensed verification agent, account through NIBSS, employment confirmed only by the monthly file — shown as pending rather than green.',
-  },
-]

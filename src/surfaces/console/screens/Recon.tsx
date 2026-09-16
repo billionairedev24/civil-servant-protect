@@ -364,6 +364,7 @@ export function ConsoleException() {
         </div>
         <textarea
           rows={2}
+          aria-label="Why did this happen?"
           placeholder={
             payroll
               ? 'e.g. name corrected on payroll in July, our record not updated'

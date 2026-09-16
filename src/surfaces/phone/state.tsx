@@ -5,7 +5,6 @@ import { sponsorById, type Sponsor, type SponsorId } from '../../data/sponsors'
 import type { PhoneScreen } from './nav'
 
 interface PhoneStateShape {
-  screen: PhoneScreen
   otp: string
   otpError: boolean
   enrolStep: number
@@ -26,7 +25,6 @@ interface PhoneStateShape {
 }
 
 const INITIAL: PhoneStateShape = {
-  screen: 'home',
   otp: '',
   otpError: false,
   enrolStep: 0,
@@ -42,6 +40,8 @@ const INITIAL: PhoneStateShape = {
 }
 
 export interface PhoneCtx extends PhoneStateShape {
+  /** Owned by the router, not by this provider. */
+  screen: PhoneScreen
   t: Strings
   lang: Lang
   setLang: (l: Lang) => void
@@ -65,26 +65,40 @@ export function PhoneStateProvider({
   setLang,
   sponsorId,
   setSponsor,
-  startScreen = 'home',
+  screen,
+  navigate,
+  demo,
   children,
 }: {
   lang: Lang
   setLang: (l: Lang) => void
   sponsorId: SponsorId
   setSponsor: (id: SponsorId) => void
-  startScreen?: PhoneScreen
+  screen: PhoneScreen
+  navigate: (screen: PhoneScreen) => void
+  /** Scenario flags from `?demo=`; there is no in-product toggle for these. */
+  demo?: { late: boolean; offline: boolean; sun: boolean }
   children: React.ReactNode
 }) {
-  const [state, setState] = useState<PhoneStateShape>({ ...INITIAL, screen: startScreen })
+  const [state, setState] = useState<PhoneStateShape>({
+    ...INITIAL,
+    late: demo?.late ?? false,
+    offline: demo?.offline ?? false,
+    sun: demo?.sun ?? false,
+  })
   const t = useT()
 
   const set = useCallback((patch: Partial<PhoneStateShape>) => {
     setState((s) => ({ ...s, ...patch }))
   }, [])
 
-  const go = useCallback((screen: PhoneScreen) => {
-    setState((s) => ({ ...s, screen, otpError: false }))
-  }, [])
+  const go = useCallback(
+    (to: PhoneScreen) => {
+      setState((s) => ({ ...s, otpError: false }))
+      navigate(to)
+    },
+    [navigate],
+  )
 
   /**
    * OTP keypad. Six digits auto-advances to the fingerprint screen after a beat,
@@ -96,15 +110,19 @@ export function PhoneStateProvider({
       if (s.otp.length >= 6) return s
       const next = s.otp + digit
       if (next.length === 6) {
-        setTimeout(() => setState((cur) => ({ ...cur, screen: 'biometric', otp: '' })), 260)
+        setTimeout(() => {
+          setState((cur) => ({ ...cur, otp: '' }))
+          navigate('biometric')
+        }, 260)
       }
       return { ...s, otp: next, otpError: false }
     })
-  }, [])
+  }, [navigate])
 
   const value = useMemo<PhoneCtx>(
     () => ({
       ...state,
+      screen,
       t,
       lang,
       setLang,
@@ -114,7 +132,7 @@ export function PhoneStateProvider({
       go,
       pressKey,
     }),
-    [state, t, lang, setLang, sponsorId, setSponsor, set, go, pressKey],
+    [state, screen, t, lang, setLang, sponsorId, setSponsor, set, go, pressKey],
   )
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
