@@ -11,6 +11,7 @@ import ng.csp.api.auth.Permission;
 import ng.csp.api.auth.Role;
 import ng.csp.api.auth.SessionUser;
 import ng.csp.api.config.RlsScope;
+import ng.csp.api.claim.ClaimService;
 import ng.csp.api.sponsor.SponsorService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -37,6 +38,7 @@ import org.springframework.test.context.ActiveProfiles;
 class SeparationOfDutiesTest {
 
   @Autowired SponsorService sponsors;
+  @Autowired ClaimService claims;
   @Autowired JdbcClient db;
 
   private UUID sponsorId;
@@ -47,12 +49,14 @@ class SeparationOfDutiesTest {
   private SessionUser preparer;
   private SessionUser approver;
   private SessionUser viewer;
+  private SessionUser operations;
+  private int nextClaim = 1000;
 
   @BeforeEach
   void seed() {
     RlsScope.set(RlsScope.system());
     for (var table :
-        List.of("audit_log", "reconciliation_exceptions", "schedule_batches", "claim_documents",
+        List.of("integration_calls", "audit_log", "reconciliation_exceptions", "schedule_batches", "claim_documents",
             "claim_stages", "claims", "beneficiary_events", "beneficiaries", "dependants",
             "contributions", "collection_cycles", "devices", "users", "members", "sponsors")) {
       db.sql("TRUNCATE TABLE " + table + " CASCADE").update();
@@ -78,6 +82,9 @@ class SeparationOfDutiesTest {
     preparer = new SessionUser(user("Amina Bello", "sponsor_preparer"), Role.SPONSOR_PREPARER, null, sponsorId, null);
     approver = new SessionUser(user("Musa Danjuma", "sponsor_approver"), Role.SPONSOR_APPROVER, null, sponsorId, null);
     viewer = new SessionUser(user("Ngozi Eze", "sponsor_viewer"), Role.SPONSOR_VIEWER, null, sponsorId, null);
+    // Unscoped: operations pays across every rail, and the replay log is only
+    // readable unscoped in any case.
+    operations = new SessionUser(unscopedUser("CSP Operations", "csp_admin"), Role.CSP_ADMIN, null, null, null);
 
     var period = LocalDate.now().withDayOfMonth(1);
     db.sql("SELECT csp.ensure_contribution_partition(:p)").param("p", period).query(String.class).single();
@@ -347,6 +354,126 @@ class SeparationOfDutiesTest {
             """)
         .param("sub", "kc-" + name.replace(' ', '-'))
         .param("n", name).param("r", role).param("s", sponsorId)
+        .query(UUID.class)
+        .single();
+  }
+
+  // ── Paying a claim ─────────────────────────────────────────────────────────
+
+  @Test
+  @DisplayName("a claim that has not been assessed cannot be paid")
+  void unassessedClaimCannotBePaid() {
+    var ref = openApprovableClaim("assessing");
+
+    assertThatThrownBy(() -> claims.pay(operations, ref, "058", "0123456789"))
+        .hasMessageContaining("Only an approved claim can be paid");
+
+    // And nothing went out. An instruction that was refused must leave no
+    // record of having been sent, or the replay log stops meaning anything.
+    assertThat(payoutCalls(ref)).isZero();
+  }
+
+  @Test
+  @DisplayName("the assessor who approved a claim cannot also send the money")
+  void payerIsNotAssessor() {
+    var ref = openApprovableClaim("approved");
+    db.sql("UPDATE claims SET assessor_user_id = :u WHERE claim_ref = :ref")
+        .param("u", operations.userId()).param("ref", ref)
+        .update();
+
+    assertThatThrownBy(() -> claims.pay(operations, ref, "058", "0123456789"))
+        .hasMessageContaining("You assessed this claim");
+  }
+
+  @Test
+  @DisplayName("the database refuses a paid claim whose payer is its assessor, whatever the service did")
+  void payerIsNotAssessorInTheDatabaseToo() {
+    var ref = openApprovableClaim("approved");
+    assertThatThrownBy(
+            () ->
+                db.sql(
+                        """
+                        UPDATE claims
+                           SET assessor_user_id = :u, paid_by = :u, paid_at = now(),
+                               payout_session_id = 'x', payout_account_number = '0123456789'
+                         WHERE claim_ref = :ref
+                        """)
+                    .param("u", operations.userId()).param("ref", ref)
+                    .update())
+        .hasMessageContaining("payer_is_not_assessor");
+  }
+
+  @Test
+  @DisplayName("paying works, records the bank's name for the account, and cannot be repeated")
+  void payingIsIdempotent() {
+    var ref = openApprovableClaim("approved");
+
+    var paid = claims.pay(operations, ref, "058", "0123456789");
+    assertThat(paid.state()).isEqualTo("paid");
+    assertThat(paid.sessionId()).isNotBlank();
+    // The name stored is the one the bank returned, not the one supplied —
+    // that is what catches a transposed digit.
+    assertThat(paid.accountName()).isEqualTo("STUB ACCOUNT HOLDER");
+
+    assertThatThrownBy(() -> claims.pay(operations, ref, "058", "0123456789"))
+        .hasMessageContaining("already been paid");
+
+    // One transfer instruction, not two.
+    assertThat(payoutCalls(ref)).isEqualTo(1);
+  }
+
+  @Test
+  @DisplayName("the replay log keeps the account's last four and never the whole number")
+  void replayLogIsRedacted() {
+    var ref = openApprovableClaim("approved");
+    claims.pay(operations, ref, "058", "0123456789");
+
+    var request =
+        db.sql(
+                """
+                SELECT request::text FROM integration_calls
+                 WHERE system = 'payout' AND operation = 'transfer' AND subject = :ref
+                """)
+            .param("ref", ref)
+            .query(String.class)
+            .single();
+
+    assertThat(request).contains("••••6789").doesNotContain("0123456789");
+  }
+
+  private String openApprovableClaim(String state) {
+    // The schema pins the shape of a claim reference — CLM-yyyy-nnnn — so the
+    // test has to mint a real one rather than an obviously-fake string.
+    var ref = "CLM-2026-%04d".formatted(nextClaim++);
+    db.sql(
+            """
+            INSERT INTO claims (claim_ref, member_id, type, state, amount_minor)
+            VALUES (:ref, :m, 'death', CAST(:s AS claim_state), 500000000)
+            """)
+        .param("ref", ref).param("m", memberId).param("s", state)
+        .update();
+    return ref;
+  }
+
+  private int payoutCalls(String ref) {
+    return db.sql(
+            """
+            SELECT count(*)::int FROM integration_calls
+             WHERE system = 'payout' AND operation = 'transfer' AND subject = :ref
+            """)
+        .param("ref", ref)
+        .query(Integer.class)
+        .single();
+  }
+
+  private UUID unscopedUser(String name, String role) {
+    return db.sql(
+            """
+            INSERT INTO users (oidc_subject, full_name, role)
+            VALUES (:sub, :n, CAST(:r AS user_role)) RETURNING id
+            """)
+        .param("sub", "kc-" + name.replace(' ', '-'))
+        .param("n", name).param("r", role)
         .query(UUID.class)
         .single();
   }

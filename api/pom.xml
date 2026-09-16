@@ -20,6 +20,7 @@
   <properties>
     <java.version>25</java.version>
     <maven.compiler.release>25</maven.compiler.release>
+    <resilience4j.version>2.4.0</resilience4j.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <springdoc.version>2.8.13</springdoc.version>
   </properties>
@@ -92,6 +93,49 @@
     <dependency>
       <groupId>org.aspectj</groupId>
       <artifactId>aspectjweaver</artifactId>
+    </dependency>
+
+    <!--
+      Spring Batch, for the schedule load.
+
+      A payroll schedule is up to a million rows and the job has to survive a
+      restart in the middle of one. That is what Batch's chunk boundaries and
+      job repository are for, and writing a worse version of them by hand is the
+      more expensive option.
+    -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-batch</artifactId>
+    </dependency>
+
+    <!--
+      Resilience4j, as libraries rather than as its Spring Boot starter.
+
+      The starter is published for Boot 3 and pulls `spring-boot-starter-aop`,
+      which Boot 4 no longer publishes; its annotation-driven aspects would also
+      hide where the circuit breakers are. There are four external systems, each
+      called from one place, so the decorators are applied explicitly in
+      Resilient.java where they can be read.
+    -->
+    <dependency>
+      <groupId>io.github.resilience4j</groupId>
+      <artifactId>resilience4j-circuitbreaker</artifactId>
+      <version>${resilience4j.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.github.resilience4j</groupId>
+      <artifactId>resilience4j-retry</artifactId>
+      <version>${resilience4j.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.github.resilience4j</groupId>
+      <artifactId>resilience4j-timelimiter</artifactId>
+      <version>${resilience4j.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.github.resilience4j</groupId>
+      <artifactId>resilience4j-micrometer</artifactId>
+      <version>${resilience4j.version}</version>
     </dependency>
 
     <dependency>

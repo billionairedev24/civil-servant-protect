@@ -182,6 +182,81 @@ curl -s -XPOST 'http://localhost:8081/realms/csp/protocol/openid-connect/token' 
   -d 'username=musa' -d 'password=password' | jq -r .access_token
 ```
 
+### The replay log
+
+Every call to an external system is written to `integration_calls` **before**
+it is attempted and completed afterwards. If the process dies mid-call the row
+survives as `attempting`, which is the honest state: we asked, and we do not
+know what happened.
+
+That is the state nobody wants and everybody needs. NIBSS may or may not have
+moved the money; the SMS gateway may or may not have sent the code. A log line
+written only on success answers neither question.
+
+```bash
+# What is stuck, for somebody to work through. Operations only.
+curl -s localhost:8080/v1/operations/integration-calls/stuck \
+  -H "Authorization: Bearer $OPS_TOKEN" | jq
+```
+
+There is no replay button. Replaying a payout is a decision with a bank
+statement behind it, and the claim reference is the idempotency key, so calling
+the operation again is refused rather than duplicated.
+
+L3 data never reaches this table: a phone number is stored as `+234803••••214`,
+an account as `••••6789`, and a NIN or a one-time code as `«withheld»`. It is
+the table somebody exports to a spreadsheet at 2am, which is exactly why.
+
+### Paying a claim
+
+The money path is two decisions by two people, like everything else here:
+
+| | Who | Permission |
+|---|---|---|
+| Assess the claim | Claims assessor | `CLAIM_ASSESS` |
+| Send the money | CSP operations | `CLAIM_PAY` |
+
+Neither role holds the other's permission, and the database says the same thing
+again with `payer_is_not_assessor` — so an account that could approve a payout
+and then make it does not exist, whatever the service layer is asked to do.
+
+```bash
+# The assessor decides.
+curl -s -XPOST localhost:8080/v1/claims/CLM-2026-0091/assess \
+  -H "Authorization: Bearer $ASSESSOR" -H 'Content-Type: application/json' \
+  -d '{"decision":"approve","note":"documents complete","amountMinor":500000000}'
+
+# Operations sends it. NIBSS is asked whose account this is first, and the name
+# it returns is what gets stored — that is what catches a transposed digit.
+curl -s -XPOST localhost:8080/v1/claims/CLM-2026-0091/pay \
+  -H "Authorization: Bearer $OPS" -H 'Content-Type: application/json' \
+  -d '{"bankCode":"058","accountNumber":"0123456789"}'
+```
+
+### Loading a schedule
+
+```bash
+# 202, with a batch to watch. The rows are written down before this returns;
+# the load runs behind it.
+curl -s -XPOST localhost:8080/v1/sponsors/$SPONSOR/schedules \
+  -H "Authorization: Bearer $PREPARER" -H 'Content-Type: application/json' \
+  -d @schedule.json
+# {"cycleId":"…","batchId":"…","rowCount":50000}
+
+curl -s localhost:8080/v1/sponsors/$SPONSOR/schedules/$BATCH \
+  -H "Authorization: Bearer $PREPARER"
+# {"state":"complete","stagedCount":50000,"matchedCount":40000,"loadedCount":40000}
+```
+
+A row that matches no member is **rejected with its line number and a reason**,
+not dropped — "line 4,412: no member with service number 8812441" is what an
+officer needs to fix the file. The first 500 rejections are kept on the batch;
+the full list stays in `schedule_rows`.
+
+`csp.schedule.chunk-size` (default 10,000) is the rows per transaction. The
+tests set it to 2, because every bug this job has had was at a chunk boundary
+and none of them is visible on a file that fits in one chunk.
+
 ---
 
 ## Testing
@@ -221,6 +296,8 @@ request that needs it.
 | `DATABASE_URL` | `jdbc:postgresql://127.0.0.1:5432/csp` | |
 | `DATABASE_USER` / `DATABASE_PASSWORD` | `csp` / `csp` | From Vault in every deployed environment |
 | `SPRING_DATA_REDIS_HOST` / `_PORT` | `127.0.0.1` / `6379` | OTP challenges, rate limits |
+| `HSM_ENABLED` / `HSM_CONFIG` / `HSM_PIN` | `false` | The in-country HSM. Off locally; the `prod` profile refuses to start without it. |
+| `INTEGRATIONS_MODE` | `stub` | `stub` or `http`. Also refused under `prod`. |
 | `JWT_SECRET` | **none** | ≥32 chars. No default on purpose — a fallback secret is a production incident waiting for the one deploy that forgets it |
 | `CSP_TOKEN_ISSUER` | `https://member-auth.csp.local` | Must be a URL; Spring converts the `iss` claim to one while decoding |
 | `CSP_KEYCLOAK_ISSUER_URI` | *(empty)* | Empty means console sign-in is off and only member tokens are accepted |
@@ -349,16 +426,58 @@ Real, and deliberately not papered over.
    Hermes build, no MMKV offline card, no `react-native-biometrics`.
 2. **The member web app is Vite, not Next.js.** The spec asks for SSR so it works
    on slow links and old browsers. This is a client-rendered SPA.
-3. **The frontends still read fixtures, not the API.** Both exist and agree on
-   the same figures; nothing wires them together yet. That is loading states,
-   error states and the auth flow — real work, not configuration.
-4. **No Spring Batch or Kafka.** Schedule upload is synchronous and capped at
-   20,000 rows. The spec's 1m-row path needs chunked restartable jobs with Kafka
-   between stages; `uploadSchedule` is the seam that job would call.
-5. **No integration adapters.** `nimc-adapter`, `comms`, `payout` and the SFTP
-   poller are named in the spec and not written. Sign-in logs where the SMS
-   provider would be called.
-6. **Keys are not in an HSM**, as above.
+3. **Some screens still read fixtures.** Sign-in, and the money and people
+   screens on all three surfaces, read the API when `VITE_API_URL` is set —
+   contributions, the protection card, beneficiaries and their annual
+   confirmation, claim tracking, the console's dashboard and its reconciliation
+   queue including the maker–checker pair. Still on fixtures: the console's
+   roster, schedule upload, direct-debit run, remittances, claims queue,
+   reports and settings; the member's family cover and cover-detail screens;
+   and the whole enrolment run, which has no endpoints behind it yet.
+
+   A screen that has not been wired says the same numbers it always did — the
+   fixtures and the seed agree — so the difference is where the figure comes
+   from, not what it says.
+4. **Spring Batch, but no Kafka.** Schedule upload stages the rows and hands
+   off to a chunked, restartable job; the endpoint answers **202** with a batch
+   reference and the console polls
+   `GET /v1/sponsors/{id}/schedules/{batchId}`. Measured here: 50,000 rows
+   staged and acknowledged in **2.2 seconds**, matched and loaded in **4.8**.
+
+   What is missing is Kafka between the stages, which is what would let matching
+   and loading scale independently across workers. The stage boundaries are in
+   the same places, so moving them onto a topic is a deployment change rather
+   than a rewrite — but it is one process today.
+5. **The integration adapters are stubbed, not absent.** `nimc`, `comms`,
+   `payout` and the SFTP poller each have an interface, a circuit breaker with
+   settings chosen for that system, and a stub that answers locally. Sign-in
+   really calls the comms adapter and an approved claim really calls the payout
+   one; what is missing is an implementation that speaks to NIMC's SOAP
+   endpoint, an SMS aggregator's REST API, NIBSS, and a payroll SFTP host.
+   `INTEGRATIONS_MODE=http` selects those, and the `prod` profile refuses to
+   start without it.
+
+   The stubs are not test mocks: they go through the same replay log and the
+   same breakers, so the recorded behaviour is the real behaviour. They also
+   refuse where the real systems refuse — an 11-digit check on a NIN, a
+   ten-digit one on a NUBAN — so the failure branches are reachable in a demo.
+
+   They also *deliberately do not deliver*. `csp.integrations.mode=stub` is
+   logged as a warning at startup, because a scheme that silently stops telling
+   its members anything is worse than one that is plainly down.
+6. **Keys are derived from configuration unless an HSM is configured.**
+   `KeyVault` exposes operations and never key bytes, which is the shape that
+   lets a PKCS#11 implementation exist at all — an interface with
+   `byte[] key()` on it can only be implemented by extracting the key, which is
+   the one thing an HSM is for not doing. `Pkcs11KeyVault` is written;
+   `HSM_ENABLED=true` with a config file and PIN selects it, and the `prod`
+   profile refuses to start without it.
+
+   One finding worth stating plainly: **HS256 member tokens cannot be signed
+   inside an HSM.** The signer needs the key bytes, so hardware custody and
+   symmetric signing are incompatible here. Moving member tokens to ES256 is
+   the fix and has not been done — it is a token-format change with a rollover,
+   not a config flag.
 7. **Translations are machine-drafted** and have had no native-speaker pass. Ten
    of them were drafted in this session rather than carried from the design
    bundle — see the README.

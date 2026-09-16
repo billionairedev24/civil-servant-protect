@@ -8,6 +8,8 @@ import java.util.UUID;
 import ng.csp.api.auth.Role;
 import ng.csp.api.auth.SessionUser;
 import ng.csp.api.domain.Claims;
+import ng.csp.api.integration.Payout;
+import ng.csp.api.integration.ReplayLog;
 import ng.csp.api.web.ApiException;
 import ng.csp.api.web.Rows;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -20,10 +22,12 @@ public class ClaimService {
 
   private final JdbcClient db;
   private final ObjectMapper json;
+  private final Payout payout;
 
-  public ClaimService(JdbcClient db, ObjectMapper json) {
+  public ClaimService(JdbcClient db, ObjectMapper json, Payout payout) {
     this.db = db;
     this.json = json;
+    this.payout = payout;
   }
 
   public record Opened(String claimRef, List<String> requiredDocs, String funeralAdvanceRef) {}
@@ -340,6 +344,114 @@ public class ClaimService {
     stage(claimId, "request_more".equals(decision) ? "more_needed" : nextState, "done",
         session.userId().toString(), note);
     return nextState;
+  }
+
+  public record Paid(String ref, String state, String sessionId, long amountMinor, String accountName) {}
+
+  /**
+   * Send an approved claim's money.
+   *
+   * <p>The last step of the product, and the one place in this system where a mistake cannot be
+   * corrected by editing a row. Four things stand between an instruction and a wrong payment, and
+   * none of them is a comment:
+   *
+   * <ol>
+   *   <li>The claim must already be approved. Paying an unassessed claim is not a shortcut, it is
+   *       the control removed.
+   *   <li>The payer is not the assessor — {@code PERM_CLAIM_PAY} belongs to operations and
+   *       {@code PERM_CLAIM_ASSESS} to the assessor, and the {@code payer_is_not_assessor}
+   *       constraint says so again in the database, where it cannot be argued with.
+   *   <li>NIBSS is asked whose account this is before anything is sent to it. The name it returns
+   *       is what gets stored, because the point is to catch the digit that was typed wrong.
+   *   <li>The claim reference is the idempotency key. A second instruction for the same claim is
+   *       refused by a unique index in the replay log rather than by anyone remembering.
+   * </ol>
+   */
+  @Transactional
+  public Paid pay(SessionUser session, String ref, String bankCode, String accountNumber) {
+    var claim =
+        db.sql(
+                """
+                SELECT id, state::text AS state, amount_minor, assessor_user_id, paid_at
+                  FROM claims WHERE claim_ref = :ref
+                """)
+            .param("ref", ref)
+            .query(
+                (rs, n) ->
+                    new Object[] {
+                      rs.getObject("id", UUID.class),
+                      rs.getString("state"),
+                      rs.getObject("amount_minor") == null ? null : rs.getLong("amount_minor"),
+                      rs.getObject("assessor_user_id", UUID.class),
+                      rs.getObject("paid_at")
+                    })
+            .optional()
+            .orElseThrow(() -> ApiException.notFound("No claim with that reference."));
+
+    var claimId = (UUID) claim[0];
+    var state = (String) claim[1];
+    var amountMinor = (Long) claim[2];
+    var assessor = (UUID) claim[3];
+
+    if (claim[4] != null) {
+      throw ApiException.conflict("already_paid", "That claim has already been paid.");
+    }
+    if (!"approved".equals(state)) {
+      throw ApiException.conflict(
+          "not_approved", "Only an approved claim can be paid. This one is %s.".formatted(state));
+    }
+    if (amountMinor == null || amountMinor <= 0) {
+      throw ApiException.conflict("no_amount", "That claim has no approved amount.");
+    }
+    if (session.userId().equals(assessor)) {
+      throw ApiException.conflict(
+          "assessor_is_payer",
+          "You assessed this claim. Someone else has to send the money — that is the whole point "
+              + "of the check.");
+    }
+
+    // Ask the bank who this account belongs to, before sending anything to it.
+    var accountName = payout.resolveAccountName(bankCode, accountNumber, ref);
+
+    Payout.Transferred sent;
+    try {
+      sent =
+          payout.transfer(
+              new Payout.Account(bankCode, accountNumber, accountName),
+              amountMinor,
+              "CSP claim " + ref,
+              ref);
+    } catch (ReplayLog.AlreadyDone e) {
+      // The instruction is already out. Saying so is the only safe answer: the
+      // alternative is a second transfer for the same claim.
+      throw ApiException.conflict(
+          "already_instructed",
+          "A payment for that claim has already been instructed. Check the replay log before "
+              + "sending another.");
+    }
+
+    db.sql(
+            """
+            UPDATE claims
+               SET state = 'paid',
+                   payout_bank_code = :bank,
+                   payout_account_number = :acct,
+                   payout_account_name = :name,
+                   payout_session_id = :session,
+                   paid_at = now(),
+                   paid_by = :by
+             WHERE id = :id
+            """)
+        .param("bank", bankCode)
+        .param("acct", accountNumber)
+        .param("name", accountName)
+        .param("session", sent.sessionId())
+        .param("by", session.userId())
+        .param("id", claimId)
+        .update();
+
+    stage(claimId, "paid", "done", session.userId().toString(), "Paid to " + accountName);
+    return new Paid(ref, "paid", sent.sessionId(), sent.amountMinor(), accountName);
   }
 
   // ── helpers ────────────────────────────────────────────────────────────────

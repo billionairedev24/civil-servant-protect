@@ -2,24 +2,31 @@ import { Icon } from '../../../components/Icon'
 import { Kicker, Mono } from '../../../components/primitives'
 import { TIER_NAMES, TIER_PRICES, payeeNames } from '../../../data/member'
 import { C, MONO } from '../../../theme/tokens'
-import {
-  SCHEDULE_MATRIX, WEB_FAMILY, WEB_MEMBER, WEB_ONLY_COVER, ledgerFor,
-} from '../data'
+import { SCHEDULE_MATRIX, WEB_FAMILY, WEB_ONLY_COVER } from '../data'
 import { FeatureRow, PageSub, PageTitle, Panel, StatusPill, Table, TableHead } from '../../../components/surface'
+import { BENEFICIARY_SET, LEDGER_FIXTURE, MEMBER_SUMMARY, PROTECTION_CARD } from '../../../api/fixtures'
+import { useBeneficiaries, useCard, useContributions, useSummary } from '../../../api/queries'
+import { NotLive, dayFirst, naira, periodLabel, titleCase, useLive } from '../../../api/live'
 import { useWeb } from '../state'
 
 export function WebDashboard() {
   const { t, sponsor, late, go } = useWeb()
   const payroll = sponsor.payroll
-  const ledger = ledgerFor(payroll, late).slice(0, 3)
+  const { data: summary, failed } = useLive(useSummary(MEMBER_SUMMARY), MEMBER_SUMMARY)
+  const { data: paid } = useLive(useContributions(LEDGER_FIXTURE), LEDGER_FIXTURE)
+  const { data: nominated } = useLive(useBeneficiaries(BENEFICIARY_SET), BENEFICIARY_SET)
+  const ledger = paid.rows.slice(0, 3)
+  const payees = nominated.people.filter((b) => b.sharePct > 0)
 
   /* The banner shows whichever is more urgent: a sponsor that has not remitted,
      or the beneficiary confirmation that is overdue. */
-  const sponsorLate = late && payroll
+  // The record's own view of the month, not only the demo flag.
+  const sponsorLate = (late || summary.collection.state === 'late') && payroll
+  const period = periodLabel(summary.collection.lastPeriod)
   const attn = sponsorLate
     ? {
-        title: 'Your sponsor has not sent August yet',
-        body: `${sponsor.org} is 9 days late with the August schedule. Your cover stays in force through the 60-day grace period.`,
+        title: `Your sponsor has not sent ${period} yet`,
+        body: `${sponsor.org} has not returned the ${period} schedule. Your cover stays in force through the 60-day grace period.`,
         cta: 'What this means',
         to: 'contrib' as const,
       }
@@ -31,10 +38,18 @@ export function WebDashboard() {
       }
 
   const quick = [
-    { label: t.confirm_benes, sub: '3 people · 100%', icon: 'ph ph-users-three', to: 'benes' as const },
+    {
+      label: t.confirm_benes,
+      sub: `${payees.length} people · ${payees.reduce((n, b) => n + b.sharePct, 0)}%`,
+      icon: 'ph ph-users-three', to: 'benes' as const,
+    },
     { label: t.card_title, sub: 'Print at A4', icon: 'ph ph-identification-card', to: 'card' as const },
-    { label: t.paid_title, sub: '14 months', icon: 'ph ph-receipt', to: 'contrib' as const },
-    { label: t.fam_title, sub: '3 dependants', icon: 'ph ph-house-line', to: 'family' as const },
+    {
+      label: t.paid_title,
+      sub: `${paid.totals.monthsCovered} months`,
+      icon: 'ph ph-receipt', to: 'contrib' as const,
+    },
+    { label: t.fam_title, sub: `${nominated.people.length} dependants`, icon: 'ph ph-house-line', to: 'family' as const },
   ]
 
   const stages = t.stages.slice(0, 3)
@@ -45,9 +60,13 @@ export function WebDashboard() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 20 }}>
         <div>
           <PageTitle>
-            {t.greeting}, {WEB_MEMBER.name.split(' ')[0]}
+            {t.greeting}, {summary.member.name.split(' ')[0]}
           </PageTitle>
-          <PageSub>Standard plan · in force since 16 July 2025 · {sponsor.short}</PageSub>
+          <PageSub>
+            {titleCase(summary.cover.tier)} plan · in force since {dayFirst(summary.cover.inForceSince)} ·{' '}
+            {sponsor.short}
+          </PageSub>
+          {failed && <NotLive what="Your account" />}
         </div>
         <button
           type="button"
@@ -138,18 +157,28 @@ export function WebDashboard() {
               All
             </button>
           </div>
-          <Mono size={26} weight={500} style={{ display: 'block', marginTop: 8 }}>₦35,000</Mono>
+          <Mono size={26} weight={500} style={{ display: 'block', marginTop: 8 }}>
+            {naira(paid.totals.paidMinor)}
+          </Mono>
           <div style={{ fontSize: 13, color: C.faint }}>{t.across_months}</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 1, marginTop: 12 }}>
             {ledger.map((r) => (
               <div
-                key={r.month}
+                key={r.period}
                 style={{ display: 'flex', justifyContent: 'space-between', gap: 10, padding: '8px 0', borderTop: '1px solid #EFEEE8' }}
               >
-                <span style={{ fontSize: 13.5 }}>{r.month}</span>
+                <span style={{ fontSize: 13.5 }}>{periodLabel(r.period)}</span>
                 <span style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                  <Mono size={13} color={C.mut}>{r.amount}</Mono>
-                  <StatusPill status={r.status} />
+                  <Mono size={13} color={C.mut}>{naira(r.amountMinor)}</Mono>
+                  <StatusPill
+                    status={
+                      r.status !== 'confirmed'
+                        ? 'Pending'
+                        : r.source === 'card'
+                          ? 'Retried'
+                          : 'Received'
+                    }
+                  />
                 </span>
               </div>
             ))}
@@ -312,6 +341,8 @@ export function WebBenefits() {
 /** Printable protection card. Web's version of the offline card: A4 and PDF. */
 export function WebCard() {
   const { t, tier, sponsor } = useWeb()
+  const { data: card, failed } = useLive(useCard(PROTECTION_CARD), PROTECTION_CARD)
+  const { data: summary } = useLive(useSummary(MEMBER_SUMMARY), MEMBER_SUMMARY)
 
   const actions = [
     { label: 'Print at A4', icon: 'ph ph-printer', primary: true },
@@ -323,6 +354,7 @@ export function WebCard() {
     <div className="rise" style={{ maxWidth: 830 }}>
       <PageTitle>{t.card_title}</PageTitle>
       <PageSub>Held on your account and printable here. {t.card_sub}</PageSub>
+      {failed && <NotLive what="Your card" />}
 
       <div style={{ display: 'grid', gridTemplateColumns: '1.15fr 1fr', gap: 16, marginTop: 18, alignItems: 'start' }}>
         <div style={{ padding: 24, borderRadius: 14, background: C.ink, color: C.surface }}>
@@ -332,10 +364,10 @@ export function WebCard() {
                 CIVIL SERVANT PROTECT
               </Mono>
               <div style={{ fontSize: 21, fontWeight: 700, letterSpacing: '-.02em', marginTop: 9 }}>
-                {WEB_MEMBER.fullName}
+                {summary.member.fullName}
               </div>
               <div style={{ fontSize: 13, color: 'rgba(247,246,242,.7)', marginTop: 2 }}>
-                {sponsor.org} · {WEB_MEMBER.grade}
+                {sponsor.org} · {summary.member.grade}
               </div>
             </div>
             <div
@@ -349,9 +381,9 @@ export function WebCard() {
           </div>
           <div style={{ display: 'flex', gap: 26, marginTop: 22, paddingTop: 16, borderTop: '1px solid rgba(247,246,242,.16)' }}>
             {[
-              [t.csp_id, WEB_MEMBER.cspId],
-              [t.in_force, WEB_MEMBER.inForce],
-              ['TIER', TIER_NAMES[tier]],
+              [t.csp_id, card.cspId],
+              [t.in_force, dayFirst(card.inForceSince)],
+              ['TIER', titleCase(card.tier) || TIER_NAMES[tier]],
             ].map(([k, v]) => (
               <div key={k}>
                 <Mono size={9} color="rgba(247,246,242,.5)" style={{ display: 'block', letterSpacing: '.12em' }}>{k}</Mono>

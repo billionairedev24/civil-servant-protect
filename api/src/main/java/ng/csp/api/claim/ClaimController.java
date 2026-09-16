@@ -78,6 +78,24 @@ public class ClaimController {
     return Map.of("claims", claims.queue());
   }
 
+  public record Pay(
+      @NotBlank @Pattern(regexp = "\\d{3}", message = "A bank code is three digits") String bankCode,
+      @NotBlank @Pattern(regexp = "\\d{10}", message = "A NUBAN account number is ten digits")
+          String accountNumber) {}
+
+  /**
+   * Send an approved claim's money.
+   *
+   * <p>A different permission from assessing, held by a different role. The assessor decides;
+   * operations pays. See ClaimService#pay and the payer_is_not_assessor constraint.
+   */
+  @PostMapping("/claims/{ref}/pay")
+  @PreAuthorize("hasAuthority('PERM_CLAIM_PAY')")
+  public ClaimService.Paid pay(
+      SessionUser session, @PathVariable String ref, @Valid @RequestBody Pay body) {
+    return claims.pay(session, ref, body.bankCode(), body.accountNumber());
+  }
+
   public record Assess(
       @NotBlank @Pattern(regexp = "approve|decline|request_more") String decision,
       @NotBlank @Size(min = 4, message = "Say why — this is kept on the claim trail.") String note,

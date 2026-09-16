@@ -9,6 +9,8 @@ interface WebStateShape {
   otp: string
   /** Sign-in has two stages on one screen: number, then the 6-digit code. */
   otpStage: boolean
+  /** The SMS challenge in flight, when signing in against the API. */
+  challengeId: string | null
   clStep: number
   cl: number[]
   /** Contributions ledger filter chip. */
@@ -20,6 +22,7 @@ const INITIAL: WebStateShape = {
   tier: 1,
   otp: '',
   otpStage: false,
+  challengeId: null,
   clStep: 0,
   cl: [0, 0],
   filter: 0,

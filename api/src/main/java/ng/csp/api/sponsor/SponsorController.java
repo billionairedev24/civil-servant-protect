@@ -48,11 +48,28 @@ public class SponsorController {
           @Pattern(regexp = "^\\d{4}-\\d{2}-01$", message = "A period is the first day of a month")
           String period,
       String filename,
-      @NotEmpty @Size(max = 20_000) List<@Valid ScheduleRowBody> rows) {}
+      /*
+       * A million rows, which is the build spec's ceiling.
+       *
+       * The cap was 20,000 when the loader did a SELECT and an INSERT per row;
+       * it is now a bulk insert and a batch job, so the limit is the request
+       * body rather than the loader. A million rows of JSON is large enough
+       * that a real deployment should offer a file upload instead — which is
+       * the SFTP poller, and is not written.
+       */
+      @NotEmpty @Size(max = 1_000_000) List<@Valid ScheduleRowBody> rows) {}
 
+  /**
+   * Hand over a schedule.
+   *
+   * <p>202, not 201. The rows are written down before this returns and the load runs behind it, so
+   * what the caller has is a batch to watch rather than a finished result — see the status endpoint
+   * below. A request that ran until a million rows were loaded would be cut by a proxy and retried
+   * by an officer, and the retry would produce a second million rows.
+   */
   @PostMapping("/sponsors/{sponsorId}/schedules")
   @PreAuthorize("hasAuthority('PERM_SCHEDULE_UPLOAD')")
-  @ResponseStatus(HttpStatus.CREATED)
+  @ResponseStatus(HttpStatus.ACCEPTED)
   public SponsorService.UploadResult upload(
       SessionUser session, @PathVariable UUID sponsorId, @Valid @RequestBody UploadSchedule body) {
     session.assertSponsorScope(sponsorId);
@@ -64,6 +81,15 @@ public class SponsorController {
         body.rows().stream()
             .map(r -> new SponsorService.ScheduleRow(r.serviceNo(), r.name(), r.amountMinor()))
             .toList());
+  }
+
+  /** Progress, for the console to poll while a load runs. */
+  @GetMapping("/sponsors/{sponsorId}/schedules/{batchId}")
+  @PreAuthorize("hasAuthority('PERM_SPONSOR_READ')")
+  public ng.csp.api.schedule.ScheduleLoader.Batch scheduleStatus(
+      SessionUser session, @PathVariable UUID sponsorId, @PathVariable UUID batchId) {
+    session.assertSponsorScope(sponsorId);
+    return sponsors.batchStatus(batchId);
   }
 
   @GetMapping("/sponsors/{sponsorId}/reconciliation/{cycleId}")

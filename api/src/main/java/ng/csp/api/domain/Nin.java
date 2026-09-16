@@ -1,13 +1,7 @@
 package ng.csp.api.domain;
 
 import java.nio.charset.StandardCharsets;
-import java.security.SecureRandom;
-import java.util.Arrays;
-import javax.crypto.Cipher;
-import javax.crypto.Mac;
-import javax.crypto.spec.GCMParameterSpec;
-import javax.crypto.spec.SecretKeySpec;
-import ng.csp.api.config.CspProperties;
+import ng.csp.api.crypto.KeyVault;
 import org.springframework.stereotype.Component;
 
 /**
@@ -21,36 +15,21 @@ import org.springframework.stereotype.Component;
  *   <li>{@link #encrypt} — the value itself, for the rare path that must re-transmit it to NIMC.
  * </ul>
  *
- * <p><b>The keys belong in the HSM.</b> They are derived from configuration here so the thing runs
- * locally and in CI; the build spec is explicit that keys never leave Nigeria and live in Vault plus
- * an in-country HSM. Swapping this class for HSM-backed operations is the whole change — nothing
- * else touches a NIN, which is why it is one class.
+ * <p>The cryptography is not here. It is behind {@link KeyVault}, which either derives keys from
+ * configuration for local work or reaches an in-country HSM where the key never leaves the device.
+ * This class owns the two things that are about NINs rather than about keys: that a NIN is
+ * normalised before it is matched, and that nothing else in the system touches one.
+ *
+ * <p>That second part is why this is one small class. Every read and write of a NIN goes through
+ * these four methods, so "where could a NIN leak from" has a short answer.
  */
 @Component
 public class Nin {
 
-  private static final int GCM_TAG_BITS = 128;
-  private static final int IV_BYTES = 12;
+  private final KeyVault keys;
 
-  private final byte[] hmacKey;
-  private final SecretKeySpec encryptionKey;
-  private final SecureRandom random = new SecureRandom();
-
-  public Nin(CspProperties props) {
-    // Separate keys from one secret, so the matching key and the reading key are
-    // not the same value even before an HSM is in front of them.
-    this.hmacKey = derive(props.jwtSecret(), "nin-hmac");
-    this.encryptionKey = new SecretKeySpec(derive(props.jwtSecret(), "nin-enc"), "AES");
-  }
-
-  private static byte[] derive(String secret, String label) {
-    try {
-      var mac = Mac.getInstance("HmacSHA256");
-      mac.init(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
-      return Arrays.copyOf(mac.doFinal(label.getBytes(StandardCharsets.UTF_8)), 32);
-    } catch (Exception e) {
-      throw new IllegalStateException("could not derive NIN keys", e);
-    }
+  public Nin(KeyVault keys) {
+    this.keys = keys;
   }
 
   /** Normalised first, so 1234 5678 901 and 12345678901 are the same person. */
@@ -58,33 +37,14 @@ public class Nin {
     if (nin == null || nin.isBlank()) {
       return null;
     }
-    try {
-      var mac = Mac.getInstance("HmacSHA256");
-      mac.init(new SecretKeySpec(hmacKey, "HmacSHA256"));
-      return mac.doFinal(normalise(nin).getBytes(StandardCharsets.UTF_8));
-    } catch (Exception e) {
-      throw new IllegalStateException("could not hash NIN", e);
-    }
+    return keys.hmac(KeyVault.Purpose.NIN_HMAC, bytes(nin));
   }
 
-  /** AES-GCM. The IV is prepended, because it must be unique per record and is not secret. */
   public byte[] encrypt(String nin) {
     if (nin == null || nin.isBlank()) {
       return null;
     }
-    try {
-      var iv = new byte[IV_BYTES];
-      random.nextBytes(iv);
-      var cipher = Cipher.getInstance("AES/GCM/NoPadding");
-      cipher.init(Cipher.ENCRYPT_MODE, encryptionKey, new GCMParameterSpec(GCM_TAG_BITS, iv));
-      var body = cipher.doFinal(normalise(nin).getBytes(StandardCharsets.UTF_8));
-      var out = new byte[iv.length + body.length];
-      System.arraycopy(iv, 0, out, 0, iv.length);
-      System.arraycopy(body, 0, out, iv.length, body.length);
-      return out;
-    } catch (Exception e) {
-      throw new IllegalStateException("could not encrypt NIN", e);
-    }
+    return keys.encrypt(KeyVault.Purpose.NIN_ENCRYPTION, bytes(nin));
   }
 
   /** Reading a NIN back is rare and should be audited by the caller. */
@@ -92,15 +52,11 @@ public class Nin {
     if (stored == null) {
       return null;
     }
-    try {
-      var iv = Arrays.copyOfRange(stored, 0, IV_BYTES);
-      var body = Arrays.copyOfRange(stored, IV_BYTES, stored.length);
-      var cipher = Cipher.getInstance("AES/GCM/NoPadding");
-      cipher.init(Cipher.DECRYPT_MODE, encryptionKey, new GCMParameterSpec(GCM_TAG_BITS, iv));
-      return new String(cipher.doFinal(body), StandardCharsets.UTF_8);
-    } catch (Exception e) {
-      throw new IllegalStateException("could not decrypt NIN", e);
-    }
+    return new String(keys.decrypt(KeyVault.Purpose.NIN_ENCRYPTION, stored), StandardCharsets.UTF_8);
+  }
+
+  private static byte[] bytes(String nin) {
+    return normalise(nin).getBytes(StandardCharsets.UTF_8);
   }
 
   private static String normalise(String nin) {

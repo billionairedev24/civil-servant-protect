@@ -1,7 +1,12 @@
 import { Icon } from '../../../components/Icon'
 import { Kicker, Mono } from '../../../components/primitives'
 import { C, MONO } from '../../../theme/tokens'
-import { BENE_RULES, WEB_BENEFICIARIES, ledgerFor, railRef } from '../data'
+import { BENE_RULES, railRef } from '../data'
+import { BENEFICIARY_SET, LEDGER_FIXTURE, MEMBER_SUMMARY } from '../../../api/fixtures'
+import {
+  useBeneficiaries, useConfirmBeneficiaries, useContributions, useSummary,
+} from '../../../api/queries'
+import { NotLive, dayFirst, naira, periodLabel, useLive } from '../../../api/live'
 import { PageSub, PageTitle, Panel, StatusPill, Table, TableHead } from '../../../components/surface'
 import { useWeb } from '../state'
 
@@ -17,27 +22,55 @@ export function WebContributions() {
   const { t, sponsor, late, filter, set } = useWeb()
   const payroll = sponsor.payroll
   const sponsorLate = late && payroll
-  const rows = ledgerFor(payroll, late)
+  const { data: ledger, failed } = useLive(useContributions(LEDGER_FIXTURE), LEDGER_FIXTURE)
+  const { data: summary } = useLive(useSummary(MEMBER_SUMMARY), MEMBER_SUMMARY)
   const template = '1fr 1.5fr 1.2fr .9fr 1fr'
 
+  /* Statuses the member reads, from the row's own state and source. A month the
+     card fallback recovered is "Retried", not "Received": it did arrive, but
+     not the way it was supposed to, and that is the difference this screen
+     exists to show. */
+  const statusOf = (r: (typeof ledger.rows)[number]): 'Received' | 'Pending' | 'Retried' =>
+    r.status !== 'confirmed' ? 'Pending' : r.source === 'card' ? 'Retried' : 'Received'
+
+  const received = ledger.rows.filter((r) => statusOf(r) === 'Received').length
+  const retried = ledger.rows.filter((r) => statusOf(r) === 'Retried').length
+  const pending = ledger.rows.filter((r) => statusOf(r) === 'Pending').length
+  const outstandingMinor = ledger.rows.find((r) => r.status === 'confirmed')?.amountMinor ?? 0
+
+  const rows =
+    filter === 0
+      ? ledger.rows
+      : ledger.rows.filter((r) => statusOf(r) === (['', 'Received', payroll ? 'Pending' : 'Retried'][filter]))
+
   const stats = [
-    { label: 'PAID TO DATE', value: '₦35,000', sub: t.across_months, alert: false },
-    { label: 'MONTHS COVERED', value: '14 / 14', sub: 'No gap in cover since October 2025', alert: false },
+    { label: 'PAID TO DATE', value: naira(ledger.totals.paidMinor), sub: t.across_months, alert: false },
+    {
+      label: 'MONTHS COVERED',
+      value: `${ledger.totals.monthsCovered} / ${ledger.rows.length}`,
+      sub: `No gap in cover since ${periodLabel(ledger.rows[ledger.rows.length - 1]?.period)}`,
+      alert: false,
+    },
     sponsorLate
-      ? { label: 'OUTSTANDING', value: '₦2,500', sub: 'August, 9 days late with your sponsor', alert: true }
+      ? {
+          label: 'OUTSTANDING',
+          value: naira(outstandingMinor),
+          sub: `${periodLabel(summary.collection.lastPeriod)}, not yet sent by your sponsor`,
+          alert: true,
+        }
       : {
           label: 'NEXT COLLECTION',
-          value: payroll ? '30 Sep' : '28 Sep',
-          sub: payroll ? 'From the September payslip' : 'GTBank ••4471',
+          value: dayFirst(summary.collection.nextDate),
+          sub: payroll ? 'From the next payslip' : 'GTBank ••4471',
           alert: false,
         },
   ]
 
   const filters: [string, string][] = [
-    ['All', '14'],
-    ['Received', payroll ? '13' : '12'],
-    [payroll ? 'Pending' : 'Retried', payroll ? '1' : '2'],
-    ['Adjustments', '0'],
+    ['All', String(ledger.rows.length)],
+    ['Received', String(received)],
+    [payroll ? 'Pending' : 'Retried', String(payroll ? pending : retried)],
+    ['Adjustments', String(ledger.rows.filter((r) => r.status === 'reversed').length)],
   ]
 
   return (
@@ -52,6 +85,8 @@ export function WebContributions() {
           {t.download}
         </button>
       </div>
+
+      {failed && <NotLive what="Your contributions" />}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginTop: 16 }}>
         {stats.map((s) => (
@@ -103,19 +138,27 @@ export function WebContributions() {
           />
           {rows.map((r) => (
             <div
-              key={r.month}
+              key={r.period}
               style={{ display: 'grid', gridTemplateColumns: template, borderTop: '1px solid #EFEEE8', alignItems: 'center' }}
             >
-              <div style={{ padding: '12px 16px', fontSize: 14, fontWeight: 600 }}>{r.month}</div>
+              <div style={{ padding: '12px 16px', fontSize: 14, fontWeight: 600 }}>{periodLabel(r.period)}</div>
               <div style={{ padding: '12px 16px', fontSize: 13.5, color: C.mut }}>
-                {payroll ? sponsor.short : 'Direct debit · GTBank ••4471'}
+                {/* What actually collected it, not what usually does. A card
+                    fallback on a payroll rail is the interesting row. */}
+                {r.source === 'card'
+                  ? 'Card fallback'
+                  : payroll
+                    ? sponsor.short
+                    : 'Direct debit · GTBank ••4471'}
               </div>
               <div style={{ padding: '12px 16px', fontFamily: MONO, fontSize: 12, color: C.faint }}>
-                {railRef(sponsor)}
+                {r.railRef ?? railRef(sponsor)}
               </div>
-              <div style={{ padding: '12px 16px', fontFamily: MONO, fontSize: 13.5, textAlign: 'right' }}>{r.amount}</div>
+              <div style={{ padding: '12px 16px', fontFamily: MONO, fontSize: 13.5, textAlign: 'right' }}>
+                {naira(r.status === 'confirmed' ? r.amountMinor : outstandingMinor)}
+              </div>
               <div style={{ padding: '12px 16px', textAlign: 'right' }}>
-                <StatusPill status={r.status} />
+                <StatusPill status={statusOf(r)} />
               </div>
             </div>
           ))}
@@ -145,12 +188,18 @@ export function WebContributions() {
  */
 export function WebBeneficiaries() {
   const { t, go } = useWeb()
+  const { data: nominated, failed } = useLive(useBeneficiaries(BENEFICIARY_SET), BENEFICIARY_SET)
+  const confirm = useConfirmBeneficiaries()
+  const total = nominated.people.reduce((sum, b) => sum + b.sharePct, 0)
+  const balanced = total === 100
   const template = '1.4fr .9fr 1.1fr 1fr 88px'
 
   return (
     <div className="rise" style={{ maxWidth: 830 }}>
       <PageTitle>{t.benes_title}</PageTitle>
       <PageSub style={{ lineHeight: 1.5, maxWidth: 600 }}>{t.benes_sub}</PageSub>
+
+      {failed && <NotLive what="Who you have named" />}
 
       <div style={{ marginTop: 18 }}>
         <Table>
@@ -164,19 +213,26 @@ export function WebBeneficiaries() {
               { label: '', align: 'right' },
             ]}
           />
-          {WEB_BENEFICIARIES.map((b) => (
+          {nominated.people.map((b) => (
             <div
-              key={b.name}
+              key={b.id}
               style={{ display: 'grid', gridTemplateColumns: template, borderTop: '1px solid #EFEEE8', alignItems: 'center' }}
             >
               <div style={{ padding: '13px 16px' }}>
                 <span style={{ display: 'block', fontSize: 14.5, fontWeight: 600 }}>{b.name}</span>
-                <Mono size={11} color={C.faint} style={{ display: 'block', marginTop: 1 }}>{b.id}</Mono>
+                {/* Whether we hold an identity document, never the number. The
+                    NIN is L3 and does not leave the server — see Nin.java. A
+                    minor is on file with a birth certificate instead. */}
+                <Mono size={11} color={C.faint} style={{ display: 'block', marginTop: 1 }}>
+                  {b.ninOnFile ? 'NIN on file' : 'Birth cert. on file'}
+                </Mono>
               </div>
-              <div style={{ padding: '13px 16px', fontSize: 13.5, color: C.mut }}>{b.rel}</div>
-              <div style={{ padding: '13px 16px', fontFamily: MONO, fontSize: 13, color: C.mut }}>{b.phone}</div>
+              <div style={{ padding: '13px 16px', fontSize: 13.5, color: C.mut }}>{b.relation}</div>
+              <div style={{ padding: '13px 16px', fontFamily: MONO, fontSize: 13, color: C.mut }}>
+                {b.msisdn ?? '—'}
+              </div>
               <div style={{ padding: '13px 16px', textAlign: 'right' }}>
-                <Mono size={15} weight={500}>{b.share}</Mono>
+                <Mono size={15} weight={500}>{b.sharePct}%</Mono>
               </div>
               <div style={{ padding: '13px 16px', textAlign: 'right' }}>
                 <button
@@ -194,17 +250,27 @@ export function WebBeneficiaries() {
           <div
             style={{
               display: 'grid', gridTemplateColumns: template,
-              borderTop: '1.5px solid #DDE9E2', background: C.gTint, alignItems: 'center',
+              borderTop: `1.5px solid ${balanced ? '#DDE9E2' : C.ochreBorder}`,
+              background: balanced ? C.gTint : C.ochreBg, alignItems: 'center',
             }}
           >
-            <div style={{ padding: '12px 16px', fontSize: 13.5, fontWeight: 600, color: C.gd, gridColumn: 'span 3' }}>
+            <div
+              style={{
+                padding: '12px 16px', fontSize: 13.5, fontWeight: 600,
+                color: balanced ? C.gd : C.ochreInk, gridColumn: 'span 3',
+              }}
+            >
               {t.shares_title}
             </div>
             <div style={{ padding: '12px 16px', textAlign: 'right' }}>
-              <Mono size={15} weight={600} color={C.gd}>100%</Mono>
+              <Mono size={15} weight={600} color={balanced ? C.gd : C.ochreInk}>{total}%</Mono>
             </div>
             <div style={{ padding: '12px 16px', textAlign: 'right' }}>
-              <Icon name="ph-fill ph-check-circle" size={17} color={C.gd} />
+              <Icon
+                name={balanced ? 'ph-fill ph-check-circle' : 'ph-fill ph-warning-circle'}
+                size={17}
+                color={balanced ? C.gd : C.ochre}
+              />
             </div>
           </div>
         </Table>
@@ -219,9 +285,14 @@ export function WebBeneficiaries() {
           type="button"
           className="btn btn-primary"
           style={{ height: 44, padding: '0 22px', fontSize: 15 }}
-          onClick={() => go('home')}
+          /* The server refuses a set that does not total 100 with a deferred
+             constraint trigger. Saying so here means the member fixes it while
+             the form is still in front of them. */
+          disabled={!balanced || confirm.isPending}
+          title={balanced ? undefined : 'Shares must total exactly 100% before this can be confirmed.'}
+          onClick={() => confirm.mutate(undefined, { onSuccess: () => go('home') })}
         >
-          {t.confirm_correct}
+          {confirm.isPending ? '…' : t.confirm_correct}
         </button>
       </div>
 

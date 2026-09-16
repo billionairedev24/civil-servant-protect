@@ -52,6 +52,16 @@ export const URLS: Record<WebScreen, string> = {
 }
 
 /**
+ * Pages reachable without a session.
+ *
+ * Signing in, enrolling — which happens before there is an account to sign in
+ * to — and the next-of-kin portal, whose whole point is that the person using it
+ * is not the member and never had a login. Everything else needs a session, and
+ * on a live build asking for one of those signed out sends you to /sign-in.
+ */
+export const PUBLIC_WEB_SCREENS: readonly WebScreen[] = ['signin', 'enrol', 'beneportal']
+
+/**
  * Which screen a URL resolves to. Exact first, then the two paths that carry a
  * record id — a claim reference is part of the address, so `/claims/<anything>`
  * has to land on the tracker rather than 404 onto the dashboard.

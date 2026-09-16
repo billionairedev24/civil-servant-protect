@@ -21,6 +21,10 @@ spring:
     clean-on-validation-error: true
 
 csp:
+  schedule:
+    # Tiny, so a handful of rows crosses several chunk boundaries. The bug this
+    # guards against is invisible on any file smaller than one chunk.
+    chunk-size: 2
   jwt-secret: test-secret-that-is-at-least-32-characters-long
   token-issuer: https://member-auth.csp.test
   otp:

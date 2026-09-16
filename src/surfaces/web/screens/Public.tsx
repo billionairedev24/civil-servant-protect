@@ -1,10 +1,29 @@
+import { useState } from 'react'
 import { Icon } from '../../../components/Icon'
 import { Kicker, Mono } from '../../../components/primitives'
-import { TIER_NAMES, TIER_PRICES } from '../../../data/member'
+import { MEMBER, TIER_NAMES, TIER_PRICES, toE164 } from '../../../data/member'
+import { useApi } from '../../../api/provider'
+import { useAuth } from '../../../api/auth'
 import { C, MONO } from '../../../theme/tokens'
 import { WEB_MEMBER } from '../data'
 import { ParityNote } from '../../../components/surface'
 import { useWeb } from '../state'
+
+/** What the server said, rather than a generic apology. See api/auth. */
+function SignInProblem({ message }: { message: string }) {
+  return (
+    <div
+      role="alert"
+      style={{
+        display: 'flex', alignItems: 'flex-start', gap: 9, marginTop: 14, padding: '12px 13px',
+        border: `1px solid ${C.clayBorder2}`, borderRadius: 10, background: C.clayBg,
+      }}
+    >
+      <Icon name="ph-fill ph-warning-circle" size={17} color={C.clay} />
+      <span style={{ fontSize: 13, lineHeight: 1.45, color: C.clayInk }}>{message}</span>
+    </div>
+  )
+}
 
 /**
  * Sign in. Two stages on one page: number, then the 6-digit code.
@@ -15,7 +34,43 @@ import { useWeb } from '../state'
  * 20-minute idle timeout.
  */
 export function WebSignIn() {
-  const { t, otp, otpStage, set, go } = useWeb()
+  const { t, otp, otpStage, challengeId, set, go } = useWeb()
+  const { live } = useApi()
+  const { requestCode, submitCode, error, clearError } = useAuth()
+  const [msisdn, setMsisdn] = useState<string>(MEMBER.phoneEntry)
+  const [busy, setBusy] = useState(false)
+
+  /* On a browser the code is sent every time — there is no device to bind to,
+     which is why this differs from the phone app rather than reusing its flow. */
+  const sendCode = async () => {
+    if (!live) return set({ otpStage: true })
+    setBusy(true)
+    try {
+      const challenge = await requestCode(toE164(msisdn))
+      set({ otpStage: true, otp: '', challengeId: challenge.challengeId })
+    } catch {
+      // The message is on the auth context; staying put lets them fix the
+      // number rather than landing on a code screen that cannot work.
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const verify = async () => {
+    if (!live) {
+      set({ otpStage: false, otp: '' })
+      return go('home')
+    }
+    setBusy(true)
+    try {
+      if (await submitCode(challengeId ?? '', otp)) {
+        set({ otpStage: false, otp: '' })
+        go('home')
+      }
+    } finally {
+      setBusy(false)
+    }
+  }
 
   return (
     <div className="rise" style={{ maxWidth: 430 }}>
@@ -45,7 +100,7 @@ export function WebSignIn() {
               ))}
             </div>
             <div style={{ fontSize: 13.5, lineHeight: 1.5, color: C.mut }}>
-              {t.otp_sub} <span style={{ color: C.ink, fontWeight: 600 }}>{WEB_MEMBER.phoneMasked}</span> ·{' '}
+              {t.otp_sub} <span style={{ color: C.ink, fontWeight: 600 }}>{MEMBER.phoneMasked}</span> ·{' '}
               <button
                 type="button"
                 onClick={() => set({ otpStage: false, otp: '' })}
@@ -63,22 +118,21 @@ export function WebSignIn() {
               type="button"
               className="btn btn-primary"
               style={{ height: 48, padding: '0 26px', fontSize: 15.5 }}
-              onClick={() => {
-                set({ otpStage: false, otp: '' })
-                go('home')
-              }}
+              disabled={busy || (live && otp.length !== 6)}
+              onClick={() => void verify()}
             >
-              Verify and sign in
+              {busy ? '…' : 'Verify and sign in'}
             </button>
             <button
               type="button"
               className="btn btn-secondary"
               style={{ height: 48, padding: '0 20px', fontSize: 15.5 }}
-              onClick={() => set({ otp: '418206' })}
+              onClick={() => set({ otp: live ? '000000' : '418206' })}
             >
               Fill demo code
             </button>
           </div>
+          {error && <SignInProblem message={error} />}
         </>
       ) : (
         <>
@@ -91,8 +145,27 @@ export function WebSignIn() {
               }}
             >
               <span style={{ fontSize: 16, color: C.mut, fontWeight: 500 }}>+234</span>
-              <Mono size={19} weight={500}>{WEB_MEMBER.phoneEntry}</Mono>
-              <span style={{ width: 2, height: 22, background: C.g, animation: 'pulse 1.1s steps(1) infinite' }} />
+              {live ? (
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  aria-label={t.phone_label}
+                  value={msisdn}
+                  onChange={(e) => {
+                    setMsisdn(e.target.value)
+                    clearError()
+                  }}
+                  style={{
+                    flex: 1, minWidth: 0, border: 0, background: 'transparent', outline: 'none',
+                    fontFamily: MONO, fontSize: 19, fontWeight: 500, color: C.ink,
+                  }}
+                />
+              ) : (
+                <>
+                  <Mono size={19} weight={500}>{MEMBER.phoneEntry}</Mono>
+                  <span style={{ width: 2, height: 22, background: C.g, animation: 'pulse 1.1s steps(1) infinite' }} />
+                </>
+              )}
             </div>
             <div style={{ fontSize: 12.5, lineHeight: 1.5, color: C.faint }}>{t.phone_sub}</div>
           </div>
@@ -101,10 +174,12 @@ export function WebSignIn() {
             type="button"
             className="btn btn-primary"
             style={{ marginTop: 22, height: 48, padding: '0 26px', fontSize: 15.5 }}
-            onClick={() => set({ otpStage: true })}
+            disabled={busy}
+            onClick={() => void sendCode()}
           >
-            {t.send_code}
+            {busy ? '…' : t.send_code}
           </button>
+          {error && <SignInProblem message={error} />}
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '26px 0 18px' }}>
             <div style={{ flex: 1, height: 1, background: C.line2 }} />

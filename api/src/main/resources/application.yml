@@ -1,4 +1,14 @@
 spring:
+  batch:
+    jdbc:
+      # Flyway owns the schema — Batch's tables are in V8. Two things creating
+      # tables in one database is how a migration history stops describing what
+      # is actually there.
+      initialize-schema: never
+    job:
+      # Jobs are launched by the upload endpoint, not at startup. Without this,
+      # every boot would re-run the last schedule load.
+      enabled: false
   application:
     name: csp-api
   datasource:
@@ -60,6 +70,27 @@ csp:
   # default is loopback on any port, which covers `npm run dev` (5173),
   # `npm run preview` (4173) and the browser tests. Deployment replaces it.
   cors-origins: ${CORS_ORIGINS:http://localhost:[*],http://127.0.0.1:[*]}
+  crypto:
+    hsm:
+      # The in-country HSM the spec requires. Off locally, mandatory under the
+      # prod profile — see ProductionSafetyCheck. `config` is a SunPKCS11
+      # configuration file naming the vendor's library and slot; the keys must
+      # already exist in the token under the labels in KeyVault.Purpose, because
+      # a key ceremony is a witnessed procedure and not something a pod does on
+      # first boot.
+      enabled: ${HSM_ENABLED:false}
+      config: ${HSM_CONFIG:}
+      pin: ${HSM_PIN:}
+  integrations:
+    # `stub` answers locally: no SMS leaves the machine, no NIN reaches NIMC and
+    # no money moves — but every call still goes through the replay log and the
+    # circuit breakers, so the recorded behaviour is the real behaviour.
+    # `http` calls the endpoints below. See SETUP.md.
+    mode: ${INTEGRATIONS_MODE:stub}
+    nimc-url: ${NIMC_URL:}
+    comms-url: ${COMMS_URL:}
+    comms-sender: ${COMMS_SENDER:CSProtect}
+    payout-url: ${PAYOUT_URL:}
   otp:
     echo: ${OTP_ECHO:false}
     fixed-code: ${OTP_FIXED_CODE:#{null}}
