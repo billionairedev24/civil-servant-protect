@@ -200,8 +200,11 @@ class SeparationOfDutiesTest {
     // The service does not throw here — it simply finds nothing, which is the
     // failure mode to want.
     RlsScope.set(RlsScope.forSponsor(sponsorId));
-    assertThat(sponsors.roster(otherSponsorId, null, 50)).isEmpty();
-    assertThat(sponsors.roster(sponsorId, null, 50)).hasSize(1);
+    assertThat(sponsors.roster(otherSponsorId, null, 50).members()).isEmpty();
+    assertThat(sponsors.roster(sponsorId, null, 50).members()).hasSize(1);
+    // The chip counts are scoped the same way. A count that leaked across rails
+    // would tell an officer how many members another MDA has.
+    assertThat(sponsors.roster(otherSponsorId, null, 50).counts().all()).isZero();
   }
 
   @Test
@@ -476,6 +479,132 @@ class SeparationOfDutiesTest {
         .param("n", name).param("r", role)
         .query(UUID.class)
         .single();
+  }
+
+  // ── What a sponsor may know, about rows they may not read ──────────────────
+
+  @Test
+  @DisplayName("a sponsor sees that a member has nominated somebody, and not who")
+  void sponsorSeesTheFlagAndNotTheNames() {
+    db.sql(
+            """
+            INSERT INTO beneficiaries (member_id, full_name, relation, share_pct, position)
+            VALUES (:m, 'Chinedu Okafor', 'Spouse', 100, 0)
+            """)
+        .param("m", memberId)
+        .update();
+
+    RlsScope.set(RlsScope.forSponsor(sponsorId));
+
+    // The flag is on the member row, which the sponsor may read.
+    assertThat(sponsors.roster(sponsorId, null, 50).members().getFirst().hasBeneficiary()).isTrue();
+    assertThat(sponsors.roster(sponsorId, null, 50).counts().noBeneficiary()).isZero();
+
+    // The names are not, and are not reachable by asking directly either.
+    var names =
+        db.sql("SELECT count(*)::int FROM beneficiaries WHERE member_id = :m")
+            .param("m", memberId)
+            .query(Integer.class)
+            .single();
+    assertThat(names).isZero();
+  }
+
+  @Test
+  @DisplayName("a member with nobody nominated is counted, which a subquery under RLS could not do")
+  void unnominatedMembersAreCounted() {
+    /*
+     * The bug this pins: `NOT EXISTS (SELECT 1 FROM beneficiaries ...)` run by a
+     * sponsor sees no beneficiaries at all, so it was true for every member
+     * alive. The dashboard reported that nobody on the payroll had named
+     * anyone — and it looked like a number rather than an error.
+     */
+    RlsScope.set(RlsScope.forSponsor(sponsorId));
+    assertThat(sponsors.roster(sponsorId, null, 50).counts().noBeneficiary()).isEqualTo(1);
+
+    RlsScope.set(RlsScope.system());
+    db.sql(
+            """
+            INSERT INTO beneficiaries (member_id, full_name, relation, share_pct, position)
+            VALUES (:m, 'Chinedu Okafor', 'Spouse', 100, 0)
+            """)
+        .param("m", memberId)
+        .update();
+
+    RlsScope.set(RlsScope.forSponsor(sponsorId));
+    assertThat(sponsors.roster(sponsorId, null, 50).counts().noBeneficiary()).isZero();
+  }
+
+  @Test
+  @DisplayName("someone named at 0% is not a payee, so the member still counts as unnominated")
+  void aNameWithNoShareIsNotANomination() {
+    db.sql(
+            """
+            INSERT INTO beneficiaries (member_id, full_name, relation, share_pct, position)
+            VALUES (:m, 'Emeka Okafor', 'Son', 0, 0)
+            """)
+        .param("m", memberId)
+        .update();
+
+    RlsScope.set(RlsScope.forSponsor(sponsorId));
+    assertThat(sponsors.roster(sponsorId, null, 50).members().getFirst().hasBeneficiary()).isFalse();
+  }
+
+  @Test
+  @DisplayName("a sponsor sees that a claim exists on their member, and none of what it says")
+  void sponsorSeesTheClaimAndNotItsContents() {
+    var ref = "CLM-2026-7001";
+    db.sql(
+            """
+            INSERT INTO claims (claim_ref, member_id, type, state, amount_minor)
+            VALUES (:ref, :m, 'death', 'assessing', 500000000)
+            """)
+        .param("ref", ref).param("m", memberId)
+        .update();
+
+    RlsScope.set(RlsScope.forSponsor(sponsorId));
+
+    var seen = claims.forSponsor(sponsorId);
+    assertThat(seen.claims()).hasSize(1);
+    assertThat(seen.claims().getFirst().ref()).isEqualTo(ref);
+    // The record carries no amount at all — see SponsorClaim. What a family is
+    // paid is between them and the insurer.
+
+    // And the claim itself is still closed to them.
+    var rows =
+        db.sql("SELECT count(*)::int FROM claims WHERE claim_ref = :ref")
+            .param("ref", ref)
+            .query(Integer.class)
+            .single();
+    assertThat(rows).isZero();
+  }
+
+  @Test
+  @DisplayName("the projection does not carry another sponsor's claims")
+  void projectionIsScopedByRail() {
+    var otherMember =
+        db.sql(
+                """
+                INSERT INTO members
+                  (csp_id, sponsor_id, service_no, full_name, display_name, date_of_birth,
+                   msisdn, tier, in_force_since)
+                VALUES ('CSP-115-00001', :s, '9990001', 'Other Person', 'Other Person',
+                        DATE '1990-01-01', '+2348039990001', 'basic', DATE '2025-08-01')
+                RETURNING id
+                """)
+            .param("s", otherSponsorId)
+            .query(UUID.class)
+            .single();
+
+    db.sql(
+            """
+            INSERT INTO claims (claim_ref, member_id, type, state, amount_minor)
+            VALUES ('CLM-2026-7002', :m, 'death', 'assessing', 500000000)
+            """)
+        .param("m", otherMember)
+        .update();
+
+    RlsScope.set(RlsScope.forSponsor(sponsorId));
+    assertThat(claims.forSponsor(otherSponsorId).claims()).isEmpty();
   }
 
   private String proposedAction() {

@@ -1,21 +1,78 @@
+import { useState } from 'react'
 import { Icon } from '../../../components/Icon'
 import { Kicker, Mono } from '../../../components/primitives'
 import { PageSub, PageTitle, Panel } from '../../../components/surface'
 import { TIER_NAMES, TIER_PRICES } from '../../../data/member'
 import { C } from '../../../theme/tokens'
-import { CONSOLE_CLAIMS, LEAVERS, ROSTER, tone } from '../data'
+import { LEAVERS, tone } from '../data'
 import { useConsole } from '../state'
+import { ROSTER_FIXTURE, SPONSOR_CLAIMS, SPONSOR_DASHBOARD } from '../../../api/fixtures'
+import { useRoster, useSponsorClaims, useSponsorDashboard } from '../../../api/queries'
+import { NotLive, dayFirst, titleCase, useLive } from '../../../api/live'
+import { initialsOf } from '../../../data/member'
+import type { RosterMember, SponsorClaim } from '../../../api/types'
+
+/**
+ * What a member's month looks like, as a row.
+ *
+ * The collection state is the reason this screen exists — an HR officer opens
+ * it to find who was not deducted — so it is the loudest thing on the row after
+ * the name. "No beneficiary named" outranks a good payment, because a member
+ * who is paying and has nobody nominated is the one whose family will wait a
+ * year.
+ */
+function standingOf(m: RosterMember): {
+  label: string
+  tone: 'green' | 'ochre' | 'clay'
+  icon: string
+} {
+  if (!m.hasBeneficiary) {
+    return { label: 'No beneficiary named', tone: 'ochre', icon: 'ph ph-user-minus' }
+  }
+  switch (m.collectionState) {
+    case 'confirmed':
+      return { label: 'Paid', tone: 'green', icon: 'ph-fill ph-check-circle' }
+    case 'failed':
+      return { label: 'Collection failed', tone: 'clay', icon: 'ph ph-warning-circle' }
+    case 'expected':
+      return { label: 'Not in the last file', tone: 'ochre', icon: 'ph ph-clock-countdown' }
+    case 'reversed':
+      return { label: 'Reversed', tone: 'clay', icon: 'ph ph-arrow-u-up-left' }
+    default:
+      // Never collected from at all — enrolled but never deducted, which is a
+      // different problem from a missed month and should not read as one.
+      return { label: 'Never collected', tone: 'clay', icon: 'ph ph-question' }
+  }
+}
 
 export function ConsoleRoster() {
-  const { payroll, profile, rfilter, set, go } = useConsole()
+  const { payroll, rfilter, set, go } = useConsole()
+  const [search, setSearch] = useState('')
+  const { data: dash } = useLive(useSponsorDashboard(SPONSOR_DASHBOARD), SPONSOR_DASHBOARD)
+  const { data: roster, failed } = useLive(
+    useRoster(dash.sponsor.id, search, ROSTER_FIXTURE),
+    ROSTER_FIXTURE,
+  )
 
+  const counts = roster.counts
   const filters: [string, string][] = [
-    ['All', profile.count],
-    ['Active', '8,196'],
-    ['Not deducted', '12'],
-    ['No beneficiary', '203'],
-    ['Leaving', '9'],
+    ['All', counts.all.toLocaleString('en-NG')],
+    ['Paid', counts.paid.toLocaleString('en-NG')],
+    ['Not deducted', counts.notDeducted.toLocaleString('en-NG')],
+    ['No beneficiary', counts.noBeneficiary.toLocaleString('en-NG')],
   ]
+
+  /* Filtering the page, not the sponsor. The chips count the whole roster —
+     see RosterCounts on the server — but the list is one page of it, so a chip
+     narrows what is on screen rather than re-querying with a filter the API
+     does not have. Searching does go to the server, because a name that is not
+     on this page has to be found somehow. */
+  const shown = roster.members.filter((m) => {
+    if (rfilter === 1) return m.collectionState === 'confirmed' && m.hasBeneficiary
+    if (rfilter === 2) return m.collectionState !== 'confirmed'
+    if (rfilter === 3) return !m.hasBeneficiary
+    return true
+  })
 
   return (
     <>
@@ -23,8 +80,10 @@ export function ConsoleRoster() {
         <div>
           <PageTitle>Members</PageTitle>
           <PageSub style={{ lineHeight: 1.5 }}>
-            {profile.count} on this sponsor ·{' '}
-            {payroll ? '203 with no beneficiary named · 12 not deducted in August' : '51 failed debits · 7 revoked mandates'}
+            {counts.all.toLocaleString('en-NG')} on this sponsor ·{' '}
+            {counts.noBeneficiary.toLocaleString('en-NG')} with no beneficiary named ·{' '}
+            {counts.notDeducted.toLocaleString('en-NG')}{' '}
+            {payroll ? 'not in the last file' : 'with a failed collection'}
           </PageSub>
         </div>
         <button
@@ -48,10 +107,14 @@ export function ConsoleRoster() {
         <input
           type="text"
           aria-label="Search members"
-          placeholder="Name, service number, NIN or CSP-ID"
+          placeholder="Name, service number or CSP-ID"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
           style={{ flex: 1, minWidth: 0, border: 0, background: 'transparent', fontSize: 14, color: C.ink, outline: 'none' }}
         />
-        <Mono size={11} color={C.faint}>8,440 records</Mono>
+        <Mono size={11} color={C.faint}>
+          {counts.all.toLocaleString('en-NG')} records
+        </Mono>
       </div>
 
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 12 }}>
@@ -78,12 +141,15 @@ export function ConsoleRoster() {
         })}
       </div>
 
+      {failed && <NotLive what="This roster" />}
+
       <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 7 }}>
-        {ROSTER.map((m) => {
-          const skin = tone(m.tone)
+        {shown.map((m) => {
+          const standing = standingOf(m)
+          const skin = tone(standing.tone)
           return (
             <div
-              key={m.ref}
+              key={m.id}
               style={{
                 display: 'flex', alignItems: 'center', gap: 13, padding: '13px 15px',
                 border: `1px solid ${C.line}`, borderRadius: 11, background: C.white, flexWrap: 'wrap',
@@ -96,19 +162,24 @@ export function ConsoleRoster() {
                   fontSize: 12, fontWeight: 700, color: skin.fg,
                 }}
               >
-                {m.initials}
+                {initialsOf(m.name)}
               </div>
               <div style={{ flex: 1, minWidth: 160 }}>
                 <div style={{ fontSize: 14, fontWeight: 600 }}>{m.name}</div>
-                <Mono size={11.5} color={C.faint} style={{ display: 'block', marginTop: 2 }}>{m.ref}</Mono>
+                <Mono size={11.5} color={C.faint} style={{ display: 'block', marginTop: 2 }}>
+                  CSP {m.cspId}
+                  {m.serviceNo ? ` · SVC ${m.serviceNo}` : ''}
+                </Mono>
               </div>
               <div style={{ flex: 'none', minWidth: 88 }}>
-                <div style={{ fontSize: 12.5, fontWeight: 500 }}>{m.tier}</div>
-                <Mono size={11.5} color={C.faint} style={{ display: 'block', marginTop: 2 }}>{m.price}</Mono>
+                <div style={{ fontSize: 12.5, fontWeight: 500 }}>{titleCase(m.tier)}</div>
+                <Mono size={11.5} color={C.faint} style={{ display: 'block', marginTop: 2 }}>
+                  {m.grade ?? '—'}
+                </Mono>
               </div>
               <div style={{ flex: 'none', display: 'flex', alignItems: 'center', gap: 6, minWidth: 150 }}>
-                <Icon name={m.icon} size={14} color={skin.ic} />
-                <span style={{ fontSize: 12.5, fontWeight: 500, color: skin.ic }}>{m.state}</span>
+                <Icon name={standing.icon} size={14} color={skin.ic} />
+                <span style={{ fontSize: 12.5, fontWeight: 500, color: skin.ic }}>{standing.label}</span>
               </div>
               <button
                 type="button"
@@ -127,7 +198,14 @@ export function ConsoleRoster() {
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginTop: 14, flexWrap: 'wrap' }}>
-        <div style={{ fontSize: 12.5, color: C.faint }}>Showing 1–7 of 8,440</div>
+        <div style={{ fontSize: 12.5, color: C.faint }}>
+          {/* What is on screen, against what exists. A page of fifty out of
+              8,440 that says "8,440" is telling an officer they have seen the
+              whole roster. */}
+          {shown.length === 0
+            ? 'No members match'
+            : `Showing 1–${shown.length} of ${counts.all.toLocaleString('en-NG')}`}
+        </div>
         <div style={{ display: 'flex', gap: 6 }}>
           {['ph ph-caret-left', 'ph ph-caret-right'].map((icon, i) => (
             <button
@@ -350,10 +428,17 @@ export function ConsoleMembers() {
  * answer is what turns a stuck claim into a payment.
  */
 export function ConsoleClaims() {
+  const { data: dash } = useLive(useSponsorDashboard(SPONSOR_DASHBOARD), SPONSOR_DASHBOARD)
+  const { data: claims, failed } = useLive(
+    useSponsorClaims(dash.sponsor.id, SPONSOR_CLAIMS),
+    SPONSOR_CLAIMS,
+  )
+
   const stats = [
-    { v: '4', k: 'Open on your members', alert: false },
-    { v: '11', k: 'Paid this year', alert: false, green: true },
-    { v: '₦18.4m', k: 'Paid to families this year', alert: false, green: true },
+    { v: String(claims.open), k: 'Open on your members', alert: false },
+    { v: String(claims.paidThisYear), k: 'Paid this year', alert: false, green: true },
+    // Aggregate only. What any one family received is not the employer's to know.
+    { v: millions(claims.paidThisYearMinor), k: 'Paid to families this year', alert: false, green: true },
   ]
 
   return (
@@ -391,31 +476,42 @@ export function ConsoleClaims() {
         ))}
       </div>
 
+      {failed && <NotLive what="These claims" />}
+
       <Kicker size={9.5} style={{ marginTop: 24 }}>OPEN CLAIMS ON YOUR MEMBERS</Kicker>
       <div style={{ marginTop: 9, display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {CONSOLE_CLAIMS.map((cl) => {
-          const skin = tone(cl.tone)
+        {claims.claims.map((cl) => {
+          const look = claimLook(cl)
+          const skin = tone(look.tone)
           return (
             <div key={cl.ref} style={{ padding: 15, border: `1px solid ${skin.bc}`, borderRadius: 11, background: C.white }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                 <Mono size={11.5} color={C.faint} style={{ minWidth: 110 }}>{cl.ref}</Mono>
                 <span style={{ flex: 1, minWidth: 150 }}>
-                  <span style={{ display: 'block', fontSize: 14, fontWeight: 600 }}>{cl.member}</span>
-                  <span style={{ display: 'block', fontSize: 12, color: C.faint, marginTop: 1 }}>{cl.kind}</span>
+                  <span style={{ display: 'block', fontSize: 14, fontWeight: 600 }}>
+                    {/* "Late" only where the member has died. Writing it on an
+                        accident claim tells an HR officer their colleague is
+                        dead when they are in hospital. */}
+                    {cl.type === 'death' ? `Late ${cl.memberName}` : cl.memberName}
+                  </span>
+                  <span style={{ display: 'block', fontSize: 12, color: C.faint, marginTop: 1 }}>
+                    {look.kind} · opened {dayFirst(cl.openedAt)}
+                  </span>
                 </span>
-                <Mono size={13.5} weight={500} style={{ minWidth: 100 }}>{cl.amount}</Mono>
+                {/* No amount. See SponsorClaim — what a family is paid is
+                    between them and the insurer. */}
                 <span
                   style={{
                     flex: 'none', display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 600,
                     color: skin.ic, background: skin.bg, border: `1px solid ${skin.bc}`, borderRadius: 99, padding: '4px 11px',
                   }}
                 >
-                  <Icon name={cl.icon} size={13} />
-                  {cl.state}
+                  <Icon name={look.icon} size={13} />
+                  {look.state}
                 </span>
               </div>
 
-              {'askTitle' in cl && (
+              {cl.awaitingSponsor && (
                 <div
                   style={{
                     display: 'flex', alignItems: 'flex-start', gap: 9, marginTop: 11,
@@ -424,11 +520,15 @@ export function ConsoleClaims() {
                 >
                   <Icon name="ph-fill ph-hand-waving" size={16} color={C.ochre} style={{ marginTop: 1 }} />
                   <div style={{ flex: 1, minWidth: 160 }}>
-                    <div style={{ fontSize: 12.5, fontWeight: 600, color: C.ochreInk }}>{cl.askTitle}</div>
-                    <div style={{ fontSize: 12.5, lineHeight: 1.5, color: C.mut, marginTop: 2 }}>{cl.askSub}</div>
+                    <div style={{ fontSize: 12.5, fontWeight: 600, color: C.ochreInk }}>
+                      Confirm {cl.memberName.split(' ')[0]} was in service on the date of the incident
+                    </div>
+                    <div style={{ fontSize: 12.5, lineHeight: 1.5, color: C.mut, marginTop: 2 }}>
+                      The insurer needs one line from the employer. Nothing medical is asked of you.
+                    </div>
                   </div>
                   <button type="button" className="btn btn-outline" style={{ flex: 'none', height: 38, padding: '0 15px', fontSize: 13 }}>
-                    {cl.askCta}
+                    Confirm service
                   </button>
                 </div>
               )}
@@ -443,4 +543,44 @@ export function ConsoleClaims() {
       </div>
     </>
   )
+}
+
+/**
+ * A claim's row, from the little a sponsor is given.
+ *
+ * The state words are the employer's view of it, not the insurer's: `assessing`
+ * means "with the insurer" to somebody who cannot see the assessment, and
+ * `documents_pending` on a claim waiting for *them* means "awaiting you".
+ */
+function claimLook(cl: SponsorClaim): {
+  kind: string
+  state: string
+  tone: 'green' | 'ochre' | 'clay' | 'neutral'
+  icon: string
+} {
+  const kind =
+    cl.type === 'death'
+      ? 'Death benefit · family claiming'
+      : cl.type === 'accident'
+        ? 'Accident · hospital cash'
+        : 'Disability · income support'
+
+  if (cl.awaitingSponsor) {
+    return { kind, state: 'Awaiting you', tone: 'ochre', icon: 'ph-fill ph-hand-waving' }
+  }
+  if (cl.state === 'approved') {
+    return { kind, state: 'Approved', tone: 'green', icon: 'ph-fill ph-check-circle' }
+  }
+  if (cl.state === 'declined') {
+    return { kind, state: 'Declined', tone: 'clay', icon: 'ph ph-x-circle' }
+  }
+  return { kind, state: 'With the insurer', tone: 'neutral', icon: 'ph-fill ph-circle-notch' }
+}
+
+/** "₦18.4m" — the scale a sponsor reads a year's claims at. */
+function millions(minor: number): string {
+  const naira = minor / 100
+  if (naira >= 1_000_000) return `₦${(naira / 1_000_000).toFixed(1)}m`
+  if (naira >= 1_000) return `₦${Math.round(naira / 1_000)}k`
+  return `₦${Math.round(naira)}`
 }

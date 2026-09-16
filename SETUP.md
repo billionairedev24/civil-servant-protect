@@ -233,6 +233,26 @@ curl -s -XPOST localhost:8080/v1/claims/CLM-2026-0091/pay \
   -d '{"bankCode":"058","accountNumber":"0123456789"}'
 ```
 
+### What a sponsor may know
+
+Row-level security answers "may you see this row", which is the right question
+almost everywhere here and the wrong one twice. A sponsor may not see who a
+member has nominated, but must know *whether* they have nominated anybody —
+chasing the ones who have not is their job. A sponsor may not read a claim, but
+must know one exists on their member, because the insurer asks them one question
+about it.
+
+Both facts come from **projections** rather than from filtered queries:
+`members.has_payee_beneficiary` and the `sponsor_claim_view` table, maintained by
+trigger from rows the sponsor cannot read. A projection cannot accidentally grow
+a sensitive column the way a query against the real table can, and its policy is
+an ordinary one.
+
+A migration that reads existing rows must set `csp.unscoped` first — Flyway runs
+through the application's DataSource, which applies a scope at connection
+checkout, and with none set that scope is "nobody". A subquery under RLS does not
+fail; it returns nothing.
+
 ### Loading a schedule
 
 ```bash
@@ -429,15 +449,18 @@ Real, and deliberately not papered over.
 3. **Some screens still read fixtures.** Sign-in, and the money and people
    screens on all three surfaces, read the API when `VITE_API_URL` is set —
    contributions, the protection card, beneficiaries and their annual
-   confirmation, claim tracking, the console's dashboard and its reconciliation
-   queue including the maker–checker pair. Still on fixtures: the console's
-   roster, schedule upload, direct-debit run, remittances, claims queue,
-   reports and settings; the member's family cover and cover-detail screens;
-   and the whole enrolment run, which has no endpoints behind it yet.
+   confirmation, claim tracking, and the console's dashboard, reconciliation
+   queue with its maker–checker pair, member roster, claims and schedule
+   upload.
+
+   Still on fixtures: the console's direct-debit run, remittances, reports and
+   settings; the member's family cover and cover-detail screens; and the whole
+   enrolment run, which has no endpoints behind it yet.
 
    A screen that has not been wired says the same numbers it always did — the
    fixtures and the seed agree — so the difference is where the figure comes
    from, not what it says.
+
 4. **Spring Batch, but no Kafka.** Schedule upload stages the rows and hands
    off to a chunked, restartable job; the endpoint answers **202** with a batch
    reference and the console polls

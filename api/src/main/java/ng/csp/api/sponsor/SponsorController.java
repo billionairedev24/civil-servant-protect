@@ -29,9 +29,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class SponsorController {
 
   private final SponsorService sponsors;
+  private final ng.csp.api.claim.ClaimService claims;
 
-  public SponsorController(SponsorService sponsors) {
+  public SponsorController(SponsorService sponsors, ng.csp.api.claim.ClaimService claims) {
     this.sponsors = sponsors;
+    this.claims = claims;
   }
 
   @GetMapping("/sponsors/me/dashboard")
@@ -133,13 +135,29 @@ public class SponsorController {
 
   @GetMapping("/sponsors/{sponsorId}/members")
   @PreAuthorize("hasAuthority('PERM_SPONSOR_READ')")
-  public Map<String, List<SponsorService.RosterMember>> roster(
+  public SponsorService.Roster roster(
       SessionUser session,
       @PathVariable UUID sponsorId,
       @RequestParam(required = false) String search,
       @RequestParam(defaultValue = "50") @Min(1) @Max(200) int limit) {
     session.assertSponsorScope(sponsorId);
-    return Map.of("members", sponsors.roster(sponsorId, search, limit));
+    return sponsors.roster(sponsorId, search, limit);
+  }
+
+  /**
+   * Claims on this sponsor's members, as a sponsor may see them.
+   *
+   * <p>Not {@code GET /v1/claims}, which is the assessor's queue across every sponsor and needs
+   * {@code CLAIM_READ_ANY}. A sponsor holds neither that permission nor any business seeing another
+   * MDA's claims, and what comes back here carries no amount, cause or document — see
+   * ClaimService.SponsorClaim.
+   */
+  @GetMapping("/sponsors/{sponsorId}/claims")
+  @PreAuthorize("hasAuthority('PERM_SPONSOR_READ')")
+  public ng.csp.api.claim.ClaimService.SponsorClaims claims(
+      SessionUser session, @PathVariable UUID sponsorId) {
+    session.assertSponsorScope(sponsorId);
+    return claims.forSponsor(sponsorId);
   }
 
   /** Who can do what here. Admin only — this screen hands out authority. */

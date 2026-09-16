@@ -103,8 +103,7 @@ public class SponsorService {
         db.sql(
                 """
                 SELECT count(*)::int FROM members m
-                 WHERE m.sponsor_id = :id
-                   AND NOT EXISTS (SELECT 1 FROM beneficiaries b WHERE b.member_id = m.id)
+                 WHERE m.sponsor_id = :id AND NOT m.has_payee_beneficiary
                 """)
             .param("id", sponsorId)
             .query(Integer.class)
@@ -493,36 +492,125 @@ public class SponsorService {
 
   // ── Roster, roles, audit ───────────────────────────────────────────────────
 
+  /**
+   * A member, as the roster screen reads one.
+   *
+   * <p>Carries the two facts the screen exists to show, and neither of them is on the members table.
+   * "Who has not been deducted this month" is the reason an HR officer opens this page at all, and a
+   * roster that only lists names makes them go and look at reconciliation instead — which is a
+   * different screen answering a different question about a different month.
+   *
+   * <p>{@code hasBeneficiary} is the other one. An unnominated member is a claim that will take
+   * twelve months instead of twenty days, and chasing them is work somebody does from this list.
+   */
   public record RosterMember(
-      UUID id, String cspId, String serviceNo, String name, String grade, String tier, LocalDate inForceSince) {}
+      UUID id,
+      String cspId,
+      String serviceNo,
+      String name,
+      String grade,
+      String tier,
+      LocalDate inForceSince,
+      /** The latest contribution's status: confirmed, expected, failed — or null if never any. */
+      String collectionState,
+      String lastPeriod,
+      boolean hasBeneficiary) {}
 
-  public List<RosterMember> roster(UUID sponsorId, String search, int limit) {
-    return db.sql(
-            """
-            SELECT id, csp_id, service_no, display_name, grade, tier, in_force_since
-              FROM members
-             WHERE sponsor_id = :s
-               AND (CAST(:q AS text) IS NULL
-                    OR display_name ILIKE '%' || CAST(:q AS text) || '%'
-                    OR csp_id       ILIKE '%' || CAST(:q AS text) || '%'
-                    OR service_no   ILIKE '%' || CAST(:q AS text) || '%')
-             ORDER BY display_name
-             LIMIT :limit
-            """)
-        .param("s", sponsorId)
-        .param("q", search)
-        .param("limit", limit)
-        .query(
-            (rs, n) ->
-                new RosterMember(
-                    rs.getObject("id", UUID.class),
-                    rs.getString("csp_id"),
-                    rs.getString("service_no"),
-                    rs.getString("display_name"),
-                    rs.getString("grade"),
-                    rs.getString("tier"),
-                    rs.getObject("in_force_since", LocalDate.class)))
-        .list();
+  /** The chip counts, so the filters say something true rather than something fixed. */
+  public record RosterCounts(int all, int paid, int notDeducted, int noBeneficiary) {}
+
+  public record Roster(List<RosterMember> members, RosterCounts counts) {}
+
+  public Roster roster(UUID sponsorId, String search, int limit) {
+    var members =
+        db.sql(
+                """
+                SELECT m.id, m.csp_id, m.service_no, m.display_name, m.grade, m.tier,
+                       m.in_force_since,
+                       c.status::text AS collection_state,
+                       c.period       AS last_period,
+                       /*
+                        * A column, not a subquery. A sponsor may not read
+                        * beneficiaries, and a subquery under that policy does
+                        * not fail — it returns nothing, so every member read as
+                        * unnominated. The flag is maintained by trigger on a row
+                        * the sponsor can see. See V10.
+                        */
+                       m.has_payee_beneficiary AS has_beneficiary
+                  FROM members m
+                  /*
+                   * The most recent contribution, whatever its state. LATERAL
+                   * rather than a join on a grouped subquery: this runs once per
+                   * row of the page being shown, which at fifty rows is fifty
+                   * index lookups, where the grouped version scans every
+                   * contribution the sponsor has ever had.
+                   */
+                  LEFT JOIN LATERAL (
+                    SELECT status, period FROM contributions
+                     WHERE member_id = m.id
+                     ORDER BY period DESC
+                     LIMIT 1
+                  ) c ON true
+                 WHERE m.sponsor_id = :s
+                   AND (CAST(:q AS text) IS NULL
+                        OR m.display_name ILIKE '%' || CAST(:q AS text) || '%'
+                        OR m.csp_id       ILIKE '%' || CAST(:q AS text) || '%'
+                        OR m.service_no   ILIKE '%' || CAST(:q AS text) || '%')
+                 ORDER BY m.display_name
+                 LIMIT :limit
+                """)
+            .param("s", sponsorId)
+            .param("q", search)
+            .param("limit", limit)
+            .query(
+                (rs, n) ->
+                    new RosterMember(
+                        rs.getObject("id", UUID.class),
+                        rs.getString("csp_id"),
+                        rs.getString("service_no"),
+                        rs.getString("display_name"),
+                        rs.getString("grade"),
+                        rs.getString("tier"),
+                        rs.getObject("in_force_since", LocalDate.class),
+                        rs.getString("collection_state"),
+                        String.valueOf(rs.getObject("last_period", LocalDate.class)),
+                        rs.getBoolean("has_beneficiary")))
+            .list();
+
+    /*
+     * Counts over the whole roster, not over the page.
+     *
+     * A chip saying "12 not deducted" when the list is showing fifty of 8,440
+     * has to mean twelve on the sponsor, or it is telling an officer their
+     * problem is smaller than it is.
+     */
+    var counts =
+        db.sql(
+                """
+                SELECT count(*)::int AS all_members,
+                       count(*) FILTER (WHERE c.status = 'confirmed')::int AS paid,
+                       count(*) FILTER (WHERE c.status IS DISTINCT FROM 'confirmed')::int
+                         AS not_deducted,
+                       count(*) FILTER (WHERE NOT m.has_payee_beneficiary)::int
+                         AS no_beneficiary
+                  FROM members m
+                  LEFT JOIN LATERAL (
+                    SELECT status FROM contributions
+                     WHERE member_id = m.id ORDER BY period DESC LIMIT 1
+                  ) c ON true
+                 WHERE m.sponsor_id = :s
+                """)
+            .param("s", sponsorId)
+            .query(
+                (rs, n) ->
+                    new RosterCounts(
+                        rs.getInt("all_members"),
+                        rs.getInt("paid"),
+                        rs.getInt("not_deducted"),
+                        rs.getInt("no_beneficiary")))
+            .single();
+
+    return new Roster(members, counts);
   }
 
   public record ConsoleUser(

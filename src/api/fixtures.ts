@@ -9,8 +9,8 @@
  */
 import { BENEFICIARIES, CLAIM, CONTRIB_MONTHS, MEMBER } from '../data/member'
 import type {
-  BeneficiarySet, Claim, Ledger, LedgerRow, MemberSummary, MyClaim, ProtectionCard,
-  Reconciliation, SponsorDashboard,
+  BeneficiarySet, Claim, ClaimQueueItem, Ledger, LedgerRow, MemberSummary, MyClaim,
+  ProtectionCard, Reconciliation, Roster, SponsorClaims, SponsorDashboard,
 } from './types'
 
 const NAIRA = 100
@@ -230,4 +230,100 @@ export const RECONCILIATION: Reconciliation = {
       resolvedAction: null, resolvedNote: null, resolvedAt: null,
     },
   ],
+}
+
+/**
+ * The member roster, in the API's shape.
+ *
+ * Re-expressed from ROSTER in the console's data module, keeping the states
+ * that make the screen worth looking at: somebody not in the file, somebody
+ * underpaid, somebody with nobody named. A roster where everyone is fine is a
+ * roster nobody needs to open.
+ */
+export const ROSTER_FIXTURE: Roster = {
+  members: [
+    {
+      id: 'fx-1', cspId: MEMBER.cspId, serviceNo: MEMBER.serviceNo, name: 'Adaeze Nkiru Okafor',
+      grade: 'GL 12', tier: 'standard', inForceSince: '2025-08-01',
+      collectionState: 'confirmed', lastPeriod: '2026-09-01', hasBeneficiary: true,
+    },
+    {
+      id: 'fx-2', cspId: 'CSP-114-88215', serviceNo: '8812441', name: 'Musa Ibrahim',
+      grade: 'GL 09', tier: 'basic', inForceSince: '2025-09-01',
+      collectionState: 'expected', lastPeriod: '2026-09-01', hasBeneficiary: true,
+    },
+    {
+      id: 'fx-3', cspId: 'CSP-114-88216', serviceNo: '7741228', name: 'Folake Adeyemi',
+      grade: 'GL 14', tier: 'enhanced', inForceSince: '2025-08-01',
+      collectionState: 'failed', lastPeriod: '2026-09-01', hasBeneficiary: true,
+    },
+    {
+      id: 'fx-4', cspId: 'CSP-114-88217', serviceNo: '3391774', name: 'Grace Attah',
+      grade: 'GL 08', tier: 'basic', inForceSince: '2026-01-01',
+      collectionState: 'expected', lastPeriod: '2026-08-01', hasBeneficiary: false,
+    },
+    {
+      id: 'fx-5', cspId: 'CSP-114-88218', serviceNo: '2204991', name: 'Halima Yusuf',
+      grade: 'GL 16', tier: 'executive', inForceSince: '2025-11-01',
+      collectionState: 'confirmed', lastPeriod: '2026-09-01', hasBeneficiary: false,
+    },
+    {
+      id: 'fx-6', cspId: 'CSP-114-88219', serviceNo: '6628331', name: 'Tunde Bakare',
+      grade: 'GL 12', tier: 'standard', inForceSince: '2025-08-01',
+      collectionState: 'confirmed', lastPeriod: '2026-09-01', hasBeneficiary: true,
+    },
+  ],
+  counts: { all: 8_440, paid: 8_196, notDeducted: 244, noBeneficiary: 203 },
+}
+
+/** The assessor's queue. Four claims, which is what the console's badge says. */
+export const CLAIM_QUEUE: { claims: ClaimQueueItem[] } = {
+  claims: [
+    {
+      ref: CLAIM.openRef, type: 'death', state: 'assessing', openedAt: '2026-08-28T10:12:00Z',
+      memberName: 'Adaeze Okafor', cspId: MEMBER.cspId, outstandingDocs: 1,
+    },
+    {
+      ref: 'CLM-2026-0088', type: 'accident', state: 'documents_pending',
+      openedAt: '2026-09-02T08:30:00Z', memberName: 'Musa Ibrahim', cspId: 'CSP-114-88215',
+      outstandingDocs: 2,
+    },
+    {
+      ref: 'CLM-2026-0089', type: 'death', state: 'approved', openedAt: '2026-08-19T15:02:00Z',
+      memberName: 'Grace Attah', cspId: 'CSP-114-88217', outstandingDocs: 0,
+    },
+    {
+      ref: 'CLM-2026-0090', type: 'disability', state: 'assessing',
+      openedAt: '2026-09-08T11:45:00Z', memberName: 'Tunde Bakare', cspId: 'CSP-114-88219',
+      outstandingDocs: 0,
+    },
+  ],
+}
+
+/** Claims on the federal sponsor's members, as that sponsor sees them. */
+export const SPONSOR_CLAIMS: SponsorClaims = {
+  claims: [
+    {
+      ref: CLAIM.openRef, type: 'death', state: 'documents_pending',
+      openedAt: '2026-08-28T10:12:00Z', memberName: 'Adaeze Nkiru Okafor', cspId: MEMBER.cspId,
+      awaitingSponsor: true,
+    },
+    {
+      ref: 'CLM-2026-0079', type: 'accident', state: 'assessing',
+      openedAt: '2026-08-14T09:20:00Z', memberName: 'Musa Ibrahim', cspId: 'CSP-114-88215',
+      awaitingSponsor: false,
+    },
+    {
+      ref: 'CLM-2026-0071', type: 'death', state: 'approved', openedAt: '2026-07-02T11:00:00Z',
+      memberName: 'Chinedu Eze', cspId: 'CSP-114-88220', awaitingSponsor: false,
+    },
+    {
+      ref: 'CLM-2026-0066', type: 'disability', state: 'assessing',
+      openedAt: '2026-06-18T14:30:00Z', memberName: 'Grace Attah', cspId: 'CSP-114-88217',
+      awaitingSponsor: false,
+    },
+  ],
+  open: 4,
+  paidThisYear: 11,
+  paidThisYearMinor: 18_400_000 * NAIRA,
 }

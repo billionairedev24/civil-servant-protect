@@ -2,8 +2,8 @@ import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tan
 import type { CspApi } from './client'
 import { useApi } from './provider'
 import type {
-  BeneficiarySet, Claim, Ledger, MemberSummary, MyClaim, ProtectionCard, Reconciliation,
-  SponsorDashboard,
+  BeneficiarySet, Claim, ClaimQueueItem, Ledger, MemberSummary, MyClaim, ProtectionCard,
+  Reconciliation, Roster, ScheduleBatch, ScheduleRow, SponsorClaims, SponsorDashboard,
 } from './types'
 
 /**
@@ -24,6 +24,10 @@ export const keys = {
   claim: (ref: string) => ['claim', ref] as const,
   sponsor: () => ['sponsor'] as const,
   dashboard: () => [...keys.sponsor(), 'dashboard'] as const,
+  roster: (sponsorId: string, search: string) => [...keys.sponsor(), 'roster', sponsorId, search] as const,
+  claimQueue: () => ['claims', 'queue'] as const,
+  sponsorClaims: (sponsorId: string) => [...keys.sponsor(), 'claims', sponsorId] as const,
+  scheduleBatch: (batchId: string) => [...keys.sponsor(), 'schedule', batchId] as const,
   reconciliation: (sponsorId: string, cycleId: string) =>
     [...keys.sponsor(), 'reconciliation', sponsorId, cycleId] as const,
 }
@@ -184,6 +188,91 @@ export function useReconciliation(
     queryFn: () => api!.reconciliation(sponsorId, cycleId),
     staleTime: 15_000,
     ...shared(api, fixture),
+  })
+}
+
+/**
+ * The member roster.
+ *
+ * Keyed on the search term, so typing does not throw away the unfiltered list —
+ * clearing the box paints the full roster instantly from cache while the
+ * request for it runs.
+ */
+export function useRoster(
+  sponsorId: string,
+  search: string,
+  fixture: Roster,
+): UseQueryResult<Roster> {
+  const { api } = useApi()
+  return useQuery({
+    queryKey: keys.roster(sponsorId, search),
+    queryFn: () => api!.roster(sponsorId, search || undefined),
+    // A roster of eight thousand does not change while somebody reads it, and
+    // re-fetching on every keystroke's debounce would be the expensive part.
+    staleTime: 60_000,
+    ...shared(api, fixture),
+  })
+}
+
+/** The assessor's queue. A different role, reading every sponsor's claims. */
+export function useClaimQueue(
+  fixture: { claims: ClaimQueueItem[] },
+): UseQueryResult<{ claims: ClaimQueueItem[] }> {
+  const { api } = useApi()
+  return useQuery({
+    queryKey: keys.claimQueue(),
+    queryFn: () => api!.claimQueue(),
+    staleTime: 30_000,
+    ...shared(api, fixture),
+  })
+}
+
+/** Claims on this sponsor's members. Thin, by design — see SponsorClaim. */
+export function useSponsorClaims(sponsorId: string, fixture: SponsorClaims): UseQueryResult<SponsorClaims> {
+  const { api } = useApi()
+  return useQuery({
+    queryKey: keys.sponsorClaims(sponsorId),
+    queryFn: () => api!.sponsorClaims(sponsorId),
+    staleTime: 60_000,
+    ...shared(api, fixture),
+  })
+}
+
+/**
+ * Send a month's schedule.
+ *
+ * <p>No optimistic anything. This is the instruction that decides what a
+ * payroll office deducts from eight thousand salaries, and the server answers
+ * with a batch to watch rather than a result.
+ */
+export function useUploadSchedule(sponsorId: string) {
+  const { api } = useApi()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (body: { period: string; filename: string; rows: ScheduleRow[] }) =>
+      api!.uploadSchedule(sponsorId, body),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.sponsor() }),
+  })
+}
+
+/**
+ * Watch a load.
+ *
+ * Polled every second while it runs and not at all once it is done — an officer
+ * who uploaded a million rows is watching this number, and one who uploaded
+ * eight thousand has already looked away.
+ */
+export function useScheduleBatch(
+  sponsorId: string,
+  batchId: string | null,
+): UseQueryResult<ScheduleBatch> {
+  const { api } = useApi()
+  return useQuery({
+    queryKey: keys.scheduleBatch(batchId ?? ''),
+    queryFn: () => api!.scheduleBatch(sponsorId, batchId!),
+    enabled: api !== null && batchId !== null,
+    refetchInterval: (query) =>
+      query.state.data?.state === 'staged' ? 1_000 : false,
   })
 }
 

@@ -162,6 +162,86 @@ export interface SponsorDashboard {
   exceptions: { total: number; open: number; byKind: Record<string, number> }
 }
 
+export interface RosterMember {
+  id: string
+  cspId: string
+  serviceNo: string | null
+  name: string
+  grade: string | null
+  tier: string
+  inForceSince: string
+  /** The latest contribution's status, or null if this member has never had one. */
+  collectionState: 'confirmed' | 'expected' | 'failed' | 'reversed' | null
+  lastPeriod: string | null
+  hasBeneficiary: boolean
+}
+
+export interface Roster {
+  members: RosterMember[]
+  /** Over the whole sponsor, not the page — a chip counting the page would lie. */
+  counts: { all: number; paid: number; notDeducted: number; noBeneficiary: number }
+}
+
+export interface ClaimQueueItem {
+  ref: string
+  type: string
+  state: string
+  openedAt: string
+  memberName: string
+  cspId: string
+  outstandingDocs: number
+}
+
+/**
+ * A claim on a sponsor's member, as a sponsor may see it.
+ *
+ * No amount, no cause, no documents — see ClaimService.SponsorClaim on the
+ * server. An employer knowing their late colleague's household received
+ * ₦5,000,000 is a disclosure nobody consented to.
+ */
+export interface SponsorClaim {
+  ref: string
+  type: string
+  state: string
+  openedAt: string
+  memberName: string
+  cspId: string
+  /** The insurer is waiting on the employer for something. */
+  awaitingSponsor: boolean
+}
+
+export interface SponsorClaims {
+  claims: SponsorClaim[]
+  open: number
+  paidThisYear: number
+  paidThisYearMinor: number
+}
+
+/** One line of a payroll schedule, as it is sent. */
+export interface ScheduleRow {
+  serviceNo: string
+  name: string
+  amountMinor: number
+}
+
+/**
+ * A schedule load in flight, or finished.
+ *
+ * `staged` is what the file contained; `matched` and `loaded` climb as the job
+ * works through it. A row that matches no member is rejected with its line
+ * number, which is what an officer needs to fix the file.
+ */
+export interface ScheduleBatch {
+  batchId: string
+  state: 'staged' | 'complete' | 'failed'
+  stagedCount: number
+  matchedCount: number
+  loadedCount: number
+  startedAt: string | null
+  finishedAt: string | null
+  failure: string | null
+}
+
 export interface ReconciliationException {
   id: string
   memberId: string | null
