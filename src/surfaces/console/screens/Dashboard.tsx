@@ -178,10 +178,13 @@ export function ConsoleDashboard() {
             })}
 
             <div style={{ display: 'flex', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
+              {/* The primary takes the slack rather than splitting the row
+                  evenly — "Open reconciliation" does not survive an equal
+                  split at this column width, and the labels must not clip. */}
               <button
                 type="button"
                 className="btn btn-sm btn-secondary"
-                style={{ flex: 1, minWidth: 130, gap: 7 }}
+                style={{ flex: '0 1 auto', gap: 7 }}
                 onClick={() => go('remit')}
               >
                 <Icon name="ph ph-receipt" size={16} />
@@ -190,7 +193,7 @@ export function ConsoleDashboard() {
               <button
                 type="button"
                 className="btn btn-sm btn-primary"
-                style={{ flex: 1, minWidth: 150, gap: 7 }}
+                style={{ flex: '1 1 auto', minWidth: 'fit-content', gap: 7 }}
                 onClick={() => go(payroll ? 'recon' : 'debit')}
               >
                 <Icon name={payroll ? 'ph ph-git-diff' : 'ph ph-arrows-clockwise'} size={16} />
