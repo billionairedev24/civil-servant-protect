@@ -187,7 +187,10 @@ function SignedIn() {
             padding: wide ? '26px clamp(20px, 3vw, 30px) 40px' : '20px 16px 40px',
           }}
         >
-          <div style={{ maxWidth: 830 }}>
+          {/* The page's width is a rule in CSS, not a number here — see .page
+              in tokens.css. It was 830px, which left half of a secretariat
+              monitor empty and the content squeezed into a column. */}
+          <div className="page">
             <Body />
           </div>
         </main>

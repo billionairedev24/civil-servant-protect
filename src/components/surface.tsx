@@ -74,10 +74,26 @@ export function TableHead({
   )
 }
 
-export function Table({ children }: { children: ReactNode }) {
+/**
+ * A table, which on a phone is a table that scrolls sideways.
+ *
+ * Five columns do not fit in 390px and no amount of responsiveness makes them.
+ * The three answers are to drop columns, to restack each row as a card, or to
+ * let the table scroll — and for these tables the columns are the content: a
+ * contribution row is a period, an amount, a source and a state, and dropping
+ * either of the last two answers a different question from the one the member
+ * came to ask.
+ *
+ * It used to be `overflow: hidden` with no scroller, which is the fourth and
+ * worst answer: the last column was simply cut off the screen, taking the
+ * "Remove" button on the family table with it.
+ */
+export function Table({ children, minWidth = 520 }: { children: ReactNode; minWidth?: number }) {
   return (
     <div style={{ borderRadius: 12, background: C.white, border: `1px solid ${C.line}`, overflow: 'hidden' }}>
-      {children}
+      <div style={{ overflowX: 'auto' }}>
+        <div style={{ minWidth }}>{children}</div>
+      </div>
     </div>
   )
 }

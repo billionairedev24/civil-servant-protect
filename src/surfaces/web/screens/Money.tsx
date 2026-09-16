@@ -74,7 +74,7 @@ export function WebContributions() {
   ]
 
   return (
-    <div className="rise" style={{ maxWidth: 830 }}>
+    <div className="rise page">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 20 }}>
         <div>
           <PageTitle>{t.paid_title}</PageTitle>
@@ -88,7 +88,7 @@ export function WebContributions() {
 
       {failed && <NotLive what="Your contributions" />}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginTop: 16 }}>
+      <div className="cards" style={{ marginTop: 16 }}>
         {stats.map((s) => (
           <Panel key={s.label} pad={17}>
             <Kicker size={9.5}>{s.label}</Kicker>
@@ -195,7 +195,7 @@ export function WebBeneficiaries() {
   const template = '1.4fr .9fr 1.1fr 1fr 88px'
 
   return (
-    <div className="rise" style={{ maxWidth: 830 }}>
+    <div className="rise page">
       <PageTitle>{t.benes_title}</PageTitle>
       <PageSub style={{ lineHeight: 1.5, maxWidth: 600 }}>{t.benes_sub}</PageSub>
 
@@ -296,7 +296,7 @@ export function WebBeneficiaries() {
         </button>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginTop: 16 }}>
+      <div className="cards" style={{ marginTop: 16 }}>
         <Panel pad={16} style={{ borderRadius: 11 }}>
           <Kicker size={9.5}>VALIDATION</Kicker>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginTop: 9 }}>

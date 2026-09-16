@@ -101,6 +101,60 @@ button:focus-visible,
   animation: rise 0.25s ease;
 }
 
+/* ── Layout ─────────────────────────────────────────────────────────────────
+   Three classes, because the alternative — a column width and a grid template
+   written inline on every screen — is how the member web app came to be 830px
+   wide on a 2,000px monitor with half the window empty, and two fixed columns
+   at 390px on a phone. Both are the same mistake: a layout stated as a number
+   instead of as a rule.
+
+   CSS rather than a JS breakpoint. `useMediaQuery` exists for the things CSS
+   cannot express, like swapping a sidebar for a tab row; a column count is not
+   one of them, and doing it in JS means it is wrong until the first render. */
+
+/* The page's own width. Wide enough to use the monitor it is on, capped so a
+   line of Yorùbá does not run 200 characters across a 4K screen, and centred
+   past that so the leftover is margin on both sides rather than a hole on the
+   right. Prose inside still sets its own narrower measure. */
+.page {
+  width: 100%;
+  max-width: 1560px;
+  margin-inline: auto;
+}
+
+/* Cards that should flow: as many as fit, each at least `min`, sharing what is
+   left. `min(100%, …)` so the track can shrink below its minimum on a narrow
+   phone rather than forcing a horizontal scrollbar. */
+.cards {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  align-items: start;
+}
+
+.cards-sm {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+  align-items: start;
+}
+
+/* One thing that leads and one that supports it — a headline figure beside the
+   detail behind it. Stacked until there is room for both, and deliberately not
+   equal when there is: the weighting is the point. */
+.lead {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: 1fr;
+  align-items: start;
+}
+
+@media (min-width: 720px) {
+  .lead {
+    grid-template-columns: 1.35fr 1fr;
+  }
+}
+
 /* ── The button system ──────────────────────────────────────────────────────
    Four fixed heights, one pill geometry. The prototype went through three
    rounds of fixes to land here, and two of them matter enough to keep as

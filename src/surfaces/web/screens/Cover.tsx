@@ -56,7 +56,7 @@ export function WebDashboard() {
   const stageState = ['done', 'done', 'now'] as const
 
   return (
-    <div className="rise" style={{ maxWidth: 830 }}>
+    <div className="rise page">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 20 }}>
         <div>
           <PageTitle>
@@ -103,7 +103,7 @@ export function WebDashboard() {
         </button>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1.35fr 1fr', gap: 14, marginTop: 16 }}>
+      <div className="lead" style={{ marginTop: 16 }}>
         <div style={{ padding: 22, borderRadius: 13, background: C.g, color: C.gTint }}>
           <Kicker size={9.5} color="rgba(241,246,243,.85)">{t.if_you_die}</Kicker>
           <div style={{ fontSize: 40, fontWeight: 700, letterSpacing: '-.03em', marginTop: 8 }}>₦5,000,000</div>
@@ -144,7 +144,7 @@ export function WebDashboard() {
         </Panel>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginTop: 14 }}>
+      <div className="cards" style={{ marginTop: 14 }}>
         <Panel>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
             <div style={{ fontSize: 15.5, fontWeight: 600 }}>{t.paid_title}</div>
@@ -218,7 +218,7 @@ export function WebDashboard() {
         </Panel>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginTop: 14 }}>
+      <div className="cards-sm" style={{ marginTop: 14 }}>
         {quick.map((q) => (
           <button
             key={q.label}
@@ -247,7 +247,7 @@ export function WebBenefits() {
   const template = '1.6fr repeat(4,1fr)'
 
   return (
-    <div className="rise" style={{ maxWidth: 830 }}>
+    <div className="rise page">
       <PageTitle>{t.cover_title}</PageTitle>
       <PageSub>{t.cover_sub} · every tier side by side, which the phone shows one at a time</PageSub>
 
@@ -289,7 +289,7 @@ export function WebBenefits() {
         </Table>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginTop: 14 }}>
+      <div className="cards" style={{ marginTop: 14 }}>
         <Panel pad={18}>
           <Kicker size={9.5}>{t.change_plan}</Kicker>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 11 }}>
@@ -351,12 +351,12 @@ export function WebCard() {
   ]
 
   return (
-    <div className="rise" style={{ maxWidth: 830 }}>
+    <div className="rise page">
       <PageTitle>{t.card_title}</PageTitle>
       <PageSub>Held on your account and printable here. {t.card_sub}</PageSub>
       {failed && <NotLive what="Your card" />}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1.15fr 1fr', gap: 16, marginTop: 18, alignItems: 'start' }}>
+      <div className="lead" style={{ marginTop: 18 }}>
         <div style={{ padding: 24, borderRadius: 14, background: C.ink, color: C.surface }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 14 }}>
             <div>
@@ -436,7 +436,7 @@ export function WebFamily() {
   const template = '1.5fr 1fr 1fr 1fr 96px'
 
   return (
-    <div className="rise" style={{ maxWidth: 830 }}>
+    <div className="rise page">
       <PageTitle>{t.fam_title}</PageTitle>
       <PageSub>{t.fam_sub}</PageSub>
 
@@ -493,7 +493,7 @@ export function WebFamily() {
         <Mono size={26} weight={500}>₦4,300</Mono>
       </div>
 
-      <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
+      <div style={{ display: 'flex', gap: 10, marginTop: 14, flexWrap: 'wrap' }}>
         <button type="button" className="btn btn-sm btn-primary" style={{ height: 44, padding: '0 20px', fontSize: 15, gap: 8 }}>
           <Icon name="ph ph-user-plus" size={17} />
           {t.add_family}
