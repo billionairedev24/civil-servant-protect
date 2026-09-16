@@ -38,7 +38,10 @@ public record CspProperties(
   public CspProperties {
     accessTokenTtl = accessTokenTtl == null ? Duration.ofMinutes(20) : accessTokenTtl;
     refreshTokenTtl = refreshTokenTtl == null ? Duration.ofHours(8) : refreshTokenTtl;
-    corsOrigins = corsOrigins == null ? List.of("http://localhost:5173") : corsOrigins;
+    corsOrigins =
+        corsOrigins == null || corsOrigins.isEmpty()
+            ? List.of("http://localhost:[*]", "http://127.0.0.1:[*]")
+            : corsOrigins;
     tokenIssuer = tokenIssuer == null || tokenIssuer.isBlank() ? "https://member-auth.csp.local" : tokenIssuer;
     otp = otp == null ? new Otp(false, null) : otp;
   }

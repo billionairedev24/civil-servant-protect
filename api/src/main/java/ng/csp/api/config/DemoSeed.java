@@ -30,6 +30,21 @@ public class DemoSeed implements CommandLineRunner {
 
   private static final Logger log = LoggerFactory.getLogger(DemoSeed.class);
 
+  /*
+   * Keycloak subjects for the demo realm's console accounts.
+   *
+   * These are the `id` values pinned in deploy/local/keycloak-realm.json. They
+   * have to be written down in both places: Keycloak owns the identity, this
+   * table owns the sponsor scope, and the subject is the only thing that joins
+   * them. Change one and you must change the other.
+   */
+  private static final String KC_AMINA = "11111111-0000-4000-8000-000000000001";
+  private static final String KC_MUSA = "11111111-0000-4000-8000-000000000002";
+  private static final String KC_NGOZI = "11111111-0000-4000-8000-000000000003";
+  private static final String KC_IBRAHIM = "11111111-0000-4000-8000-000000000004";
+  private static final String KC_ASSESSOR = "11111111-0000-4000-8000-000000000005";
+  private static final String KC_OPS = "11111111-0000-4000-8000-000000000006";
+
   private static final long PREMIUM = Money.PREMIUM_STANDARD;
 
   private record SponsorSeed(
@@ -123,30 +138,44 @@ public class DemoSeed implements CommandLineRunner {
           .update();
     }
 
-    // The four console roles, so a demo can sign in as each and see the
-    // difference rather than being told about it.
-    record Staff(String msisdn, String name, String email, String role) {}
+    /*
+     * The console roles, so a demo can sign in as each and see the difference
+     * rather than being told about it.
+     *
+     * Keyed by `oidc_subject` and not by a phone number, because the console
+     * door is Keycloak — an OTP sign-in is refused for these roles on purpose
+     * (see AuthService: the query filters to member and next_of_kin, so a
+     * preparer cannot skip TOTP by asking for an SMS). The subjects match the
+     * pinned user ids in deploy/local/keycloak-realm.json. Without that pinning
+     * the realm mints a random subject, resolveOidcUser finds nobody, and the
+     * first sign-in silently creates a *second* Amina Bello alongside this one.
+     */
+    record Staff(String subject, String name, String email, String role) {}
     for (var s :
         List.of(
-            new Staff("+2348040000001", "Amina Bello", "a.bello@education.gov.ng", "sponsor_preparer"),
-            new Staff("+2348040000002", "Musa Danjuma", "m.danjuma@education.gov.ng", "sponsor_approver"),
-            new Staff("+2348040000003", "Ngozi Eze", "n.eze@education.gov.ng", "sponsor_viewer"),
-            new Staff("+2348040000004", "Ibrahim Sule", "i.sule@education.gov.ng", "sponsor_admin"))) {
+            new Staff(KC_AMINA, "Amina Bello", "a.bello@education.gov.ng", "sponsor_preparer"),
+            new Staff(KC_MUSA, "Musa Danjuma", "m.danjuma@education.gov.ng", "sponsor_approver"),
+            new Staff(KC_NGOZI, "Ngozi Eze", "n.eze@education.gov.ng", "sponsor_viewer"),
+            new Staff(KC_IBRAHIM, "Ibrahim Sule", "i.sule@education.gov.ng", "sponsor_admin"))) {
       db.sql(
               """
-              INSERT INTO users (msisdn, full_name, email, role, sponsor_id)
-              VALUES (:m, :n, :e, CAST(:r AS user_role), :sp)
+              INSERT INTO users (oidc_subject, full_name, email, role, sponsor_id)
+              VALUES (:s, :n, :e, CAST(:r AS user_role), :sp)
               """)
-          .param("m", s.msisdn()).param("n", s.name()).param("e", s.email())
+          .param("s", s.subject()).param("n", s.name()).param("e", s.email())
           .param("r", s.role()).param("sp", sponsorIds.get("federal"))
           .update();
     }
+    // No sponsor_id: an assessor reads claims across rails and CSP operations
+    // administers the scheme itself. Scoping either to one MDA would be wrong.
     db.sql(
             """
-            INSERT INTO users (msisdn, full_name, email, role) VALUES
-              ('+2348050000001', 'A. Bello', 'assessor@csp.ng', 'assessor'),
-              ('+2348050000002', 'CSP Operations', 'ops@csp.ng', 'csp_admin')
+            INSERT INTO users (oidc_subject, full_name, email, role) VALUES
+              (:assessor, 'A. Bello', 'assessor@csp.ng', 'assessor'),
+              (:ops, 'CSP Operations', 'ops@csp.ng', 'csp_admin')
             """)
+        .param("assessor", KC_ASSESSOR)
+        .param("ops", KC_OPS)
         .update();
 
     var adaeze = memberIds.get("federal");
@@ -155,12 +184,15 @@ public class DemoSeed implements CommandLineRunner {
     seedClaim(adaeze);
 
     log.info("seeded {} sponsors, {} members", SPONSORS.size(), MEMBERS.size());
-    log.info("  member    +234 803 000 0214   Adaeze Okafor (federal rail)");
-    log.info("  preparer  +234 804 000 0001   Amina Bello");
-    log.info("  approver  +234 804 000 0002   Musa Danjuma");
-    log.info("  viewer    +234 804 000 0003   Ngozi Eze");
-    log.info("  admin     +234 804 000 0004   Ibrahim Sule");
-    log.info("  assessor  +234 805 000 0001   A. Bello");
+    log.info("  member app — sign in with a phone number and the SMS code:");
+    log.info("    +234 803 000 0214   Adaeze Okafor (federal rail)");
+    log.info("  console — sign in through Keycloak (username / password):");
+    log.info("    amina    / password   Amina Bello    preparer");
+    log.info("    musa     / password   Musa Danjuma   approver");
+    log.info("    ngozi    / password   Ngozi Eze      viewer");
+    log.info("    ibrahim  / password   Ibrahim Sule   admin");
+    log.info("    assessor / password   A. Bello       assessor");
+    log.info("    ops      / password   CSP Operations csp_admin");
   }
 
   /** Chinedu 60 / Ngozi 40 / Emeka 0 — including the named-but-unshared third person. */

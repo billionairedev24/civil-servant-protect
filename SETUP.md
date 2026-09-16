@@ -80,8 +80,56 @@ API docs are at http://localhost:8080/swagger-ui.html.
 
 ```bash
 npm install
-npm run dev        # http://localhost:5173
+npm run dev                                   # fixtures, no backend needed
+VITE_API_URL=http://localhost:8080 npm run dev  # live, against the API
+
+# The console additionally needs Keycloak, or its sign-in button has nothing
+# to go to:
+VITE_API_URL=http://localhost:8080 \
+VITE_OIDC_ISSUER=http://localhost:8081/realms/csp \
+npm run dev
 ```
+
+`VITE_API_URL` is the only switch for the member apps. Unset, the screens read `src/data` exactly as
+they always have — which is how the design gets reviewed and how the
+rail-branching tests run, neither of which should need Postgres. Set, the same
+screens read the API.
+
+Data access is **TanStack Query** (`src/api/`):
+
+| | |
+|---|---|
+| `types.ts` | the wire types, hand-written against the spec's contracts |
+| `client.ts` | `fetch` only, no React — so the React Native build can share it |
+| `queries.ts` | one hook per resource, with the query keys in one place |
+| `fixtures.ts` | the existing fixtures re-expressed in the API's shape |
+| `auth.tsx` | sign-in state, and `can('EXCEPTION_RESOLVE')` for what a role may do |
+| `oidc.ts` | the console's Keycloak flow — authorization code with PKCE |
+
+Sign-in differs by surface, on purpose:
+
+| | Member app (`/m`, `/`) | Console (`/console`) |
+|---|---|---|
+| Door | phone number + SMS code | Keycloak, with TOTP |
+| Access token | in memory | in memory |
+| Refresh token | `sessionStorage`, device-bound | none — not kept |
+| Survives a reload | yes, via `/v1/auth/refresh` | no, by design |
+
+The console's session dying with the tab is the point: it runs on shared
+secretariat machines, and one officer's token must not outlive them at the desk.
+The member's does not, because a device-bound refresh token is what the spec
+gives them so that scrolling their contributions does not cost another SMS.
+
+Fixtures are passed as `placeholderData`, not `initialData`: they render
+instantly and the query still runs, so the cache never treats hard-coded data as
+fresh. A member opening the app to check whether their deduction arrived sees
+last month's figures at once, and the live values replace them a moment later.
+
+Retries are deliberate. Transport failures retry twice with backoff; a 401, 403,
+404 or 409 never does — a refusal from the maker–checker rule is a decision, not
+a blip, and retrying it three times only makes the officer wait. Mutations never
+retry at all, because retrying "close the cycle" is retrying a decision someone
+is accountable for.
 
 ## 4. Sign in
 
@@ -107,7 +155,9 @@ curl -s -XPOST localhost:8080/v1/auth/verify \
 
 **As a console user** — Keycloak, not SMS. The SMS path refuses console roles on
 purpose; a finance officer has an MDA account with TOTP, a civil servant has a
-phone number. All four have password `password`:
+phone number. Asking for a code on a console user's number still returns a
+challenge — the endpoint will not tell a stranger who is enrolled — but the
+verify step refuses it. All six have password `password`:
 
 | Username | Role | Can |
 |---|---|---|
@@ -115,7 +165,14 @@ phone number. All four have password `password`:
 | `musa` | Approver | commit what a preparer proposed, close a cycle |
 | `ngozi` | Viewer | read the month, change nothing |
 | `ibrahim` | Admin | manage the roster and roles — **not** approve money |
-| `assessor` | Claims assessor | read and assess any claim |
+| `assessor` | Claims assessor | read and assess any claim, across every rail |
+| `ops` | CSP operations | administer the scheme itself; not scoped to one MDA |
+
+The realm pins each account's user id, and the API seed stores the same value as
+`users.oidc_subject`. That join is what makes a Keycloak sign-in land on the
+seeded officer — and their sponsor scope — instead of quietly creating a second
+account with the same name on first use. Change one side and you must change the
+other; both are commented where they sit.
 
 To get a console token without the browser:
 
@@ -168,7 +225,7 @@ request that needs it.
 | `CSP_TOKEN_ISSUER` | `https://member-auth.csp.local` | Must be a URL; Spring converts the `iss` claim to one while decoding |
 | `CSP_KEYCLOAK_ISSUER_URI` | *(empty)* | Empty means console sign-in is off and only member tokens are accepted |
 | `ACCESS_TOKEN_TTL` / `REFRESH_TOKEN_TTL` | `20m` / `8h` | |
-| `CORS_ORIGINS` | `http://localhost:5173` | Comma-separated |
+| `CORS_ORIGINS` | `http://localhost:[*],http://127.0.0.1:[*]` | Comma-separated origin *patterns*. The default is loopback on any port, so `npm run dev` (5173), `npm run preview` (4173) and the browser tests all work. Deployment sets the real hostnames. |
 | `OTP_ECHO` | `false` | Returns the code in the response |
 | `OTP_FIXED_CODE` | *(unset)* | Pins the code |
 | `LOG_LEVEL` | `info` | |

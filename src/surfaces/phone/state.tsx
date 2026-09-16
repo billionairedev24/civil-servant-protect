@@ -22,6 +22,8 @@ interface PhoneStateShape {
   late: boolean
   /** Harness: bright-sunlight contrast simulation. */
   sun: boolean
+  /** The sign-in challenge in flight, when running against the API. */
+  challengeId: string | null
 }
 
 const INITIAL: PhoneStateShape = {
@@ -37,6 +39,7 @@ const INITIAL: PhoneStateShape = {
   benes: 2,
   late: false,
   sun: false,
+  challengeId: null,
 }
 
 export interface PhoneCtx extends PhoneStateShape {
@@ -101,23 +104,20 @@ export function PhoneStateProvider({
   )
 
   /**
-   * OTP keypad. Six digits auto-advances to the fingerprint screen after a beat,
-   * which is what makes the demo feel like a real handset.
+   * The OTP keypad, and only the keypad.
+   *
+   * What happens when the sixth digit lands is the screen's business now: on
+   * fixtures it advances after a beat so the demo feels like a handset, and
+   * against the API it has to verify the code first and may well be told no.
+   * Deciding that here would mean navigating away from a wrong code.
    */
   const pressKey = useCallback((digit: string) => {
     setState((s) => {
       if (digit === 'del') return { ...s, otp: s.otp.slice(0, -1), otpError: false }
       if (s.otp.length >= 6) return s
-      const next = s.otp + digit
-      if (next.length === 6) {
-        setTimeout(() => {
-          setState((cur) => ({ ...cur, otp: '' }))
-          navigate('biometric')
-        }, 260)
-      }
-      return { ...s, otp: next, otpError: false }
+      return { ...s, otp: s.otp + digit, otpError: false }
     })
-  }, [navigate])
+  }, [])
 
   const value = useMemo<PhoneCtx>(
     () => ({

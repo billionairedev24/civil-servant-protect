@@ -135,12 +135,30 @@ public class SecurityConfig {
     return converter;
   }
 
+  /**
+   * Who may call this API from a browser.
+   *
+   * <p>All three frontends are served from different hosts than the API — the spec puts the member
+   * web, the console and this service behind separate names — so every call a browser makes is
+   * cross-origin and none of them work without this. It is an allowlist, not a wildcard: a token
+   * that unlocks a payroll's roster must not be usable from any page that asks.
+   *
+   * <p>Patterns rather than exact origins, because an exact origin has to name the port, and local
+   * work does not have one port. {@code npm run dev} serves 5173, {@code npm run preview} serves
+   * 4173, and the browser tests take whatever is free. The default below covers loopback on any
+   * port and nothing else; {@code CORS_ORIGINS} replaces it with the real names in deployment,
+   * where an exact origin is still an exact origin.
+   *
+   * <p>Credentials stay off. Tokens travel in the Authorization header, so nothing here should ever
+   * be allowed to ride along on a cookie.
+   */
   @Bean
   CorsConfigurationSource corsSource() {
     var config = new CorsConfiguration();
-    config.setAllowedOrigins(props.corsOrigins());
+    config.setAllowedOriginPatterns(props.corsOrigins());
     config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
     config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+    config.setAllowCredentials(false);
     config.setMaxAge(3600L);
     var source = new UrlBasedCorsConfigurationSource();
     source.registerCorsConfiguration("/**", config);

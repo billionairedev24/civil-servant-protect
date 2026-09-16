@@ -1,5 +1,7 @@
 import { useCallback, useMemo } from 'react'
 import { Navigate, Route, Routes, useSearchParams } from 'react-router-dom'
+import { AuthProvider } from './api/auth'
+import { ApiProvider } from './api/provider'
 import { LangProvider, type Lang } from './i18n'
 import type { SponsorId } from './data/sponsors'
 import { MemberMobileApp } from './surfaces/phone/MemberMobileApp'
@@ -51,13 +53,17 @@ export function App() {
 
   return (
     <LangProvider lang={lang}>
-      <Routes>
-        <Route path="/m" element={<MemberMobileApp {...shared} />} />
-        <Route path="/m/:screen" element={<MemberMobileApp {...shared} />} />
-        <Route path="/console/*" element={<SponsorConsoleApp sponsorId={sponsorId} setSponsor={setSponsor} demo={demo} />} />
-        <Route path="/*" element={<MemberWebApp {...shared} />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      <ApiProvider>
+        <AuthProvider>
+          <Routes>
+          <Route path="/m" element={<MemberMobileApp {...shared} />} />
+          <Route path="/m/:screen" element={<MemberMobileApp {...shared} />} />
+          <Route path="/console/*" element={<SponsorConsoleApp sponsorId={sponsorId} setSponsor={setSponsor} demo={demo} />} />
+          <Route path="/*" element={<MemberWebApp {...shared} />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+        </AuthProvider>
+      </ApiProvider>
     </LangProvider>
   )
 }
