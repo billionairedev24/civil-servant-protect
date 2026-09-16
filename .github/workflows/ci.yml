@@ -39,7 +39,7 @@ jobs:
       TEST_DATABASE_URL: jdbc:postgresql://127.0.0.1:5432/csp_test
       TEST_REDIS_HOST: 127.0.0.1
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # The same script the local compose file mounts, so CI and a laptop get
       # the same role with the same attributes.
@@ -50,7 +50,7 @@ jobs:
           psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 \
             -f deploy/local/init-db.sql
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           # The build spec says Java 25 and the pom sets --release 25, so an
           # older JDK does not compile this at all.
@@ -103,7 +103,7 @@ jobs:
   charts:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Structure check
         run: |
@@ -129,9 +129,9 @@ jobs:
   web:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
