@@ -13,6 +13,7 @@ npm run dev        # http://localhost:5173
 npm run build      # typecheck + production build
 npm run typecheck
 npm run smoke      # drives all 56 screens in Chromium; needs a build first
+npm run a11y       # audits against the spec's accessibility minimums
 ```
 
 `npm run smoke` is the only test, and deliberately so: the app is almost entirely presentational, so the failure worth
@@ -97,6 +98,30 @@ These are real and deliberate — not oversights to tidy away.
    a minor; phone uses 4471-2098 and 60/40. Both are reproduced as designed rather than silently reconciled — see the
    note at the top of `src/surfaces/web/data.ts`. Worth deciding before these become seed data.
 6. **Benefit figures are illustrative**, pending actuarial, legal and underwriting sign-off.
+7. **Hit targets are below the spec's 44px.** The spec asks for 44px everywhere; the design's chips, nav rows and
+   table actions are 26–38px. Everything clears the 24px WCAG 2.2 floor, which was worth fixing outright, but going to
+   44 would visibly change the density the design was tuned for — so it stays a design call. `npm run a11y` reports
+   the count per surface.
+
+## One deliberate departure from the mockups
+
+The mockups failed the spec's own contrast rule, and the spec won.
+
+The spec lists 4.5:1 as a non-negotiable minimum and says in as many words: *do not tint text below `#5C6560` on
+white*. The designs used `#8A928C` for secondary text (3.2:1 on white, 2.7:1 on paper) and `#A9A69B` for mono eyebrow
+labels (2.0–2.4:1) — not a few instances, but the standard secondary-text treatment on every screen. For a product
+used outdoors in bright sun by people who may not read English well, that is the wrong trade.
+
+`faint` and `ghost` are now both `#636C67`. On this cream ground the AA-passing band is only `#5C6560`–`#636C67`, so a
+third tier *in lightness* cannot exist — the eyebrow hierarchy is carried by type instead (mono, 9px, `.12em`
+tracking), which is how it already read. Two smaller follow-ons came with it: the index-rail group label darkens to
+`mut` on a selected row, where the tint drops it below the line, and the green benefit card's eyebrow went from 70% to
+85% alpha.
+
+`ghost2` (`#B9B6AB`) survives for decorative carets, unselected marks and disabled controls, which carry no text.
+
+`npm run a11y` now reports zero contrast failures on all four surfaces. If you want the original palette back, it is
+two values in `src/theme/tokens.ts` and `tokens.css`.
 
 ## What this is not
 

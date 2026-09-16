@@ -86,7 +86,7 @@ export function WebDashboard() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1.35fr 1fr', gap: 14, marginTop: 16 }}>
         <div style={{ padding: 22, borderRadius: 13, background: C.g, color: C.gTint }}>
-          <Kicker size={9.5} color="rgba(241,246,243,.7)">{t.if_you_die}</Kicker>
+          <Kicker size={9.5} color="rgba(241,246,243,.85)">{t.if_you_die}</Kicker>
           <div style={{ fontSize: 40, fontWeight: 700, letterSpacing: '-.03em', marginTop: 8 }}>₦5,000,000</div>
           <div style={{ fontSize: 13.5, lineHeight: 1.5, color: 'rgba(241,246,243,.82)', marginTop: 6 }}>
             {t.paid_to} Chinedu, Ngozi and Amaka Okafor. {t.accident_amount} ₦10,000,000.
@@ -132,7 +132,8 @@ export function WebDashboard() {
             <button
               type="button"
               onClick={() => go('contrib')}
-              style={{ border: 0, background: 'transparent', color: C.g, fontSize: 13, fontWeight: 600, cursor: 'pointer', padding: 0 }}
+              className="btn-inline"
+                  style={{ fontSize: 13 }}
             >
               All
             </button>
@@ -434,7 +435,8 @@ export function WebFamily() {
               <div style={{ padding: '13px 16px', textAlign: 'right' }}>
                 <button
                   type="button"
-                  style={{ border: 0, background: 'transparent', color: C.g, fontSize: 13, fontWeight: 600, cursor: 'pointer', padding: 0 }}
+                  className="btn-inline"
+                  style={{ fontSize: 13 }}
                 >
                   Remove
                 </button>

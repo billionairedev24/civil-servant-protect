@@ -181,7 +181,8 @@ export function WebBeneficiaries() {
               <div style={{ padding: '13px 16px', textAlign: 'right' }}>
                 <button
                   type="button"
-                  style={{ border: 0, background: 'transparent', color: C.g, fontSize: 13, fontWeight: 600, cursor: 'pointer', padding: 0 }}
+                  className="btn-inline"
+                  style={{ fontSize: 13 }}
                 >
                   Edit
                 </button>

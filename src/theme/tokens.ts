@@ -16,10 +16,22 @@ export const C = {
   white: '#FFFFFF',
 
   // ink
+  //
+  // The design drew three tiers below `ink` — #8A928C and #A9A69B for tertiary
+  // text and eyebrow labels — but both fail the 4.5:1 the spec calls
+  // non-negotiable (3.2:1 and 2.4:1 on white, worse on paper). On this cream
+  // ground the passing band is only #5C6560 … #636C67, so a third tier in
+  // lightness cannot exist and still be legible in sunlight.
+  //
+  // `faint` and `ghost` therefore collapse to one value, and the hierarchy is
+  // carried by type instead — mono, 9px and .12em tracking already read as an
+  // eyebrow without being pale. They stay separate tokens because they mean
+  // different things and would diverge again on a darker ground.
   ink: '#14181B',
   mut: '#5C6560',
-  faint: '#8A928C',
-  ghost: '#A9A69B',
+  faint: '#636C67',
+  ghost: '#636C67',
+  /** Decorative only — carets, unselected marks, disabled controls. Never text. */
   ghost2: '#B9B6AB',
 
   // civic green — money, confirmation, the brand

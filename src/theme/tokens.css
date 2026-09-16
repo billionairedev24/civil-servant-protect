@@ -9,8 +9,10 @@
 
   --ink: #14181b;
   --mut: #5c6560;
-  --faint: #8a928c;
-  --ghost: #a9a69b;
+  /* See tokens.ts: the design's #8A928C / #A9A69B fail the spec's 4.5:1, and on
+     this ground the passing band is too narrow for a third tier. */
+  --faint: #636c67;
+  --ghost: #636c67;
 
   --g: #046a38;
   --gd: #03502a;
@@ -243,6 +245,24 @@ button:focus-visible,
 }
 .btn-link:hover {
   text-decoration-color: var(--g);
+}
+
+/* Inline text action inside a card header or table row ("All", "Edit",
+   "Remove"). The padding buys a 24px+ hit area — the WCAG 2.2 target-size
+   floor — and the matching negative margin keeps the text optically exactly
+   where the design put it. */
+.btn-inline {
+  padding: 6px 5px;
+  margin: -6px -5px;
+  border: 0;
+  background: transparent;
+  color: var(--g);
+  font-family: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-inline:hover {
+  color: var(--gd);
 }
 
 /* Back sits at the TOP-LEFT of every wizard, never at the bottom next to the

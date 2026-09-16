@@ -50,7 +50,7 @@ export function ConsoleRoster() {
           placeholder="Name, service number, NIN or CSP-ID"
           style={{ flex: 1, minWidth: 0, border: 0, background: 'transparent', fontSize: 14, color: C.ink, outline: 'none' }}
         />
-        <Mono size={11} color={C.ghost2}>8,440 records</Mono>
+        <Mono size={11} color={C.faint}>8,440 records</Mono>
       </div>
 
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 12 }}>

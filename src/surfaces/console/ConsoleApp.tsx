@@ -139,7 +139,7 @@ function IndexRail() {
               }}
             >
               {it.label}
-              <Mono size={9} color={C.ghost}>{it.group}</Mono>
+              <Mono size={9} color={on ? C.mut : C.ghost}>{it.group}</Mono>
             </button>
           )
         })}
