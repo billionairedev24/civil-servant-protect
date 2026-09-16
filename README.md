@@ -12,7 +12,13 @@ npm install
 npm run dev        # http://localhost:5173
 npm run build      # typecheck + production build
 npm run typecheck
+npm run smoke      # drives all 56 screens in Chromium; needs a build first
 ```
+
+`npm run smoke` is the only test, and deliberately so: the app is almost entirely presentational, so the failure worth
+guarding against is a screen that throws or renders blank — which `tsc` cannot see. It drives every screen on every
+surface across all four rails, five languages and both console device modes, and fails on any uncaught exception or
+console error. It has already caught a clipped button and a font that silently never loaded. CI runs it on every PR.
 
 ## The four surfaces
 
