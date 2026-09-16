@@ -1,6 +1,9 @@
 import { Icon } from '../../../components/Icon'
 import { Mono, RecordRow, StepBars } from '../../../components/primitives'
-import { CLAIM, CLAIM_STAGES, CLAIM_SUMMARY_VALUES } from '../../../data/member'
+import { CLAIM, CLAIM_SUMMARY_VALUES } from '../../../data/member'
+import { CLAIM_FIXTURE, MY_CLAIMS } from '../../../api/fixtures'
+import { useClaim, useMyClaims } from '../../../api/queries'
+import { NotLive, dayFirst, naira, useLive } from '../../../api/live'
 import { C, MONO } from '../../../theme/tokens'
 import { Screen, BackButton } from '../Screen'
 import { usePhone } from '../state'
@@ -252,13 +255,32 @@ export function ClaimScreen() {
 export function TrackScreen() {
   const { t } = usePhone()
 
+  /* Two reads, in order. The app cannot ask for a claim it does not know the
+     reference of — a member who opened one on another phone, or last month, has
+     nothing in this session to look it up with — so the list comes first and the
+     newest claim is the one being tracked. */
+  const { data: mine, failed: listFailed, provisional } = useLive(useMyClaims(MY_CLAIMS), MY_CLAIMS)
+  // Not while the list is still the fixture — see `provisional` in api/live.
+  const ref = provisional ? '' : (mine.claims[0]?.ref ?? '')
+  const { data: claim, failed: detailFailed } = useLive(useClaim(ref, CLAIM_FIXTURE), CLAIM_FIXTURE)
+  const failed = listFailed || detailFailed
+
+  /* The timeline is the claim's own audit log, not a five-step picture drawn
+     next to it. The translated titles stay — a bereaved family should read
+     "We are checking them", not `assessing` — but which one is current, and
+     when each happened, comes from the record. */
+  const stageAt = (i: number) => claim.stages[i] ?? null
+
   return (
     <Screen scroll>
       <Mono size={10.5} color={C.faint} style={{ display: 'block', letterSpacing: '.1em', paddingTop: 14 }}>
-        {CLAIM.openRef}
+        {claim.ref}
       </Mono>
       <div style={{ fontSize: 15, fontWeight: 600, color: C.mut, marginTop: 3 }}>{t.funeral_benefit}</div>
-      <div style={{ fontSize: 36, fontWeight: 700, letterSpacing: '-.035em', marginTop: 2 }}>{CLAIM.funeralAmount}</div>
+      <div style={{ fontSize: 36, fontWeight: 700, letterSpacing: '-.035em', marginTop: 2 }}>
+        {naira(claim.amountMinor)}
+      </div>
+      {failed && <NotLive what="This claim" />}
 
       <div style={{ marginTop: 18, padding: 16, borderRadius: 14, background: C.gTint2 }}>
         <Mono size={9.5} color={C.gInk} style={{ display: 'block', letterSpacing: '.12em' }}>{t.now_title}</Mono>
@@ -282,7 +304,8 @@ export function TrackScreen() {
 
       <div style={{ marginTop: 24 }}>
         {t.stages.map((title, i) => {
-          const st = CLAIM_STAGES[i]
+          const stage = stageAt(i)
+          const st = (stage?.state ?? 'todo') as 'done' | 'now' | 'todo'
           return (
             <div key={title} style={{ display: 'grid', gridTemplateColumns: '28px 1fr', gap: 13 }}>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -307,7 +330,14 @@ export function TrackScreen() {
               </div>
               <div style={{ paddingBottom: 22 }}>
                 <div style={{ fontSize: 16, fontWeight: 600, color: st === 'todo' ? C.faint : C.ink }}>{title}</div>
-                <div style={{ fontSize: 13, lineHeight: 1.45, color: C.faint, marginTop: 2 }}>{t.stage_when[i]}</div>
+                {/* When it happened, and who did it. A stage that has not
+                    started keeps the translated "what happens next" line,
+                    because there is no date to give yet. */}
+                <div style={{ fontSize: 13, lineHeight: 1.45, color: C.faint, marginTop: 2 }}>
+                  {stage && stage.at
+                    ? `${dayFirst(stage.at)}${stage.actor ? ` · ${stage.actor}` : ''}`
+                    : t.stage_when[i]}
+                </div>
               </div>
             </div>
           )

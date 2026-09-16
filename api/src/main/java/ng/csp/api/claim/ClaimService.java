@@ -235,6 +235,44 @@ public class ClaimService {
     return new DocumentResult(docKey, outstanding);
   }
 
+  public record MyClaim(String ref, String type, String state, Long amountMinor, Instant openedAt) {}
+
+  /**
+   * A member's own claims, newest first.
+   *
+   * Without this the app cannot show a member the claim they opened: it knows
+   * the reference only for as long as the screen that created it is on screen,
+   * and after that there is nothing to look up. The assessor's queue is not a
+   * substitute — it is a different role reading every member's claims, and RLS
+   * refuses it here for exactly that reason.
+   *
+   * Scoped by the session's member id rather than by a parameter, so there is no
+   * request shape in which one member asks for another's.
+   */
+  public List<MyClaim> mine(SessionUser session) {
+    if (session.memberId() == null) {
+      throw ApiException.badRequest("Only a member has claims of their own.");
+    }
+    return db.sql(
+            """
+            SELECT claim_ref, type::text AS type, state::text AS state, amount_minor, created_at
+              FROM claims
+             WHERE member_id = :m
+             ORDER BY created_at DESC
+             LIMIT 50
+            """)
+        .param("m", session.memberId())
+        .query(
+            (rs, n) ->
+                new MyClaim(
+                    rs.getString("claim_ref"),
+                    rs.getString("type"),
+                    rs.getString("state"),
+                    rs.getObject("amount_minor") == null ? null : rs.getLong("amount_minor"),
+                    Rows.instant(rs, "created_at")))
+        .list();
+  }
+
   public record QueueItem(
       String ref, String type, String state, Instant openedAt,
       String memberName, String cspId, int outstandingDocs) {}

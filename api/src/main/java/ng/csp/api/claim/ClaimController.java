@@ -65,6 +65,13 @@ public class ClaimController {
         body.byteSize(), body.storageKey());
   }
 
+  /** The member's own claims. Scoped to the session — there is no id to pass. */
+  @GetMapping("/members/me/claims")
+  @PreAuthorize("hasAuthority('PERM_CLAIM_READ_OWN')")
+  public Map<String, List<ClaimService.MyClaim>> mine(SessionUser session) {
+    return Map.of("claims", claims.mine(session));
+  }
+
   @GetMapping("/claims")
   @PreAuthorize("hasAuthority('PERM_CLAIM_READ_ANY')")
   public Map<String, List<ClaimService.QueueItem>> queue() {

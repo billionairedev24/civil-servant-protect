@@ -55,8 +55,16 @@ export const EN_ONLY = {
     'Confirming takes one tap and is recorded with the date. You will be asked again next September.',
   beneconf_due_card: 'Annual confirmation due',
   beneconf_due_card_sub: 'One tap before 30 September',
-  benes_unshared: 'Emeka is named but holds no share — set one before you confirm.',
-  benes_balanced: '60% + 40% = 100%.',
+  /*
+   * The share summary is built from the shares, not written out.
+   *
+   * It used to read "60% + 40% = 100%" and name Emeka directly, which was true
+   * of the fixture and of nobody else. A member who has named four people, or
+   * whose split is 50/50, was being told about someone else's family.
+   */
+  benes_unshared_one: '{name} is named but holds no share — set one before you confirm.',
+  benes_unshared_many: '{names} are named but hold no share — set one each before you confirm.',
+  benes_no_number: 'no number on file',
 
   // Why your contribution changed
   why_title: 'Why your deduction went up',

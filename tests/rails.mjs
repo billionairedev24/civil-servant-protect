@@ -159,7 +159,11 @@ try {
     // ── Sponsor console ───────────────────────────────────────────────────────
     t = await read('/console', rail)
     expect(t, name, 'console/dashboard', x.org)
-    expect(t, name, 'console/dashboard', x.payroll ? 'August deduction cycle' : 'August collection run')
+    // September, because the console's open cycle is now the same month the
+    // member app is in. The two fixtures disagreed — the console described
+    // August while the member's ledger ran to September — and wiring both to
+    // one shape is what surfaced it.
+    expect(t, name, 'console/dashboard', x.payroll ? 'September deduction cycle' : 'September collection run')
 
     t = await read('/console/schedule', rail)
     // Only self-pay says it has no schedule to send.
@@ -167,7 +171,7 @@ try {
     expect(t, name, 'console/schedule', x.code)
 
     t = await read('/console/reconciliation', rail)
-    expect(t, name, 'console/recon', x.payroll ? 'Return file · August 2026' : 'Debit results · August 2026')
+    expect(t, name, 'console/recon', x.payroll ? 'Return file · SEP 2026' : 'Debit results · SEP 2026')
     expect(t, name, 'console/recon', 'There is no return file on this rail', !x.payroll)
 
     t = await read('/console/reconciliation/exceptions/CSP-114-88214', rail)

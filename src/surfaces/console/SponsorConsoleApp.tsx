@@ -4,6 +4,9 @@ import { ConsoleSignIn } from './SignIn'
 import { Icon } from '../../components/Icon'
 import { Mono } from '../../components/primitives'
 import { initialsOf } from '../../data/member'
+import { SPONSOR_DASHBOARD } from '../../api/fixtures'
+import { useSponsorDashboard } from '../../api/queries'
+import { useLive } from '../../api/live'
 import { BP, useMediaQuery } from '../../components/useMediaQuery'
 import type { SponsorId } from '../../data/sponsors'
 import { C } from '../../theme/tokens'
@@ -107,11 +110,21 @@ function Shell() {
 }
 
 function SideNav() {
-  const { screen, sponsor, payroll, go } = useConsole()
+  const { screen, sponsor, go } = useConsole()
   const officer = useOfficer()
+  /* The queue counts in the rail, from the same read the dashboard uses — a
+     sidebar that says 57 next to a screen that says 3 is worse than no badge,
+     because it is the number an officer glances at rather than reads. */
+  const { data: dash } = useLive(useSponsorDashboard(SPONSOR_DASHBOARD), SPONSOR_DASHBOARD)
 
-  const badgeFor = (badge?: 'recon' | 'claims') =>
-    badge === 'recon' ? (payroll ? '57' : '51') : badge === 'claims' ? '4' : ''
+  const badgeFor = (badge?: 'recon' | 'claims') => {
+    if (badge === 'recon') return dash.exceptions.open === 0 ? '' : String(dash.exceptions.open)
+    // Claims are the insurer's queue, not the sponsor's: the console shows the
+    // count so an HR officer knows a family is waiting, but the number does not
+    // come from this sponsor's dashboard. Until that read exists it stays put,
+    // and is marked here rather than looking derived.
+    return badge === 'claims' ? '4' : ''
+  }
 
   return (
     <nav

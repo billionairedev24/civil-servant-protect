@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Icon } from '../../components/Icon'
 import { Mono } from '../../components/primitives'
 import { useAuth } from '../../api/auth'
@@ -20,6 +21,7 @@ import { C } from '../../theme/tokens'
 export function ConsoleSignIn() {
   const { live } = useApi()
   const { adoptConsoleToken } = useAuth()
+  const nav = useNavigate()
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   // Memoised: configFromEnv() builds a fresh object every call, and an object
@@ -40,10 +42,15 @@ export function ConsoleSignIn() {
     exchanged.current = true
     completeSignIn(config)
       .then((result) => {
-        if (result) adoptConsoleToken(result.accessToken)
+        if (!result) return
+        adoptConsoleToken(result.accessToken)
+        // Off the callback URL. Leaving an officer on /console/signed-in means
+        // a reload sends them back through a sign-in they already completed,
+        // and the address bar names a step rather than a place.
+        nav('/console', { replace: true })
       })
       .catch((e: Error) => setError(e.message))
-  }, [config, adoptConsoleToken])
+  }, [config, adoptConsoleToken, nav])
 
   const start = async () => {
     if (!config) {

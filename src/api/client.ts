@@ -8,7 +8,7 @@
  * possible rather than aspirational.
  */
 import type {
-  BeneficiarySet, Claim, Ledger, MemberSummary, ProtectionCard,
+  BeneficiarySet, Claim, Ledger, MemberSummary, MyClaim, ProtectionCard,
   Reconciliation, Session, SponsorDashboard, Tokens,
 } from './types'
 
@@ -213,6 +213,17 @@ export class CspApi {
 
   confirmBeneficiaries(): Promise<{ confirmedAt: string }> {
     return this.call('POST', '/v1/members/me/beneficiaries/confirm', {})
+  }
+
+  /**
+   * The member's own claims.
+   *
+   * Separate from the assessor's `GET /v1/claims`, which is a different role
+   * reading every member's. Without this the app has no way to find a claim a
+   * member opened on another device, or last month.
+   */
+  myClaims(): Promise<{ claims: MyClaim[] }> {
+    return this.call('GET', '/v1/members/me/claims')
   }
 
   claim(ref: string): Promise<Claim> {
