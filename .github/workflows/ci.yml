@@ -46,7 +46,10 @@ jobs:
 
       - name: Verify
         working-directory: api
-        run: mvn -B -ntp verify
+        shell: bash
+        run: |
+          set -o pipefail
+          mvn -B -ntp verify 2>&1 | tee verify.log
 
       - name: Test report
         if: always()
@@ -56,6 +59,29 @@ jobs:
               | sed 's/.*name="\([^"]*\)".*tests="\([0-9]*\)".*failures="\([0-9]*\)".*/  \1: \2 tests, \3 failures/' \
               >> "$GITHUB_STEP_SUMMARY" || true
           fi
+
+      # The same treatment the smoke test gets, and for the same reason: a
+      # failure whose only copy is in the log archive is a failure somebody has
+      # to go and find. Worse here, because this job can fail *before* any test
+      # runs — a dependency that will not resolve, a compile error, a Postgres
+      # that never came up — and then the test report above has nothing to say
+      # and the check goes red with no text at all.
+      - name: Report verify failure
+        if: failure()
+        shell: bash
+        run: |
+          {
+            echo '### API verify failed'
+            echo ''
+            echo '```'
+            tail -120 api/verify.log 2>/dev/null || echo 'no verify.log — the job failed before Maven started'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          detail=$(grep -E '^\[ERROR\]' api/verify.log 2>/dev/null | head -5 | tr '\n' ' ' | cut -c1-900)
+          [ -n "$detail" ] || detail=$(tail -5 api/verify.log 2>/dev/null | tr '\n' ' ' | cut -c1-900)
+          [ -n "$detail" ] || detail='failed before Maven produced any output'
+          echo "::error title=API verify::${detail}"
 
   # The Helm chart, without needing a cluster. `helm template` across every
   # environment, because a chart that only renders for dev breaks on the Friday
