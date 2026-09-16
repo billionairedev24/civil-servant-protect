@@ -90,6 +90,36 @@ try {
     }
   }
 
+  // ── One member, three applications ────────────────────────────────────────
+  // The design bundle gave the phone and the web different CSP-IDs, different
+  // beneficiaries and different relationships for the same person, and the
+  // console used both of the IDs — including inside a single screen. A demo
+  // that shows "the same member on a desk browser" makes that visible, so it
+  // is asserted rather than left to a comment.
+  const CSP_ID = 'CSP-114-88214'
+  const STALE_ID = '4471-2098'
+  const identity = [
+    ['/m/id', 'app/card'],
+    ['/m/more', 'app/profile'],
+    ['/card', 'web/card'],
+    ['/settings', 'web/profile'],
+    ['/console/reconciliation/exceptions/CSP-114-88214', 'console/exception'],
+  ]
+  for (const [url, where] of identity) {
+    const text = await read(url, 'federal')
+    expect(text, 'identity', where, CSP_ID)
+    expect(text, 'identity', where, STALE_ID, false)
+  }
+
+  // The payee line is derived from the shares, so it names the two people who
+  // hold one — not the third who is named but unshared, and not a fourth who
+  // exists on one surface only.
+  for (const [url, where] of [['/m/home', 'app/home'], ['/dashboard', 'web/dashboard']]) {
+    const text = await read(url, 'federal')
+    expect(text, 'identity', where, 'Chinedu and Ngozi Okafor')
+    expect(text, 'identity', where, 'Amaka', false)
+  }
+
   for (const [rail, x] of Object.entries(RAILS)) {
     const name = x.label
 

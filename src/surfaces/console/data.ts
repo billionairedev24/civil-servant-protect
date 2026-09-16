@@ -5,6 +5,7 @@
  * this is shaped by one fact: on a payroll rail the return file — not the bank
  * credit — is the only thing that says who is actually covered.
  */
+import { MEMBER } from '../../data/member'
 import { C } from '../../theme/tokens'
 import type { SponsorId } from '../../data/sponsors'
 
@@ -117,7 +118,7 @@ export const RECON_PAYROLL: readonly ReconRow[] = [
 ]
 
 export const RECON_SELF: readonly ReconRow[] = [
-  { name: 'Adaeze Nkiru Okafor', ref: 'CSP 4471-2098 · GTB ••4471', kind: 'No funds', detail: 'Retry due 04.09 · first failure', amount: '₦2,500', tone: 'ochre', icon: 'ph ph-clock-countdown', f: 1 },
+  { name: 'Adaeze Nkiru Okafor', ref: `CSP ${MEMBER.cspId} · GTB ••4471`, kind: 'No funds', detail: 'Retry due 04.09 · first failure', amount: '₦2,500', tone: 'ochre', icon: 'ph ph-clock-countdown', f: 1 },
   { name: 'Musa Ibrahim', ref: 'CSP 8812-4409 · Zenith ••8812', kind: 'No funds', detail: 'Second failure this quarter', amount: '₦1,500', tone: 'ochre', icon: 'ph ph-clock-countdown', f: 1 },
   { name: 'Grace Attah', ref: 'CSP 3391-7745 · UBA ••3391', kind: 'Mandate revoked', detail: 'Cancelled at the branch 21.08', amount: '₦0', tone: 'clay', icon: 'ph-fill ph-warning-diamond', f: 2 },
   { name: 'Folake Adeyemi', ref: 'CSP 7741-2280 · card ••2280', kind: 'Card expired', detail: 'Two SMS sent · in-app prompt live', amount: '₦0', tone: 'ochre', icon: 'ph ph-credit-card', f: 3 },
@@ -126,7 +127,7 @@ export const RECON_SELF: readonly ReconRow[] = [
 ]
 
 export const ROSTER = [
-  { name: 'Adaeze Nkiru Okafor', ref: 'CSP 4471-2098 · SVC 4471208', tier: 'Standard', price: '₦2,500', state: 'Paid to August', icon: 'ph-fill ph-check-circle', tone: 'green', initials: 'AO' },
+  { name: 'Adaeze Nkiru Okafor', ref: `CSP ${MEMBER.cspId} · SVC ${MEMBER.serviceNo}`, tier: 'Standard', price: '₦2,500', state: 'Paid to August', icon: 'ph-fill ph-check-circle', tone: 'green', initials: 'AO' },
   { name: 'Musa Ibrahim', ref: 'CSP 8812-4409 · SVC 8812441', tier: 'Basic', price: '₦1,500', state: 'Not in August file', icon: 'ph ph-clock-countdown', tone: 'ochre', initials: 'MI' },
   { name: 'Folake Adeyemi', ref: 'CSP 7741-2280 · SVC 7741228', tier: 'Enhanced', price: '₦4,000', state: 'Underpaid ₦1,000', icon: 'ph ph-scales', tone: 'ochre', initials: 'FA' },
   { name: 'Grace Attah', ref: 'CSP 3391-7745 · SVC 3391774', tier: 'Basic', price: '₦1,500', state: 'In 60-day grace', icon: 'ph-fill ph-warning-circle', tone: 'clay', initials: 'GA' },

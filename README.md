@@ -27,7 +27,7 @@ Three tests, all driving a real browser, all run by CI on every PR.
 three applications across the four rails, five languages and the scenario flags, and fails on any uncaught exception or
 console error. It has already caught a clipped button and a font that silently never loaded.
 
-`npm run test:rails` guards the product's core invariant — that the rail actually branches. 108 assertions on
+`npm run test:rails` guards the product's core invariant — that the rail actually branches. 122 assertions on
 member- and officer-facing text, because a wrong branch looks like an HR officer told to upload a schedule on a rail
 that has none, or a member told their salary was docked when it never was. Writing it found exactly that bug, twice:
 once in the ledger's labels and once in the prose around them.
@@ -109,6 +109,13 @@ component. Swapping in a real API is a change to those modules and their callers
 English, Hausa, Yorùbá, Igbo, Nigerian Pidgin — all complete at 178 keys, enforced by the `Strings` interface, so a
 locale missing a key fails `npm run build` rather than falling back silently.
 
+**One member, three applications.** The identity, beneficiaries and family live once, in `src/data/member.ts`, and the
+web and console read them from there. The design bundle gave each surface its own copy, and they had drifted: two
+different CSP-IDs for one person, two different families, and a relationship that was "Daughter" on the phone and
+"Mother" on the web. The console used both IDs — in one case the exception's URL said one and its own detail panel said
+the other. The payee sentence is derived from who actually holds a share rather than written out, because that sentence
+is where the drift showed up first. `test:rails` asserts the ID is identical on all five screens that print it.
+
 **Prose follows the rail, not just labels.** A payroll member's money arrives in a monthly remittance file; a
 self-paying member's arrives when their bank clears a debit. Ten keys therefore have a `_self` twin, and `test:rails`
 asserts that no screen on the self-pay rail mentions a payroll file, a payroll office or a deduction. Getting this
@@ -134,9 +141,10 @@ These are real and deliberate — not oversights to tidy away.
    needs its own token set — worth doing after translation review, because longer strings change the layout it has to
    survive.
 4. **Low-end Android diacritics are untested.** Yorùbá and Igbo marks on stock system fonts at 12px and below.
-5. **The web and phone designs disagree on fixtures.** Web uses CSP-114-88214 and a 50/30/20 beneficiary split including
-   a minor; phone uses 4471-2098 and 60/40. Both are reproduced as designed rather than silently reconciled — see the
-   note at the top of `src/surfaces/web/data.ts`. Worth deciding before these become seed data.
+5. **The member's benefit and family-cover amounts are still per-surface.** The identity, beneficiaries and family are
+   now one record in `src/data/member.ts` that all three applications read (see below), but the phone's headline sum
+   assured is ₦5,500,000 against the web's ₦5,000,000, because the phone design includes the family top-up in the
+   figure and the web design does not. Both are defensible; which one a member should see is a product call.
 6. **Benefit figures are illustrative**, pending actuarial, legal and underwriting sign-off.
 7. **The ten newest strings have had no translation pass at all.** Closing the payroll-prose gap below meant writing
    `paid_sub_self`, `ct_note_self`, `ct_legend_self`, `pay_if_body_self`, `pay_grace`, `pay_grace_self`,

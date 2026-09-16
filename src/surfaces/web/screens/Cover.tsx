@@ -1,6 +1,6 @@
 import { Icon } from '../../../components/Icon'
 import { Kicker, Mono } from '../../../components/primitives'
-import { TIER_NAMES, TIER_PRICES } from '../../../data/member'
+import { TIER_NAMES, TIER_PRICES, payeeNames } from '../../../data/member'
 import { C, MONO } from '../../../theme/tokens'
 import {
   SCHEDULE_MATRIX, WEB_FAMILY, WEB_MEMBER, WEB_ONLY_COVER, ledgerFor,
@@ -47,7 +47,7 @@ export function WebDashboard() {
           <PageTitle>
             {t.greeting}, {WEB_MEMBER.name.split(' ')[0]}
           </PageTitle>
-          <PageSub>Standard plan · in force since 1 October 2025 · {sponsor.short}</PageSub>
+          <PageSub>Standard plan · in force since 16 July 2025 · {sponsor.short}</PageSub>
         </div>
         <button
           type="button"
@@ -89,7 +89,7 @@ export function WebDashboard() {
           <Kicker size={9.5} color="rgba(241,246,243,.85)">{t.if_you_die}</Kicker>
           <div style={{ fontSize: 40, fontWeight: 700, letterSpacing: '-.03em', marginTop: 8 }}>₦5,000,000</div>
           <div style={{ fontSize: 13.5, lineHeight: 1.5, color: 'rgba(241,246,243,.82)', marginTop: 6 }}>
-            {t.paid_to} Chinedu, Ngozi and Amaka Okafor. {t.accident_amount} ₦10,000,000.
+            {t.paid_to} {payeeNames(t.and)}. {t.accident_amount} ₦10,000,000.
           </div>
           <button
             type="button"
