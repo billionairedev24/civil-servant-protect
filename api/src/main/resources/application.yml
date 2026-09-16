@@ -1,4 +1,14 @@
 spring:
+  batch:
+    jdbc:
+      # Flyway owns the schema — Batch's tables are in V8. Two things creating
+      # tables in one database is how a migration history stops describing what
+      # is actually there.
+      initialize-schema: never
+    job:
+      # Jobs are launched by the upload endpoint, not at startup. Without this,
+      # every boot would re-run the last schedule load.
+      enabled: false
   application:
     name: csp-api
   datasource:

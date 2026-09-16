@@ -96,6 +96,19 @@
     </dependency>
 
     <!--
+      Spring Batch, for the schedule load.
+
+      A payroll schedule is up to a million rows and the job has to survive a
+      restart in the middle of one. That is what Batch's chunk boundaries and
+      job repository are for, and writing a worse version of them by hand is the
+      more expensive option.
+    -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-batch</artifactId>
+    </dependency>
+
+    <!--
       Resilience4j, as libraries rather than as its Spring Boot starter.
 
       The starter is published for Boot 3 and pulls `spring-boot-starter-aop`,

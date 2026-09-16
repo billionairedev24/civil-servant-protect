@@ -9,6 +9,7 @@ import ng.csp.api.auth.MakerChecker;
 import ng.csp.api.auth.Permission;
 import ng.csp.api.auth.SessionUser;
 import ng.csp.api.domain.Rails;
+import ng.csp.api.schedule.ScheduleLoader;
 import ng.csp.api.web.ApiException;
 import ng.csp.api.web.Rows;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -20,11 +21,13 @@ import tools.jackson.databind.ObjectMapper;
 public class SponsorService {
 
   private final JdbcClient db;
+  private final ScheduleLoader loader;
   private final ObjectMapper json;
 
-  public SponsorService(JdbcClient db, ObjectMapper json) {
+  public SponsorService(JdbcClient db, ObjectMapper json, ScheduleLoader loader) {
     this.db = db;
     this.json = json;
+    this.loader = loader;
   }
 
   public record SponsorInfo(
@@ -136,15 +139,25 @@ public class SponsorService {
 
   public record Rejected(int row, String reason) {}
 
-  public record UploadResult(UUID batchId, int rowCount, int parsed, List<Rejected> rejected) {}
+  /**
+   * What an upload answers with.
+   *
+   * <p>No rejection list: rejection is decided by the job's match step, which has not run yet.
+   * Returning an empty one would be claiming every row was fine before anything had looked at them.
+   * The list is on the batch when it finishes.
+   */
+  public record UploadResult(UUID cycleId, UUID batchId, int rowCount) {}
 
   /**
    * Upload the month's schedule. A preparer's job.
    *
-   * <p>Parse rejections are returned per row and never block the rows that parsed — one bad line in
-   * eight thousand must not cost a sponsor a month. At v1 scale this is synchronous; the build spec
-   * puts the 1m-row path through Spring Batch with Kafka between stages, and this method is the
-   * seam that job would call.
+   * <p>Take a payroll schedule and start turning it into money owed.
+   *
+   * <p>Returns as soon as the rows are safely written down, not when they are loaded. A federal
+   * schedule is 8,412 rows and the spec's ceiling is a million; an HTTP request that runs for
+   * minutes gets cut by a proxy, abandoned by a browser and retried by an officer, and the retry
+   * produces a second million rows. So this stages and hands off — see ScheduleLoader and
+   * ScheduleLoadJob — and the console watches the batch.
    */
   @Transactional
   public UploadResult uploadSchedule(
@@ -159,73 +172,52 @@ public class SponsorService {
 
     db.sql("SELECT csp.ensure_contribution_partition(:p)").param("p", period).query(String.class).single();
 
-    var total = rows.stream().mapToLong(ScheduleRow::amountMinor).sum();
+    /*
+     * The cycle is created with zero totals and filled in by the job's last
+     * step, from what was actually loaded. A file claiming a million rows and a
+     * load that produced 900,000 contributions disagree, and the number worth
+     * having is the one backed by rows.
+     */
+    var railRef = "%s/%02d".formatted(sponsor.railCode(), period.getMonthValue());
     var cycleId =
         db.sql(
                 """
                 INSERT INTO collection_cycles
                   (sponsor_id, period, state, rail_ref, scheduled_count, scheduled_minor, sent_at)
-                VALUES (:s, :p, 'sent', :ref, :count, :minor, now())
+                VALUES (:s, :p, 'sent', :ref, 0, 0, now())
                 ON CONFLICT (sponsor_id, period) DO UPDATE
-                  SET scheduled_count = EXCLUDED.scheduled_count,
-                      scheduled_minor = EXCLUDED.scheduled_minor,
-                      state = 'sent', sent_at = now()
+                  SET state = 'sent', sent_at = now()
                 RETURNING id
                 """)
             .param("s", sponsorId)
             .param("p", period)
-            .param("ref", "%s/%02d".formatted(sponsor.railCode(), period.getMonthValue()))
-            .param("count", rows.size())
-            .param("minor", total)
+            .param("ref", railRef)
             .query(UUID.class)
             .single();
 
-    var rejected = new java.util.ArrayList<Rejected>();
-    for (int i = 0; i < rows.size(); i++) {
-      var row = rows.get(i);
-      var memberId =
-          db.sql("SELECT id FROM members WHERE sponsor_id = :s AND service_no = :sn")
-              .param("s", sponsorId)
-              .param("sn", row.serviceNo())
-              .query(UUID.class)
-              .optional()
-              .orElse(null);
-      if (memberId == null) {
-        // Reported, not dropped silently.
-        rejected.add(new Rejected(i + 1, "No member with service number " + row.serviceNo()));
-        continue;
-      }
-      db.sql(
-              """
-              INSERT INTO contributions (member_id, cycle_id, period, amount_minor, source, status, rail_ref)
-              VALUES (:m, :c, :p, :amt, 'payroll', 'expected', :ref)
-              """)
-          .param("m", memberId)
-          .param("c", cycleId)
-          .param("p", period)
-          .param("amt", row.amountMinor())
-          .param("ref", sponsor.railCode())
-          .update();
-    }
-
-    db.sql(
-            """
-            INSERT INTO schedule_batches
-              (cycle_id, direction, filename, row_count, parsed_count, rejected, uploaded_by)
-            VALUES (:c, 'outbound', :f, :rc, :pc, CAST(:rej AS jsonb), :u)
-            """)
-        .param("c", cycleId)
-        .param("f", filename)
-        .param("rc", rows.size())
-        .param("pc", rows.size() - rejected.size())
-        .param("rej", json.writeValueAsString(rejected))
-        .param("u", session.userId())
-        .update();
+    var batchId =
+        loader.stage(
+            cycleId,
+            filename,
+            session.userId(),
+            rows.stream()
+                .map(r -> new ScheduleLoader.Row(r.serviceNo(), r.name(), r.amountMinor()))
+                .toList());
 
     audit(session, sponsorId, "schedule.uploaded", "cycle", cycleId.toString(),
-        Map.of("period", period.toString(), "rows", rows.size(), "rejected", rejected.size()));
+        Map.of("period", period.toString(), "rows", rows.size(), "batch", batchId.toString()));
 
-    return new UploadResult(cycleId, rows.size(), rows.size() - rejected.size(), List.copyOf(rejected));
+    loader.launch(batchId, sponsorId, cycleId, period, sponsor.railCode());
+
+    // Nothing is rejected yet — rejection is decided by the match step, and the
+    // list is on the batch once it finishes. Reporting an empty list here would
+    // be claiming every row was fine before anything had looked.
+    return new UploadResult(cycleId, batchId, rows.size());
+  }
+
+  /** Progress, for the console to poll while a load runs. */
+  public ScheduleLoader.Batch batchStatus(UUID batchId) {
+    return loader.status(batchId);
   }
 
   // ── Reconciliation ─────────────────────────────────────────────────────────
