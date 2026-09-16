@@ -77,8 +77,8 @@ try {
   const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } })
 
   /** Open a route on a rail and return everything it says. */
-  const read = async (url, rail) => {
-    await page.goto(withParams(base, url, { rail }), { waitUntil: 'load', timeout: 60_000 })
+  const read = async (url, rail, extra = {}) => {
+    await page.goto(withParams(base, url, { rail, ...extra }), { waitUntil: 'load', timeout: 60_000 })
     return page.locator('body').innerText()
   }
 
@@ -102,6 +102,10 @@ try {
     // The invariant that matters: a self-paying member has no payroll
     // deduction, so nothing on this rail may claim one.
     expect(t, name, 'app/pay', 'Salary deduction', x.payroll)
+    // The grace timeline and the sentence above it describe a retry the app
+    // controls on self-pay and a file it only waits for on payroll.
+    expect(t, name, 'app/pay', 'payroll file', x.payroll)
+    expect(t, name, 'app/pay', x.payroll ? 'file due' : 'debit sent')
 
     t = await read('/m/contrib', rail)
     expect(t, name, 'app/contributions', x.ledger)
@@ -110,6 +114,14 @@ try {
     // beside the amount.
     expect(t, name, 'app/contributions', 'Payroll deduction', x.payroll)
     expect(t, name, 'app/contributions', x.payroll ? 'Payroll' : 'Confirmed')
+    // …and in the prose, which is where it is easiest to miss. A self-paying
+    // member has no payroll office and no remittance file, so no sentence on
+    // this screen may mention one.
+    expect(t, name, 'app/contributions', 'payroll file', x.payroll)
+    expect(t, name, 'app/contributions', 'payroll office', x.payroll)
+    expect(t, name, 'app/contributions', 'Waiting for the file', x.payroll)
+    expect(t, name, 'app/contributions', x.payroll ? 'NOT YET IN THE FILE' : 'NOT YET CLEARED')
+    expect(t, name, 'app/contributions', x.payroll ? 'remittance file' : 'your bank confirms the debit')
 
     t = await read('/m/id', rail)
     expect(t, name, 'app/card', x.collectedBy)
@@ -144,6 +156,12 @@ try {
     t = await read('/contributions', rail)
     expect(t, name, 'web/contributions', x.railRef)
     expect(t, name, 'web/contributions', x.payroll ? x.collectedBy : 'Direct debit · GTBank ••4471')
+    expect(t, name, 'web/contributions', 'payroll file', x.payroll)
+
+    // The late-payment banner names what actually failed. On self-pay that is
+    // the bank debit, not a deduction an HR office never made.
+    t = await read('/m/home', rail, { demo: 'late' })
+    expect(t, name, 'app/home late', x.payroll ? 'August deduction has not arrived' : 'August direct debit did not go through')
 
     console.log(`  ${name.padEnd(9)} ok`)
   }

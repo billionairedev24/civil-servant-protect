@@ -45,7 +45,7 @@ export function WebContributions() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 20 }}>
         <div>
           <PageTitle>{t.paid_title}</PageTitle>
-          <PageSub>{t.paid_sub}</PageSub>
+          <PageSub>{payroll ? t.paid_sub : t.paid_sub_self}</PageSub>
         </div>
         <button type="button" className="btn btn-secondary" style={{ height: 42, padding: '0 18px', fontSize: 14, gap: 8 }}>
           <Icon name="ph ph-download-simple" size={16} color={C.g} />

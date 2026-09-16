@@ -24,9 +24,10 @@ Three tests, all driving a real browser, all run by CI on every PR.
 three applications across the four rails, five languages and the scenario flags, and fails on any uncaught exception or
 console error. It has already caught a clipped button and a font that silently never loaded.
 
-`npm run test:rails` guards the product's core invariant — that the rail actually branches. 72 assertions on
+`npm run test:rails` guards the product's core invariant — that the rail actually branches. 108 assertions on
 member- and officer-facing text, because a wrong branch looks like an HR officer told to upload a schedule on a rail
-that has none, or a member told their salary was docked when it never was. Writing it found exactly that bug.
+that has none, or a member told their salary was docked when it never was. Writing it found exactly that bug, twice:
+once in the ledger's labels and once in the prose around them.
 
 `npm run a11y` reports contrast and hit-target findings per application and fails on a control with no accessible name.
 
@@ -102,7 +103,13 @@ component. Swapping in a real API is a change to those modules and their callers
 `docs/spec-source.ts` carries the intended request/response shapes per screen.
 
 **Copy is never inlined.** All member-facing strings come from `src/i18n/strings.ts` through `useT()`. Five locales —
-English, Hausa, Yorùbá, Igbo, Nigerian Pidgin — all complete at 168 keys.
+English, Hausa, Yorùbá, Igbo, Nigerian Pidgin — all complete at 178 keys, enforced by the `Strings` interface, so a
+locale missing a key fails `npm run build` rather than falling back silently.
+
+**Prose follows the rail, not just labels.** A payroll member's money arrives in a monthly remittance file; a
+self-paying member's arrives when their bank clears a debit. Ten keys therefore have a `_self` twin, and `test:rails`
+asserts that no screen on the self-pay rail mentions a payroll file, a payroll office or a deduction. Getting this
+wrong is not a cosmetic bug — it sends a member to an HR office that was never involved in their payment.
 
 **The button system** is one tiered pill geometry (54 / 52 / 44 / 40px) in `tokens.css`. Two rules there are load-bearing
 and were each arrived at by fixing a real bug: every tier pins `flex-shrink: 0` so actions never collapse on
@@ -128,10 +135,11 @@ These are real and deliberate — not oversights to tidy away.
    a minor; phone uses 4471-2098 and 60/40. Both are reproduced as designed rather than silently reconciled — see the
    note at the top of `src/surfaces/web/data.ts`. Worth deciding before these become seed data.
 6. **Benefit figures are illustrative**, pending actuarial, legal and underwriting sign-off.
-7. **Contributions copy still assumes payroll.** The screen's prose — "Straight from the payroll file", and the note
-   about the payroll office returning a remittance file — reads wrong for a self-paying member, who has no payroll
-   office. The structured labels are rail-aware (`test:rails` asserts it), but the prose needs rail-aware strings in
-   all five locales, which is translation work rather than a code change. Add it to the 34 outstanding keys.
+7. **The ten newest strings have had no translation pass at all.** Closing the payroll-prose gap below meant writing
+   `paid_sub_self`, `ct_note_self`, `ct_legend_self`, `pay_if_body_self`, `pay_grace`, `pay_grace_self`,
+   `home_pay_head_self`, `ct_src_card` and the two `ct_src_pending*` keys in all five locales. They are machine-drafted
+   like the rest of the file, but unlike the rest they were drafted here rather than carried over from the bundle, so
+   they are the first place a reviewer should look. They are listed together at the top of this note for that reason.
 8. **Hit targets are below the spec's 44px.** The spec asks for 44px everywhere; the design's chips, nav rows and
    table actions are 26–38px. Everything clears the 24px WCAG 2.2 floor, which was worth fixing outright, but going to
    44 would visibly change the density the design was tuned for — so it stays a design call. `npm run a11y` reports
