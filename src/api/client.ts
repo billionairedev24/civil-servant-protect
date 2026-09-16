@@ -8,9 +8,10 @@
  * possible rather than aspirational.
  */
 import type {
-  BeneficiarySet, BulkEnrolment, Claim, ClaimQueueItem, DebitRun, Enrolled, Leaver, Ledger,
-  MemberSummary, MyClaim, NewMember, ProtectionCard, Reconciliation, Roster, ScheduleBatch,
-  ScheduleRow, Session, SponsorClaims, SponsorDashboard, Tokens,
+  AddedDependant, BeneficiarySet, BulkEnrolment, Claim, ClaimQueueItem, DebitRun, Dependant,
+  Enrolled, Leaver, Ledger, MemberSummary, MyClaim, NewMember, ProtectionCard, Reconciliation,
+  RemovedDependant, Roster, ScheduleBatch, ScheduleRow, Session, SponsorClaims, SponsorDashboard,
+  Tokens,
 } from './types'
 
 /**
@@ -214,6 +215,24 @@ export class CspApi {
 
   confirmBeneficiaries(): Promise<{ confirmedAt: string }> {
     return this.call('POST', '/v1/members/me/beneficiaries/confirm', {})
+  }
+
+  /** Who is on the member's family cover, including anyone taken off. */
+  dependants(): Promise<{ dependants: Dependant[] }> {
+    return this.call('GET', '/v1/members/me/dependants')
+  }
+
+  /**
+   * Add somebody. The premium comes back from the server, quoted for their age
+   * band — nothing here multiplies anything.
+   */
+  addDependant(body: { name: string; relation: string; dob: string }): Promise<AddedDependant> {
+    return this.call('POST', '/v1/members/me/dependants', body)
+  }
+
+  /** Take somebody off. Their row stays; the premium stops next month. */
+  removeDependant(dependantId: string): Promise<RemovedDependant> {
+    return this.call('DELETE', `/v1/members/me/dependants/${dependantId}`)
   }
 
   /**

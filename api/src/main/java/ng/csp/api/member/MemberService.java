@@ -39,7 +39,14 @@ public class MemberService {
   public record SponsorInfo(
       UUID id, String type, String name, String shortName, String method, String rail, String ref) {}
 
-  public record CoverInfo(String tier, long sumAssuredMinor, LocalDate inForceSince) {}
+  /**
+   * The cover a member holds, and what it costs them.
+   *
+   * <p>The price is here rather than worked out by a screen: the family-cover page adds it to the
+   * dependants' premiums to show one figure somebody is deciding about, and a client that
+   * multiplies is a client that can be out of date about money.
+   */
+  public record CoverInfo(String tier, long sumAssuredMinor, long premiumMinor, LocalDate inForceSince) {}
 
   public record CollectionInfo(
       String state,
@@ -170,7 +177,8 @@ public class MemberService {
         new SponsorInfo(
             m.sponsorId(), m.sponsorType(), m.sponsorName(), m.sponsorShort(),
             m.method(), m.railLabel(), m.railCode()),
-        new CoverInfo(m.tier(), Pricing.sumAssuredFor(m.tier()), m.inForceSince()),
+        new CoverInfo(
+            m.tier(), Pricing.sumAssuredFor(m.tier()), Pricing.priceFor(m.tier()), m.inForceSince()),
         new CollectionInfo(
             state.wire(),
             latest.map(Map.Entry::getKey).orElse(null),
@@ -413,6 +421,49 @@ public class MemberService {
                     rs.getLong("premium_minor"),
                     rs.getBoolean("active")))
         .list();
+  }
+
+  public record RemovedDependant(String name, long newPremiumMinor, LocalDate coveredUntil, LocalDate effectiveFrom) {}
+
+  /**
+   * Take a dependant off the cover.
+   *
+   * <p>Deactivated, not deleted. The row is what says this person was covered from March to
+   * September, and a claim in that window is assessed against it — a delete would leave a family
+   * arguing about cover that the record no longer remembers.
+   *
+   * <p>Cover runs to the end of the month that has been paid for, and the premium drops from the
+   * next one. Ending it on the day somebody pressed the button would take back cover that was
+   * already bought.
+   */
+  @Transactional
+  public RemovedDependant removeDependant(UUID memberId, UUID dependantId) {
+    var name =
+        db.sql(
+                """
+                SELECT full_name FROM dependants
+                 WHERE id = :d AND member_id = :m AND active
+                """)
+            .param("d", dependantId)
+            .param("m", memberId)
+            .query(String.class)
+            .optional()
+            .orElseThrow(() -> ApiException.notFound("No such dependant on your cover."));
+
+    db.sql("UPDATE dependants SET active = false WHERE id = :d AND member_id = :m")
+        .param("d", dependantId)
+        .param("m", memberId)
+        .update();
+
+    var total =
+        db.sql("SELECT COALESCE(SUM(premium_minor), 0) FROM dependants WHERE member_id = :m AND active")
+            .param("m", memberId)
+            .query(Long.class)
+            .single();
+
+    var today = LocalDate.now(java.time.ZoneOffset.UTC);
+    var nextMonth = today.withDayOfMonth(1).plusMonths(1);
+    return new RemovedDependant(name, total, nextMonth.minusDays(1), nextMonth);
   }
 
   public record AddedDependant(String band, long sumAssuredMinor, long premiumMinor, long newPremiumMinor, LocalDate effectiveFrom) {}

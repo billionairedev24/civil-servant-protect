@@ -56,7 +56,8 @@ export interface MemberSummary {
     rail: string
     ref: string
   }
-  cover: { tier: string; sumAssuredMinor: number; inForceSince: string }
+  /** `premiumMinor` is the member's own monthly price, quoted by the server. */
+  cover: { tier: string; sumAssuredMinor: number; premiumMinor: number; inForceSince: string }
   collection: {
     state: CollectionState
     lastPeriod: string | null
@@ -136,6 +137,47 @@ export interface MyClaim {
   state: string
   amountMinor: number | null
   openedAt: string
+}
+
+/**
+ * Somebody on a member's family cover.
+ *
+ * `active: false` is somebody who was taken off. The row stays, because it is
+ * what says this person was covered from March to September — a claim in that
+ * window is assessed against it.
+ */
+export interface Dependant {
+  id: string
+  name: string
+  relation: string
+  dob: string
+  sumAssuredMinor: number
+  premiumMinor: number
+  active: boolean
+}
+
+/**
+ * What adding one costs, quoted by the server.
+ *
+ * The band and both figures come back from the API and are never computed here.
+ * A price the client works out is a price an out-of-date app gets wrong and an
+ * edited request gets cheaply.
+ */
+export interface AddedDependant {
+  band: 'child' | 'adult' | 'senior'
+  sumAssuredMinor: number
+  premiumMinor: number
+  /** The whole family premium after this one, so no screen adds prices up. */
+  newPremiumMinor: number
+  effectiveFrom: string
+}
+
+export interface RemovedDependant {
+  name: string
+  newPremiumMinor: number
+  /** Cover runs to here: the month has been paid for. */
+  coveredUntil: string
+  effectiveFrom: string
 }
 
 export interface SponsorDashboard {

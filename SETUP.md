@@ -347,6 +347,32 @@ Three consequences worth knowing:
   marked, with the date their cover runs to — but out of the "not deducted"
   number, which is a to-do list an officer works through.
 
+### Family cover
+
+```bash
+curl -s localhost:8080/v1/members/me/dependants -H "Authorization: Bearer $MEMBER"
+
+curl -s -XPOST localhost:8080/v1/members/me/dependants \
+  -H "Authorization: Bearer $MEMBER" -H 'Content-Type: application/json' \
+  -d '{"name":"Uche Okafor","relation":"Mother","dob":"1958-02-11"}'
+# {"band":"senior","sumAssuredMinor":100000000,"premiumMinor":240000,
+#  "newPremiumMinor":420000,"effectiveFrom":"2026-10-01"}
+
+curl -s -XDELETE localhost:8080/v1/members/me/dependants/$ID -H "Authorization: Bearer $MEMBER"
+# {"name":"Uche Okafor","newPremiumMinor":180000,"coveredUntil":"2026-09-30", …}
+```
+
+**The server quotes the price.** Banded by age — child, adult, senior — so a
+member can check it against a printed table; a rate that moves with a birthday
+is impossible to argue with at a service desk, which makes it impossible to
+trust. No screen multiplies anything: the response carries the band, the cover,
+the premium and the whole new family total.
+
+**Removing somebody deactivates their row.** It is not deleted, because the row
+is what says this person was covered from March to September and a claim in that
+window is assessed against it. Cover runs to the end of the month that has been
+paid for, and the premium drops from the next one.
+
 ### The direct-debit run
 
 ```bash
@@ -591,8 +617,11 @@ Real, and deliberately not papered over.
    The console's direct-debit run is live too — including the list of leavers
    whose grace is running and who have not set up a mandate.
 
+   The member's family cover is live on both surfaces — the web app adds and
+   removes people at the server's quoted price; the phone lists them.
+
    Still on fixtures: the console's remittances, reports and settings, and the
-   member's family cover and cover-detail screens.
+   member's cover-detail screen.
 
    A screen that has not been wired says the same numbers it always did — the
    fixtures and the seed agree — so the difference is where the figure comes

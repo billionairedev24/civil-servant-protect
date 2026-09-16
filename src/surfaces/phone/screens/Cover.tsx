@@ -1,10 +1,12 @@
 import { Icon } from '../../../components/Icon'
 import { Kicker, Mono, ScreenTitle, Sub } from '../../../components/primitives'
 import { EN_ONLY, fill } from '../../../i18n'
-import { FAMILY_COVER, MEMBER, SCHEDULE_VALUES, TIER_NAMES } from '../../../data/member'
-import { BENEFICIARY_SET, MEMBER_SUMMARY, PROTECTION_CARD } from '../../../api/fixtures'
-import { useBeneficiaries, useCard, useConfirmBeneficiaries, useSummary } from '../../../api/queries'
-import { NotLive, dayFirst, useLive } from '../../../api/live'
+import { MEMBER, SCHEDULE_VALUES, TIER_NAMES } from '../../../data/member'
+import { BENEFICIARY_SET, DEPENDANTS, MEMBER_SUMMARY, PROTECTION_CARD } from '../../../api/fixtures'
+import {
+  useBeneficiaries, useCard, useConfirmBeneficiaries, useDependants, useSummary,
+} from '../../../api/queries'
+import { NotLive, dayFirst, naira, useLive } from '../../../api/live'
 import { C } from '../../../theme/tokens'
 import { Screen } from '../Screen'
 import { usePhone } from '../state'
@@ -392,38 +394,60 @@ export function BeneConfirmScreen() {
   )
 }
 
+/** A face for a relation, without needing the API to send an icon name. */
+function familyIcon(relation: string): string {
+  const r = relation.toLowerCase()
+  if (r.includes('spouse') || r.includes('wife') || r.includes('husband')) return 'ph ph-heart'
+  if (r.includes('mother') || r.includes('father') || r.includes('parent')) return 'ph ph-user'
+  return 'ph ph-baby'
+}
+
 export function FamilyScreen() {
   const { t } = usePhone()
+  const { data: family, failed } = useLive(useDependants(DEPENDANTS), DEPENDANTS)
+  const { data: summary } = useLive(useSummary(MEMBER_SUMMARY), MEMBER_SUMMARY)
+
+  const covered = family.dependants.filter((d) => d.active)
+  const topUpMinor = covered.reduce((sum, d) => sum + d.premiumMinor, 0)
+
   return (
     <Screen scroll>
       <ScreenTitle style={{ paddingTop: 12 }}>{t.fam_title}</ScreenTitle>
       <Sub>{t.fam_sub}</Sub>
+      {failed && <NotLive what="Your family cover" />}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 9, marginTop: 16 }}>
-        {FAMILY_COVER.map((f) => (
+        {family.dependants.map((d) => (
           <div
-            key={f.name}
+            key={d.id}
             style={{
               padding: 16,
-              border: `1.5px solid ${f.active ? C.gBorder : C.line}`,
+              border: `1.5px solid ${d.active ? C.gBorder : C.line}`,
               borderRadius: 12,
-              background: f.active ? C.gTint : C.white,
+              background: d.active ? C.gTint : C.white,
               display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12,
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
-              <Icon name={f.icon} size={22} color={f.active ? C.g : C.faint} />
+              <Icon name={familyIcon(d.relation)} size={22} color={d.active ? C.g : C.faint} />
               <div>
-                <div style={{ fontSize: 16, fontWeight: 600 }}>{f.name}</div>
-                <div style={{ fontSize: 13, color: C.mut, marginTop: 1 }}>{t.fam_n[f.relIndex]}</div>
+                <div style={{ fontSize: 16, fontWeight: 600 }}>{d.name}</div>
+                <div style={{ fontSize: 13, color: C.mut, marginTop: 1 }}>{d.relation}</div>
               </div>
             </div>
             <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: 16, fontWeight: 700, color: f.active ? C.g : C.faint }}>{f.cover}</div>
-              <div style={{ fontSize: 12.5, color: C.faint, marginTop: 1 }}>{f.price}</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: d.active ? C.g : C.faint }}>
+                {d.active ? naira(d.sumAssuredMinor) : 'Removed'}
+              </div>
+              <div style={{ fontSize: 12.5, color: C.faint, marginTop: 1 }}>
+                {d.active ? `${naira(d.premiumMinor)}/mo` : '—'}
+              </div>
             </div>
           </div>
         ))}
+        {/* Adding somebody is a priced decision with a date of birth and a
+            quote behind it, so it happens on the web app where there is room
+            to show the band and the new total. The phone lists and reassures. */}
         <button type="button" className="btn btn-md btn-tinted">
           <Icon name="ph ph-plus" size={16} />
           {t.add_family}
@@ -433,7 +457,9 @@ export function FamilyScreen() {
       <div className="card" style={{ marginTop: 18, padding: 16 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
           <span style={{ fontSize: 14, color: C.mut }}>{t.new_total}</span>
-          <span style={{ fontSize: 23, fontWeight: 700 }}>₦4,300</span>
+          <span style={{ fontSize: 23, fontWeight: 700 }}>
+            {naira(summary.cover.premiumMinor + topUpMinor)}
+          </span>
         </div>
         <div style={{ fontSize: 12.5, lineHeight: 1.5, color: C.faint, marginTop: 5 }}>{t.new_total_sub}</div>
       </div>

@@ -9,8 +9,8 @@
  */
 import { BENEFICIARIES, CLAIM, CONTRIB_MONTHS, MEMBER } from '../data/member'
 import type {
-  BeneficiarySet, Claim, ClaimQueueItem, DebitRun, Leaver, Ledger, LedgerRow, MemberSummary,
-  MyClaim, ProtectionCard, Reconciliation, Roster, SponsorClaims, SponsorDashboard,
+  BeneficiarySet, Claim, ClaimQueueItem, DebitRun, Dependant, Leaver, Ledger, LedgerRow,
+  MemberSummary, MyClaim, ProtectionCard, Reconciliation, Roster, SponsorClaims, SponsorDashboard,
 } from './types'
 
 const NAIRA = 100
@@ -34,6 +34,7 @@ export const MEMBER_SUMMARY: MemberSummary = {
   cover: {
     tier: 'standard',
     sumAssuredMinor: 5_000_000 * NAIRA,
+    premiumMinor: 2_500 * NAIRA,
     inForceSince: '2025-07-16',
   },
   collection: {
@@ -147,6 +148,31 @@ export const MY_CLAIMS: { claims: MyClaim[] } = {
       state: CLAIM_FIXTURE.state,
       amountMinor: CLAIM_FIXTURE.amountMinor,
       openedAt: '2026-08-28T10:12:00Z',
+    },
+  ],
+}
+
+/**
+ * The family cover, in the API's shape.
+ *
+ * The same two people the screens have always shown, priced by the bands the
+ * server quotes — ₦1,200 for an adult, ₦600 for a child — plus one who was
+ * taken off, because a row that stays after somebody is removed is the part of
+ * this model worth seeing in the demo.
+ */
+export const DEPENDANTS: { dependants: Dependant[] } = {
+  dependants: [
+    {
+      id: 'fx-dep-1', name: 'Chinedu Okafor', relation: 'Spouse', dob: '1988-03-12',
+      sumAssuredMinor: 2_000_000 * NAIRA, premiumMinor: 1_200 * NAIRA, active: true,
+    },
+    {
+      id: 'fx-dep-2', name: 'Ngozi Okafor', relation: 'Daughter', dob: '2016-09-04',
+      sumAssuredMinor: 500_000 * NAIRA, premiumMinor: 600 * NAIRA, active: true,
+    },
+    {
+      id: 'fx-dep-3', name: 'Emeka Okafor', relation: 'Son', dob: '2004-01-22',
+      sumAssuredMinor: 2_000_000 * NAIRA, premiumMinor: 1_200 * NAIRA, active: false,
     },
   ],
 }

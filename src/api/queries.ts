@@ -2,9 +2,9 @@ import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tan
 import type { CspApi } from './client'
 import { useApi } from './provider'
 import type {
-  BeneficiarySet, Claim, ClaimQueueItem, DebitRun, Leaver, Ledger, MemberSummary, MyClaim,
-  NewMember, ProtectionCard, Reconciliation, Roster, ScheduleBatch, ScheduleRow, SponsorClaims,
-  SponsorDashboard,
+  BeneficiarySet, Claim, ClaimQueueItem, DebitRun, Dependant, Leaver, Ledger, MemberSummary,
+  MyClaim, NewMember, ProtectionCard, Reconciliation, Roster, ScheduleBatch, ScheduleRow,
+  SponsorClaims, SponsorDashboard,
 } from './types'
 
 /**
@@ -22,6 +22,7 @@ export const keys = {
   card: () => [...keys.member(), 'card'] as const,
   beneficiaries: () => [...keys.member(), 'beneficiaries'] as const,
   claims: () => [...keys.member(), 'claims'] as const,
+  dependants: () => [...keys.member(), 'dependants'] as const,
   claim: (ref: string) => ['claim', ref] as const,
   sponsor: () => ['sponsor'] as const,
   dashboard: () => [...keys.sponsor(), 'dashboard'] as const,
@@ -171,6 +172,41 @@ export function useConfirmBeneficiaries() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: () => api!.confirmBeneficiaries(),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.member() }),
+  })
+}
+
+/** The family cover: who is on it, and who was taken off. */
+export function useDependants(fixture: { dependants: Dependant[] }) {
+  const { api } = useApi()
+  return useQuery({
+    queryKey: keys.dependants(),
+    queryFn: () => api!.dependants(),
+    ...shared(api, fixture),
+  })
+}
+
+/**
+ * Add somebody to the cover.
+ *
+ * <p>No optimistic row. The price is the server's to quote — showing a member a
+ * premium this client worked out, on the screen where they are deciding what to
+ * pay, is being confidently wrong about money.
+ */
+export function useAddDependant() {
+  const { api } = useApi()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (body: { name: string; relation: string; dob: string }) => api!.addDependant(body),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.member() }),
+  })
+}
+
+export function useRemoveDependant() {
+  const { api } = useApi()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (dependantId: string) => api!.removeDependant(dependantId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.member() }),
   })
 }
