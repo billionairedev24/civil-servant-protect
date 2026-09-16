@@ -1,10 +1,6 @@
 package ng.csp.api.auth;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.security.SecureRandom;
-import java.time.Duration;
-import java.util.HexFormat;
 import java.util.Optional;
 import java.util.UUID;
 import ng.csp.api.config.CspProperties;
@@ -15,22 +11,27 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * Member sign-in: NIN+DOB lookup, SMS OTP, device-bound refresh token.
+ *
+ * <p>This path is only ever for members and next of kin. Console roles authenticate against Keycloak
+ * — see {@code SecurityConfig} — because a finance officer has an MDA account and TOTP, while a
+ * civil servant on a Tecno in a village has a phone number and nothing else. Trying to serve both
+ * with one mechanism makes one of them worse.
+ */
 @Service
 public class AuthService {
 
   private static final Logger log = LoggerFactory.getLogger(AuthService.class);
 
-  /** Three attempts per challenge, then a fifteen-minute lock — straight from the spec. */
-  private static final int MAX_ATTEMPTS = 3;
-  private static final Duration LOCK = Duration.ofMinutes(15);
-  private static final Duration CHALLENGE_TTL = Duration.ofMinutes(5);
-
   private final JdbcClient db;
+  private final OtpStore otp;
   private final CspProperties props;
   private final SecureRandom random = new SecureRandom();
 
-  public AuthService(JdbcClient db, CspProperties props) {
+  public AuthService(JdbcClient db, OtpStore otp, CspProperties props) {
     this.db = db;
+    this.otp = otp;
     this.props = props;
   }
 
@@ -41,115 +42,60 @@ public class AuthService {
    *
    * <p>Answers identically whether or not the number is known. Telling an unknown caller "no such
    * member" turns this endpoint into a way to find out who is enrolled, which for an insurance
-   * scheme is a privacy leak.
+   * scheme covering named civil servants is a privacy leak.
    */
-  @Transactional
   public Challenge startChallenge(String rawMsisdn) {
     var msisdn = Msisdn.normalise(rawMsisdn);
 
-    var locked =
-        db.sql(
-                """
-                SELECT 1 FROM auth_challenges
-                 WHERE msisdn = :msisdn AND locked_at > now() - :lock::interval
-                 LIMIT 1
-                """)
-            .param("msisdn", msisdn)
-            .param("lock", LOCK.toMinutes() + " minutes")
-            .query(Integer.class)
-            .optional();
-    if (locked.isPresent()) {
+    if (otp.isLocked(msisdn)) {
       throw ApiException.tooManyRequests(
-          "Too many wrong codes. Try again in %d minutes.".formatted(LOCK.toMinutes()));
+          "Too many wrong codes. Try again in %d minutes.".formatted(OtpStore.LOCK.toMinutes()));
     }
 
     var code = props.otp().fixedCode() != null ? props.otp().fixedCode() : randomCode();
-    var id =
-        db.sql(
-                """
-                INSERT INTO auth_challenges (msisdn, code_hash, expires_at)
-                VALUES (:msisdn, :hash, now() + :ttl::interval)
-                RETURNING id
-                """)
-            .param("msisdn", msisdn)
-            .param("hash", sha256(code))
-            .param("ttl", CHALLENGE_TTL.toSeconds() + " seconds")
-            .query(UUID.class)
-            .single();
+    var id = otp.create(msisdn, code);
 
-    var known =
-        db.sql("SELECT 1 FROM users WHERE msisdn = :m AND disabled_at IS NULL")
-            .param("m", msisdn)
-            .query(Integer.class)
-            .optional();
-    if (known.isPresent()) {
-      // Where an SMS provider would be called.
+    if (isKnown(msisdn)) {
+      // Where the comms adapter would be called.
       log.info("otp issued for {}", msisdn);
     }
 
-    return new Challenge(id, CHALLENGE_TTL.toSeconds(), props.otp().echo() ? code : null);
+    return new Challenge(
+        id, OtpStore.CHALLENGE_TTL.toSeconds(), props.otp().echo() ? code : null);
   }
 
   /** Exchange a code for a session. */
   @Transactional
   public SessionUser verify(UUID challengeId, String code) {
-    var row =
-        db.sql(
-                """
-                SELECT id, msisdn, code_hash, attempts, consumed_at IS NOT NULL AS consumed,
-                       expires_at < now() AS expired
-                  FROM auth_challenges WHERE id = :id FOR UPDATE
-                """)
-            .param("id", challengeId)
-            .query(
-                (rs, n) ->
-                    new ChallengeRow(
-                        rs.getObject("id", UUID.class),
-                        rs.getString("msisdn"),
-                        rs.getString("code_hash"),
-                        rs.getInt("attempts"),
-                        rs.getBoolean("consumed"),
-                        rs.getBoolean("expired")))
-            .optional()
-            .orElseThrow(() -> ApiException.unauthorized("That sign-in has expired. Ask for a new code."));
+    var challenge =
+        otp.find(challengeId)
+            .orElseThrow(
+                () -> ApiException.unauthorized("That sign-in has expired. Ask for a new code."));
 
-    if (row.consumed()) {
-      throw ApiException.unauthorized("That code has already been used.");
-    }
-    if (row.expired()) {
-      throw ApiException.unauthorized("That code has expired. Ask for a new one.");
+    if (!OtpStore.matches(challenge.codeHash(), code)) {
+      var attempts = otp.recordFailure(challengeId);
+      if (attempts >= OtpStore.MAX_ATTEMPTS) {
+        otp.lock(challenge.msisdn());
+        otp.consume(challengeId);
+        throw ApiException.tooManyRequests(
+            "Too many wrong codes. Try again in %d minutes.".formatted(OtpStore.LOCK.toMinutes()));
+      }
+      throw ApiException.unauthorized(
+          "Wrong code. %d attempt(s) left.".formatted(OtpStore.MAX_ATTEMPTS - attempts));
     }
 
-    if (!constantTimeEquals(row.codeHash(), sha256(code))) {
-      var attempts = row.attempts() + 1;
-      var lockNow = attempts >= MAX_ATTEMPTS;
-      db.sql(
-              """
-              UPDATE auth_challenges
-                 SET attempts = :attempts,
-                     locked_at = CASE WHEN :lock THEN now() ELSE locked_at END
-               WHERE id = :id
-              """)
-          .param("attempts", attempts)
-          .param("lock", lockNow)
-          .param("id", row.id())
-          .update();
-      throw lockNow
-          ? ApiException.tooManyRequests(
-              "Too many wrong codes. Try again in %d minutes.".formatted(LOCK.toMinutes()))
-          : ApiException.unauthorized(
-              "Wrong code. %d attempt(s) left.".formatted(MAX_ATTEMPTS - attempts));
-    }
-
-    db.sql("UPDATE auth_challenges SET consumed_at = now() WHERE id = :id").param("id", row.id()).update();
+    // Used, so it is gone rather than flagged — there is nothing left to replay.
+    otp.consume(challengeId);
 
     var user =
         db.sql(
                 """
                 SELECT id, role, member_id, sponsor_id
-                  FROM users WHERE msisdn = :m AND disabled_at IS NULL
+                  FROM users
+                 WHERE msisdn = :m AND disabled_at IS NULL
+                   AND role IN ('member', 'next_of_kin')
                 """)
-            .param("m", row.msisdn())
+            .param("m", challenge.msisdn())
             .query(
                 (rs, n) ->
                     new SessionUser(
@@ -159,11 +105,12 @@ public class AuthService {
                         rs.getObject("sponsor_id", UUID.class),
                         null))
             .optional()
-            // The number passed the code check but belongs to nobody. Same
-            // generic answer as a wrong code, for the same reason.
+            // The number passed the code check but belongs to nobody, or belongs
+            // to a console account that must come through Keycloak. Same generic
+            // answer either way, for the same reason as above.
             .orElseThrow(() -> ApiException.unauthorized("We could not sign you in with that number."));
 
-    db.sql("UPDATE users SET last_seen_at = now() WHERE id = :id").param("id", user.userId()).update();
+    touch(user.userId());
     return user;
   }
 
@@ -200,7 +147,8 @@ public class AuthService {
     return session;
   }
 
-  public void attestDevice(SessionUser session, String deviceId, String platform, String publicKey, String label) {
+  public void attestDevice(
+      SessionUser session, String deviceId, String platform, String publicKey, String label) {
     if (session.memberId() == null) {
       throw ApiException.badRequest("Only a member app attests a device.");
     }
@@ -219,6 +167,54 @@ public class AuthService {
         .update();
   }
 
+  /**
+   * Resolve a Keycloak subject to our user row, creating it on first sign-in.
+   *
+   * <p>Keycloak owns who a console user is and what realm roles they hold; this table owns the
+   * mapping to a sponsor and the audit identity. Provisioning on first sign-in means an officer
+   * added to the realm can work immediately, without a second admin step nobody remembers.
+   */
+  @Transactional
+  public SessionUser resolveOidcUser(String subject, String name, String email, Role role, UUID sponsorId) {
+    var existing =
+        db.sql("SELECT id, sponsor_id FROM users WHERE oidc_subject = :s AND disabled_at IS NULL")
+            .param("s", subject)
+            .query((rs, n) -> new Object[] {rs.getObject("id", UUID.class), rs.getObject("sponsor_id", UUID.class)})
+            .optional();
+
+    if (existing.isPresent()) {
+      var id = (UUID) existing.get()[0];
+      // The realm is the source of truth for the role, so a change there takes
+      // effect on the next sign-in rather than needing a database edit.
+      db.sql("UPDATE users SET role = CAST(:r AS user_role), last_seen_at = now() WHERE id = :id")
+          .param("r", role.wire())
+          .param("id", id)
+          .update();
+      return new SessionUser(id, role, null, (UUID) existing.get()[1], null);
+    }
+
+    if (sponsorId == null && role.isSponsorSide()) {
+      throw ApiException.forbidden(
+          "Your account has no sponsor assigned. Ask an administrator to set one.");
+    }
+
+    var id =
+        db.sql(
+                """
+                INSERT INTO users (oidc_subject, full_name, email, role, sponsor_id, last_seen_at)
+                VALUES (:s, :n, :e, CAST(:r AS user_role), :sp, now())
+                RETURNING id
+                """)
+            .param("s", subject)
+            .param("n", name)
+            .param("e", email)
+            .param("r", role.wire())
+            .param("sp", sponsorId)
+            .query(UUID.class)
+            .single();
+    return new SessionUser(id, role, null, sponsorId, null);
+  }
+
   public record Profile(String name, String email) {}
 
   public Optional<Profile> profileOf(UUID userId) {
@@ -228,25 +224,19 @@ public class AuthService {
         .optional();
   }
 
-  private record ChallengeRow(
-      UUID id, String msisdn, String codeHash, int attempts, boolean consumed, boolean expired) {}
+  private boolean isKnown(String msisdn) {
+    return db.sql("SELECT 1 FROM users WHERE msisdn = :m AND disabled_at IS NULL")
+        .param("m", msisdn)
+        .query(Integer.class)
+        .optional()
+        .isPresent();
+  }
+
+  private void touch(UUID userId) {
+    db.sql("UPDATE users SET last_seen_at = now() WHERE id = :id").param("id", userId).update();
+  }
 
   private String randomCode() {
     return "%06d".formatted(random.nextInt(1_000_000));
-  }
-
-  private static String sha256(String value) {
-    try {
-      var digest = MessageDigest.getInstance("SHA-256");
-      return HexFormat.of().formatHex(digest.digest(value.getBytes(StandardCharsets.UTF_8)));
-    } catch (Exception e) {
-      throw new IllegalStateException("SHA-256 unavailable", e);
-    }
-  }
-
-  /** So a wrong code cannot be found by timing the reply. */
-  private static boolean constantTimeEquals(String a, String b) {
-    return MessageDigest.isEqual(
-        a.getBytes(StandardCharsets.UTF_8), b.getBytes(StandardCharsets.UTF_8));
   }
 }

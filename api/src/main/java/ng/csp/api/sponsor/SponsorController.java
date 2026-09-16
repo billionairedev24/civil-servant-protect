@@ -1,0 +1,137 @@
+package ng.csp.api.sponsor;
+
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import ng.csp.api.auth.SessionUser;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@RequestMapping("/v1")
+public class SponsorController {
+
+  private final SponsorService sponsors;
+
+  public SponsorController(SponsorService sponsors) {
+    this.sponsors = sponsors;
+  }
+
+  @GetMapping("/sponsors/me/dashboard")
+  @PreAuthorize("hasAuthority('PERM_SPONSOR_READ')")
+  public SponsorService.Dashboard dashboard(SessionUser session) {
+    return sponsors.dashboard(session.requireSponsorId());
+  }
+
+  public record ScheduleRowBody(
+      @NotBlank String serviceNo, @NotBlank String name, @Min(0) long amountMinor) {}
+
+  public record UploadSchedule(
+      @NotNull
+          @Pattern(regexp = "^\\d{4}-\\d{2}-01$", message = "A period is the first day of a month")
+          String period,
+      String filename,
+      @NotEmpty @Size(max = 20_000) List<@Valid ScheduleRowBody> rows) {}
+
+  @PostMapping("/sponsors/{sponsorId}/schedules")
+  @PreAuthorize("hasAuthority('PERM_SCHEDULE_UPLOAD')")
+  @ResponseStatus(HttpStatus.CREATED)
+  public SponsorService.UploadResult upload(
+      SessionUser session, @PathVariable UUID sponsorId, @Valid @RequestBody UploadSchedule body) {
+    session.assertSponsorScope(sponsorId);
+    return sponsors.uploadSchedule(
+        session,
+        sponsorId,
+        LocalDate.parse(body.period()),
+        body.filename() == null ? "schedule.csv" : body.filename(),
+        body.rows().stream()
+            .map(r -> new SponsorService.ScheduleRow(r.serviceNo(), r.name(), r.amountMinor()))
+            .toList());
+  }
+
+  @GetMapping("/sponsors/{sponsorId}/reconciliation/{cycleId}")
+  @PreAuthorize("hasAuthority('PERM_SPONSOR_READ')")
+  public SponsorService.Reconciliation reconciliation(
+      SessionUser session, @PathVariable UUID sponsorId, @PathVariable UUID cycleId) {
+    session.assertSponsorScope(sponsorId);
+    return sponsors.reconciliation(sponsorId, cycleId);
+  }
+
+  public record ProposeBody(
+      @NotNull @Pattern(regexp = "match|waive|chase|remove") String action,
+      @NotBlank @Size(min = 4, message = "Say why — this is kept on the audit trail.") String note) {}
+
+  /** The maker's half: a preparer says what they think should happen. */
+  @PostMapping("/reconciliation/exceptions/{id}/propose")
+  @PreAuthorize("hasAuthority('PERM_EXCEPTION_PROPOSE')")
+  public Map<String, Object> propose(
+      SessionUser session, @PathVariable UUID id, @Valid @RequestBody ProposeBody body) {
+    sponsors.propose(session, id, body.action(), body.note());
+    return Map.of("proposed", body.action(), "awaiting", "approver");
+  }
+
+  public record ResolveBody(
+      @NotBlank @Size(min = 4, message = "Say why — this is kept on the audit trail.") String note,
+      UUID matchTo) {}
+
+  /** The checker's half. Guarded by the maker–checker aspect, not by this method. */
+  @PostMapping("/reconciliation/exceptions/{id}/resolve")
+  public SponsorService.Resolution resolve(
+      SessionUser session, @PathVariable UUID id, @Valid @RequestBody ResolveBody body) {
+    return sponsors.resolve(session, id, body.note(), body.matchTo());
+  }
+
+  @PostMapping("/sponsors/{sponsorId}/cycles/{cycleId}/close")
+  public SponsorService.CloseResult close(
+      SessionUser session, @PathVariable UUID sponsorId, @PathVariable UUID cycleId) {
+    // cycleId first: the aspect takes the first UUID argument as the subject.
+    return sponsors.closeCycle(session, cycleId, sponsorId);
+  }
+
+  @GetMapping("/sponsors/{sponsorId}/members")
+  @PreAuthorize("hasAuthority('PERM_SPONSOR_READ')")
+  public Map<String, List<SponsorService.RosterMember>> roster(
+      SessionUser session,
+      @PathVariable UUID sponsorId,
+      @RequestParam(required = false) String search,
+      @RequestParam(defaultValue = "50") @Min(1) @Max(200) int limit) {
+    session.assertSponsorScope(sponsorId);
+    return Map.of("members", sponsors.roster(sponsorId, search, limit));
+  }
+
+  /** Who can do what here. Admin only — this screen hands out authority. */
+  @GetMapping("/sponsors/{sponsorId}/users")
+  @PreAuthorize("hasAuthority('PERM_ROLES_MANAGE')")
+  public Map<String, List<SponsorService.ConsoleUser>> users(
+      SessionUser session, @PathVariable UUID sponsorId) {
+    session.assertSponsorScope(sponsorId);
+    return Map.of("users", sponsors.consoleUsers(sponsorId));
+  }
+
+  /** The sponsor's own audit trail — showing your working is the point. */
+  @GetMapping("/sponsors/{sponsorId}/audit")
+  @PreAuthorize("hasAuthority('PERM_SPONSOR_READ')")
+  public Map<String, List<SponsorService.AuditEntry>> audit(
+      SessionUser session, @PathVariable UUID sponsorId) {
+    session.assertSponsorScope(sponsorId);
+    return Map.of("entries", sponsors.auditTrail(sponsorId));
+  }
+
+}
