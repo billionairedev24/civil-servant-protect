@@ -2,7 +2,8 @@ import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tan
 import type { CspApi } from './client'
 import { useApi } from './provider'
 import type {
-  BeneficiarySet, Claim, Ledger, MemberSummary, MyClaim, ProtectionCard, Reconciliation,
+  BeneficiarySet, Claim, ClaimQueueItem, Ledger, MemberSummary, MyClaim, NewMember,
+  ProtectionCard, Reconciliation, Roster, ScheduleBatch, ScheduleRow, SponsorClaims,
   SponsorDashboard,
 } from './types'
 
@@ -24,6 +25,10 @@ export const keys = {
   claim: (ref: string) => ['claim', ref] as const,
   sponsor: () => ['sponsor'] as const,
   dashboard: () => [...keys.sponsor(), 'dashboard'] as const,
+  roster: (sponsorId: string, search: string) => [...keys.sponsor(), 'roster', sponsorId, search] as const,
+  claimQueue: () => ['claims', 'queue'] as const,
+  sponsorClaims: (sponsorId: string) => [...keys.sponsor(), 'claims', sponsorId] as const,
+  scheduleBatch: (batchId: string) => [...keys.sponsor(), 'schedule', batchId] as const,
   reconciliation: (sponsorId: string, cycleId: string) =>
     [...keys.sponsor(), 'reconciliation', sponsorId, cycleId] as const,
 }
@@ -44,6 +49,21 @@ export const keys = {
  */
 function shared<T>(api: CspApi | null, fixture: T) {
   return { enabled: api !== null, placeholderData: fixture }
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/**
+ * The same, for a read addressed to one sponsor.
+ *
+ * Screens take the sponsor's id from the dashboard, and the dashboard stands in
+ * the fixture until the real one lands — so for that moment the id in hand is
+ * `fixture-federal`, and a request fired with it asks the API about a sponsor
+ * that does not exist. Waiting for an id the server could have issued costs a
+ * fraction of a second and removes a 500 nobody caused.
+ */
+function sharedForSponsor<T>(api: CspApi | null, fixture: T, sponsorId: string) {
+  return { enabled: api !== null && UUID.test(sponsorId), placeholderData: fixture }
 }
 
 // ── Member ───────────────────────────────────────────────────────────────────
@@ -183,7 +203,126 @@ export function useReconciliation(
     queryKey: keys.reconciliation(sponsorId, cycleId),
     queryFn: () => api!.reconciliation(sponsorId, cycleId),
     staleTime: 15_000,
+    ...sharedForSponsor(api, fixture, sponsorId),
+  })
+}
+
+/**
+ * The member roster.
+ *
+ * Keyed on the search term, so typing does not throw away the unfiltered list —
+ * clearing the box paints the full roster instantly from cache while the
+ * request for it runs.
+ */
+export function useRoster(
+  sponsorId: string,
+  search: string,
+  fixture: Roster,
+): UseQueryResult<Roster> {
+  const { api } = useApi()
+  return useQuery({
+    queryKey: keys.roster(sponsorId, search),
+    queryFn: () => api!.roster(sponsorId, search || undefined),
+    // A roster of eight thousand does not change while somebody reads it, and
+    // re-fetching on every keystroke's debounce would be the expensive part.
+    staleTime: 60_000,
+    ...sharedForSponsor(api, fixture, sponsorId),
+  })
+}
+
+/** The assessor's queue. A different role, reading every sponsor's claims. */
+export function useClaimQueue(
+  fixture: { claims: ClaimQueueItem[] },
+): UseQueryResult<{ claims: ClaimQueueItem[] }> {
+  const { api } = useApi()
+  return useQuery({
+    queryKey: keys.claimQueue(),
+    queryFn: () => api!.claimQueue(),
+    staleTime: 30_000,
     ...shared(api, fixture),
+  })
+}
+
+/** Claims on this sponsor's members. Thin, by design — see SponsorClaim. */
+export function useSponsorClaims(sponsorId: string, fixture: SponsorClaims): UseQueryResult<SponsorClaims> {
+  const { api } = useApi()
+  return useQuery({
+    queryKey: keys.sponsorClaims(sponsorId),
+    queryFn: () => api!.sponsorClaims(sponsorId),
+    staleTime: 60_000,
+    ...sharedForSponsor(api, fixture, sponsorId),
+  })
+}
+
+/**
+ * Send a month's schedule.
+ *
+ * <p>No optimistic anything. This is the instruction that decides what a
+ * payroll office deducts from eight thousand salaries, and the server answers
+ * with a batch to watch rather than a result.
+ */
+export function useUploadSchedule(sponsorId: string) {
+  const { api } = useApi()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (body: { period: string; filename: string; rows: ScheduleRow[] }) =>
+      api!.uploadSchedule(sponsorId, body),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.sponsor() }),
+  })
+}
+
+/**
+ * Watch a load.
+ *
+ * Polled every second while it runs and not at all once it is done — an officer
+ * who uploaded a million rows is watching this number, and one who uploaded
+ * eight thousand has already looked away.
+ */
+export function useScheduleBatch(
+  sponsorId: string,
+  batchId: string | null,
+): UseQueryResult<ScheduleBatch> {
+  const { api } = useApi()
+  return useQuery({
+    queryKey: keys.scheduleBatch(batchId ?? ''),
+    queryFn: () => api!.scheduleBatch(sponsorId, batchId!),
+    enabled: api !== null && batchId !== null,
+    refetchInterval: (query) =>
+      query.state.data?.state === 'staged' ? 1_000 : false,
+  })
+}
+
+/**
+ * Enrol one person.
+ *
+ * <p>Invalidates the whole sponsor rather than the roster alone: a new member
+ * changes the headline count on the dashboard and adds one to "no beneficiary
+ * named", and an officer who has just enrolled somebody is about to look at
+ * both.
+ */
+export function useEnrol(sponsorId: string) {
+  const { api } = useApi()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (body: NewMember) => api!.enrol(sponsorId, body),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.sponsor() }),
+  })
+}
+
+/**
+ * Enrol a list.
+ *
+ * <p>Succeeds with rejections inside it — a file of two hundred with three bad
+ * NINs is a success that enrolled a hundred and ninety-seven, not an error. So
+ * the screen reads `rejected` on the happy path, and `onError` is for the
+ * request never landing.
+ */
+export function useEnrolAll(sponsorId: string) {
+  const { api } = useApi()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (members: NewMember[]) => api!.enrolAll(sponsorId, members),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.sponsor() }),
   })
 }
 

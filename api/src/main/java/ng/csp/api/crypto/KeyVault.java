@@ -47,19 +47,52 @@ public interface KeyVault {
   byte[] decrypt(Purpose purpose, byte[] ciphertext);
 
   /**
-   * The raw secret for HS256 token signing.
+   * How this vault signs a member token.
    *
-   * <p>The one method that breaks this interface's own rule, and it is here rather than hidden
-   * because the reason matters: Nimbus's {@code MACSigner} takes key bytes, so an HS256 token cannot
-   * be signed by a key that stays inside an HSM. Symmetric signing and hardware key custody are
-   * genuinely incompatible through this library.
+   * <p>Two shapes, because there are two honest answers rather than one compromise.
    *
-   * <p>An HSM-backed vault therefore refuses this, with a message saying what to do instead — move
-   * member tokens to ES256, where PKCS#11 hands out a {@code Signature} over a private key that
-   * never leaves the device. That is a deliberate deploy-time decision, not something to discover
-   * from a stack trace.
+   * <p>HS256 needs the key bytes in the signer, so a key that stays inside an HSM cannot produce
+   * one — symmetric signing and hardware custody are incompatible, and the only way to have both is
+   * to generate the token key as extractable, which is the same as not having an HSM while telling
+   * an auditor that you do.
+   *
+   * <p>ES256 is the way out. PKCS#11 hands back a {@link java.security.PrivateKey} that is a
+   * <em>handle</em>: signing happens inside the device and the object in this process holds no key
+   * material. So an HSM-backed vault signs ES256 and a config-derived one signs HS256, and neither
+   * has to pretend to be the other.
    */
-  byte[] signingSecret();
+  sealed interface Signing {
+
+    /** A symmetric secret. Development and CI, where the key is in an environment variable anyway. */
+    record Hmac(byte[] secret) implements Signing {}
+
+    /**
+     * An EC key pair, where the private half may be a handle rather than a value.
+     *
+     * @param provider the JCA provider that can use {@code privateKey} — SunPKCS11 for the HSM, and
+     *     null for an ordinary software key.
+     */
+    record Ecdsa(
+        java.security.PrivateKey privateKey,
+        java.security.interfaces.ECPublicKey publicKey,
+        String keyId,
+        java.security.Provider provider)
+        implements Signing {}
+  }
+
+  Signing signing();
+
+  /**
+   * Every key a token may legitimately have been signed with, newest first.
+   *
+   * <p>Usually just {@link #signing()}. It is a list because moving to the HSM changes the
+   * algorithm, and a deploy that only accepts the new one signs out every member holding a token
+   * minted a minute earlier — an eight-hour refresh token becomes worthless at the moment of
+   * cutover. Accepting the old key for one token lifetime turns a migration into a deploy.
+   */
+  default java.util.List<Signing> verifying() {
+    return java.util.List.of(signing());
+  }
 
   /** For the startup banner and {@code /actuator/info}: where the keys actually are. */
   String describe();

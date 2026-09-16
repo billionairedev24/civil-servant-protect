@@ -63,7 +63,7 @@ public class HttpIntegrations {
       @Override
       public Accepted sendOtp(String msisdn, String code, String subject) {
         return replay.around(
-            new ReplayLog.Call("comms", "send_otp", subject, "otp:" + subject),
+            ReplayLog.Call.once("comms", "send_otp", subject, "otp:" + subject),
             Redacted.of("channel", "sms").msisdn("to", msisdn).withheld("code").build(),
             () -> post(config, json, msisdn, "Your Civil Servant Protect code is " + code));
       }
@@ -71,7 +71,7 @@ public class HttpIntegrations {
       @Override
       public Accepted notify(String msisdn, String template, Map<String, String> values, String subject) {
         return replay.around(
-            new ReplayLog.Call("comms", "notify", subject, "notify:%s:%s".formatted(template, subject)),
+            ReplayLog.Call.once("comms", "notify", subject, "notify:%s:%s".formatted(template, subject)),
             Redacted.of("template", template).msisdn("to", msisdn).plain("values", values).build(),
             // Templated at the gateway: the aggregators require pre-registered
             // templates for bulk traffic, and a template id survives a

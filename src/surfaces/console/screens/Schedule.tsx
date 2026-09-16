@@ -1,9 +1,17 @@
+import { useRef, useState } from 'react'
 import { Icon } from '../../../components/Icon'
 import { Kicker, Mono } from '../../../components/primitives'
 import { PageSub, PageTitle, Panel } from '../../../components/surface'
 import { C } from '../../../theme/tokens'
 import { FORMAT_NOTES, SEND_LOG, tone } from '../data'
 import { useConsole } from '../state'
+import { useAuth } from '../../../api/auth'
+import { SPONSOR_DASHBOARD } from '../../../api/fixtures'
+import { useScheduleBatch, useSponsorDashboard, useUploadSchedule } from '../../../api/queries'
+import { useLive } from '../../../api/live'
+import { CsvError, parseSchedule, type ParseResult } from '../../../api/csv'
+import type { ScheduleBatch } from '../../../api/types'
+import { useApi } from '../../../api/provider'
 
 /**
  * The monthly deduction schedule — the thing this whole product exists to send.
@@ -13,6 +21,53 @@ import { useConsole } from '../state'
  */
 export function ConsoleSchedule() {
   const { payroll, profile, format, set, go } = useConsole()
+  const { live } = useApi()
+  const { can } = useAuth()
+  const { data: dash } = useLive(useSponsorDashboard(SPONSOR_DASHBOARD), SPONSOR_DASHBOARD)
+
+  const file = useRef<HTMLInputElement>(null)
+  const [parsed, setParsed] = useState<ParseResult | null>(null)
+  const [filename, setFilename] = useState('')
+  const [problem, setProblem] = useState<string | null>(null)
+  const [batchId, setBatchId] = useState<string | null>(null)
+
+  const upload = useUploadSchedule(dash.sponsor.id)
+  const batch = useScheduleBatch(dash.sponsor.id, batchId)
+
+  // A preparer prepares. Sending is theirs; approving the cycle is not.
+  const maySend = can('SCHEDULE_UPLOAD')
+
+  /* Parsed here rather than posted as a file, because the officer should see
+     what we read before eight thousand salaries are changed by it — which
+     columns were used, how many rows, and which lines we could not read. */
+  const choose = async (chosen: File) => {
+    setProblem(null)
+    setParsed(null)
+    setBatchId(null)
+    setFilename(chosen.name)
+    try {
+      setParsed(parseSchedule(await chosen.text()))
+    } catch (e) {
+      setProblem(e instanceof CsvError ? e.message : 'That file could not be read.')
+    }
+  }
+
+  const send = () => {
+    if (!parsed || !maySend || upload.isPending) return
+    // The period is the month the deduction is for: the next one, since a
+    // schedule goes out before the payroll cut-off.
+    const next = new Date()
+    next.setUTCDate(1)
+    next.setUTCMonth(next.getUTCMonth() + 1)
+    upload.mutate(
+      {
+        period: next.toISOString().slice(0, 10),
+        filename: filename || 'schedule.csv',
+        rows: parsed.rows,
+      },
+      { onSuccess: (result) => setBatchId(result.batchId) },
+    )
+  }
 
   return (
     <>
@@ -127,16 +182,63 @@ export function ConsoleSchedule() {
             <div style={{ fontSize: 12, lineHeight: 1.5, color: C.mut, marginTop: 5 }}>{profile.codeNote}</div>
           </div>
 
+          {/* Live, the schedule is a file an officer chooses. On fixtures the
+              button stands on its own, because the demo has no file to read. */}
+          {live && payroll && (
+            <>
+              <input
+                ref={file}
+                type="file"
+                accept=".csv,text/csv"
+                aria-label="Choose a schedule file"
+                onChange={(e) => {
+                  const chosen = e.target.files?.[0]
+                  if (chosen) void choose(chosen)
+                }}
+                style={{ display: 'none' }}
+              />
+              <button
+                type="button"
+                className="btn btn-secondary"
+                style={{ width: '100%', height: 46, fontSize: 14, gap: 8, marginTop: 16 }}
+                onClick={() => file.current?.click()}
+              >
+                <Icon name="ph ph-upload-simple" size={16} />
+                {filename || 'Choose the schedule file'}
+              </button>
+              {problem && <Problem message={problem} />}
+              {parsed && <ParsedSummary parsed={parsed} />}
+            </>
+          )}
+
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 16 }}>
-            <button type="button" className="btn btn-md btn-primary" style={{ width: '100%', height: 50, gap: 8 }}>
+            <button
+              type="button"
+              className="btn btn-md btn-primary"
+              style={{ width: '100%', height: 50, gap: 8 }}
+              disabled={live && (!maySend || !parsed || upload.isPending)}
+              title={maySend ? undefined : 'Your role cannot send a schedule.'}
+              onClick={send}
+            >
               <Icon name="ph ph-paper-plane-tilt" size={17} />
-              {payroll ? `Send to ${profile.destShort}` : 'Present the debit run'}
+              {upload.isPending
+                ? 'Sending…'
+                : payroll ? `Send to ${profile.destShort}` : 'Present the debit run'}
             </button>
             <button type="button" className="btn btn-secondary" style={{ width: '100%', height: 46, fontSize: 14, gap: 8 }}>
               <Icon name="ph ph-download-simple" size={16} />
               Download to check first
             </button>
           </div>
+
+          {upload.isError && (
+            <Problem
+              message={
+                upload.error instanceof Error ? upload.error.message : 'That schedule was refused.'
+              }
+            />
+          )}
+          {batch.data && <BatchProgress batch={batch.data} />}
           {/* Two-person control. An internal auditor asks about this first. */}
           <div style={{ fontSize: 12, lineHeight: 1.5, color: C.faint, marginTop: 10 }}>
             Sending needs a second approver. Amina prepares, Musa approves — no single person can change what payroll
@@ -177,5 +279,100 @@ export function ConsoleSchedule() {
         </div>
       </Panel>
     </>
+  )
+}
+
+/** Something is wrong with the file, said plainly enough to fix it. */
+function Problem({ message }: { message: string }) {
+  return (
+    <div
+      role="alert"
+      style={{
+        display: 'flex', alignItems: 'flex-start', gap: 9, marginTop: 12, padding: '11px 12px',
+        border: `1px solid ${C.clayBorder2}`, borderRadius: 10, background: C.clayBg,
+      }}
+    >
+      <Icon name="ph-fill ph-warning-circle" size={16} color={C.clay} />
+      <span style={{ fontSize: 12.5, lineHeight: 1.45, color: C.clayInk }}>{message}</span>
+    </div>
+  )
+}
+
+/**
+ * What we read, before anything is sent.
+ *
+ * Including which column each field came from. Payroll exports name their
+ * columns differently and this guesses; showing the guess is what lets an
+ * officer catch it reading "premium" as the amount when the file also has a
+ * "deduction" column.
+ */
+function ParsedSummary({ parsed }: { parsed: ParseResult }) {
+  return (
+    <div
+      style={{
+        marginTop: 12, padding: '12px 13px', border: `1px solid ${C.line}`,
+        borderRadius: 10, background: C.white,
+      }}
+    >
+      <div style={{ fontSize: 13.5, fontWeight: 600 }}>
+        {parsed.rows.length.toLocaleString('en-NG')} rows ready
+      </div>
+      <Mono size={11} color={C.faint} style={{ display: 'block', marginTop: 4, lineHeight: 1.6 }}>
+        service no ← {parsed.usedColumns.serviceNo}
+        <br />
+        name ← {parsed.usedColumns.name}
+        <br />
+        amount ← {parsed.usedColumns.amount}
+      </Mono>
+      {parsed.problems.length > 0 && (
+        <div style={{ fontSize: 12.5, lineHeight: 1.5, color: C.ochre, marginTop: 8 }}>
+          {parsed.problems.length} line(s) could not be read and will not be sent — line{' '}
+          {parsed.problems[0].line}: {parsed.problems[0].reason}
+          {parsed.problems.length > 1 ? `, and ${parsed.problems.length - 1} more.` : '.'}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/**
+ * The load, while it runs.
+ *
+ * The bar is loaded against staged, not matched against staged: matched climbs
+ * first and then loaded follows, so a single bar would appear to finish twice.
+ */
+function BatchProgress({ batch }: { batch: ScheduleBatch }) {
+  const done = batch.state === 'complete'
+  const rejected = batch.stagedCount - batch.loadedCount
+  const pct = batch.stagedCount === 0 ? 0 : Math.round((batch.loadedCount / batch.stagedCount) * 100)
+
+  return (
+    <div
+      role="status"
+      style={{
+        marginTop: 12, padding: '12px 13px', borderRadius: 10,
+        border: `1px solid ${done ? C.gBorder : C.line}`,
+        background: done ? C.gTint : C.white,
+      }}
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'baseline' }}>
+        <span style={{ fontSize: 13.5, fontWeight: 600, color: done ? C.gd : C.ink }}>
+          {done ? 'Loaded' : 'Loading…'}
+        </span>
+        <Mono size={12} color={C.mut}>
+          {batch.loadedCount.toLocaleString('en-NG')} of {batch.stagedCount.toLocaleString('en-NG')}
+        </Mono>
+      </div>
+      <div style={{ height: 6, borderRadius: 3, background: C.line8, marginTop: 9, overflow: 'hidden' }}>
+        <div style={{ height: '100%', width: `${pct}%`, background: C.g, transition: 'width .3s' }} />
+      </div>
+      {done && rejected > 0 && (
+        <div style={{ fontSize: 12.5, lineHeight: 1.5, color: C.ochre, marginTop: 8 }}>
+          {rejected.toLocaleString('en-NG')} row(s) matched no member on this sponsor and were not
+          loaded. They are listed against the batch with their line numbers.
+        </div>
+      )}
+      {batch.failure && <Problem message={batch.failure} />}
+    </div>
   )
 }

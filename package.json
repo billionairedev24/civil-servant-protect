@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Civil Servant Protect — the member app, the member web app and the sponsor console.",
+  "description": "Civil Servant Protect \u2014 the member app, the member web app and the sponsor console.",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
@@ -12,7 +12,8 @@
     "smoke": "node tests/smoke.mjs",
     "a11y": "node tests/a11y.mjs",
     "test:rails": "node tests/rails.mjs",
-    "test": "npm run smoke && npm run test:rails && npm run a11y"
+    "test": "npm run test:csv && npm run smoke && npm run test:rails && npm run a11y",
+    "test:csv": "node --experimental-strip-types --no-warnings tests/csv.mjs"
   },
   "dependencies": {
     "@fontsource/ibm-plex-mono": "^5.3.0",

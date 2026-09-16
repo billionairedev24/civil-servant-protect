@@ -8,8 +8,9 @@
  * possible rather than aspirational.
  */
 import type {
-  BeneficiarySet, Claim, Ledger, MemberSummary, MyClaim, ProtectionCard,
-  Reconciliation, Session, SponsorDashboard, Tokens,
+  BeneficiarySet, BulkEnrolment, Claim, ClaimQueueItem, Enrolled, Ledger, MemberSummary, MyClaim,
+  NewMember, ProtectionCard, Reconciliation, Roster, ScheduleBatch, ScheduleRow, Session,
+  SponsorClaims, SponsorDashboard, Tokens,
 } from './types'
 
 /**
@@ -262,8 +263,53 @@ export class CspApi {
     return this.call('POST', `/v1/sponsors/${sponsorId}/cycles/${cycleId}/close`, {})
   }
 
-  roster(sponsorId: string, search?: string): Promise<{ members: unknown[] }> {
-    return this.call('GET', `/v1/sponsors/${sponsorId}/members${query({ search })}`)
+  /**
+   * Hand over a month's schedule.
+   *
+   * <p>Answers 202 with a batch to watch, not a finished result — the rows are
+   * written down before it returns and the load runs behind it. See
+   * ScheduleLoader on the server.
+   */
+  uploadSchedule(
+    sponsorId: string,
+    body: { period: string; filename: string; rows: ScheduleRow[] },
+  ): Promise<{ cycleId: string; batchId: string; rowCount: number }> {
+    return this.call('POST', `/v1/sponsors/${sponsorId}/schedules`, body)
+  }
+
+  scheduleBatch(sponsorId: string, batchId: string): Promise<ScheduleBatch> {
+    return this.call('GET', `/v1/sponsors/${sponsorId}/schedules/${batchId}`)
+  }
+
+  /**
+   * Put one person on the scheme.
+   *
+   * <p>The NIN goes up and never comes back: the server stores a hash to match
+   * on and a ciphertext to re-send with, and no response carries it. Nothing on
+   * this client should keep it either — it lives in the form state for as long
+   * as the officer is typing and goes when the screen is done with it.
+   */
+  enrol(sponsorId: string, body: NewMember): Promise<Enrolled> {
+    return this.call('POST', `/v1/sponsors/${sponsorId}/members`, body)
+  }
+
+  /** The same thing for a list, which answers with what it could not do. */
+  enrolAll(sponsorId: string, members: NewMember[]): Promise<BulkEnrolment> {
+    return this.call('POST', `/v1/sponsors/${sponsorId}/members/batch`, { members })
+  }
+
+  roster(sponsorId: string, search?: string, limit = 50): Promise<Roster> {
+    return this.call('GET', `/v1/sponsors/${sponsorId}/members${query({ search, limit })}`)
+  }
+
+  /** The assessor's queue — every member's claims, not one sponsor's. */
+  claimQueue(): Promise<{ claims: ClaimQueueItem[] }> {
+    return this.call('GET', '/v1/claims')
+  }
+
+  /** Claims on one sponsor's members, thinned to what an employer may see. */
+  sponsorClaims(sponsorId: string): Promise<SponsorClaims> {
+    return this.call('GET', `/v1/sponsors/${sponsorId}/claims`)
   }
 
   // ── plumbing ───────────────────────────────────────────────────────────────

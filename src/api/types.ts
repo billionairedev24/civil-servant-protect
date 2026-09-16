@@ -162,6 +162,134 @@ export interface SponsorDashboard {
   exceptions: { total: number; open: number; byKind: Record<string, number> }
 }
 
+export interface RosterMember {
+  id: string
+  cspId: string
+  serviceNo: string | null
+  name: string
+  grade: string | null
+  tier: string
+  inForceSince: string
+  /** The latest contribution's status, or null if this member has never had one. */
+  collectionState: 'confirmed' | 'expected' | 'failed' | 'reversed' | null
+  lastPeriod: string | null
+  hasBeneficiary: boolean
+}
+
+export interface Roster {
+  members: RosterMember[]
+  /** Over the whole sponsor, not the page — a chip counting the page would lie. */
+  counts: { all: number; paid: number; notDeducted: number; noBeneficiary: number }
+}
+
+export interface ClaimQueueItem {
+  ref: string
+  type: string
+  state: string
+  openedAt: string
+  memberName: string
+  cspId: string
+  outstandingDocs: number
+}
+
+/**
+ * A claim on a sponsor's member, as a sponsor may see it.
+ *
+ * No amount, no cause, no documents — see ClaimService.SponsorClaim on the
+ * server. An employer knowing their late colleague's household received
+ * ₦5,000,000 is a disclosure nobody consented to.
+ */
+export interface SponsorClaim {
+  ref: string
+  type: string
+  state: string
+  openedAt: string
+  memberName: string
+  cspId: string
+  /** The insurer is waiting on the employer for something. */
+  awaitingSponsor: boolean
+}
+
+export interface SponsorClaims {
+  claims: SponsorClaim[]
+  open: number
+  paidThisYear: number
+  paidThisYearMinor: number
+}
+
+/** One line of a payroll schedule, as it is sent. */
+export interface ScheduleRow {
+  serviceNo: string
+  name: string
+  amountMinor: number
+}
+
+/**
+ * Somebody a sponsor is putting on the scheme.
+ *
+ * The sponsor already holds all of this — it is a staff record, not a form the
+ * member fills in. There is no self-service version: membership follows payroll,
+ * and a public enrolment endpoint would only be a way to attach a phone number
+ * you control to a civil servant whose details you have read.
+ */
+/** The four cover tiers, as the API spells them. */
+export type Tier = 'basic' | 'standard' | 'enhanced' | 'executive'
+
+export interface NewMember {
+  nin: string
+  fullName: string
+  /** ISO, because that is what the API takes. The screen shows day-first. */
+  dateOfBirth: string
+  /** +234 and ten digits. The invitation goes here, and so does every sign-in. */
+  msisdn: string
+  serviceNo?: string
+  grade?: string
+  tier: Tier
+  beneficiaries?: { name: string; relation: string; msisdn?: string; sharePct: number }[]
+}
+
+export interface Enrolled {
+  memberId: string
+  cspId: string
+  tier: Tier
+  priceMinor: number
+  inForceSince: string
+  collectionRail: string
+  beneficiariesNamed: boolean
+}
+
+/**
+ * What a list of new starters did.
+ *
+ * Both halves matter. `enrolled` is the good news, and `rejected` carries the
+ * spreadsheet line number and the reason — a file of two hundred with three bad
+ * NINs enrols a hundred and ninety-seven people and names the three.
+ */
+export interface BulkEnrolment {
+  submitted: number
+  enrolled: number
+  members: Enrolled[]
+  rejected: { row: number; name: string; reason: string }[]
+}
+
+/**
+ * A schedule load in flight, or finished.
+ *
+ * `staged` is what the file contained; `matched` and `loaded` climb as the job
+ * works through it. A row that matches no member is rejected with its line
+ * number, which is what an officer needs to fix the file.
+ */
+export interface ScheduleBatch {
+  batchId: string
+  state: 'staged' | 'complete' | 'failed'
+  stagedCount: number
+  matchedCount: number
+  loadedCount: number
+  startedAt: string | null
+  finishedAt: string | null
+  failure: string | null
+}
+
 export interface ReconciliationException {
   id: string
   memberId: string | null

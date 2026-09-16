@@ -4,8 +4,8 @@ import { ConsoleSignIn } from './SignIn'
 import { Icon } from '../../components/Icon'
 import { Mono } from '../../components/primitives'
 import { initialsOf } from '../../data/member'
-import { SPONSOR_DASHBOARD } from '../../api/fixtures'
-import { useSponsorDashboard } from '../../api/queries'
+import { SPONSOR_CLAIMS, SPONSOR_DASHBOARD } from '../../api/fixtures'
+import { useSponsorClaims, useSponsorDashboard } from '../../api/queries'
 import { useLive } from '../../api/live'
 import { BP, useMediaQuery } from '../../components/useMediaQuery'
 import type { SponsorId } from '../../data/sponsors'
@@ -116,14 +116,18 @@ function SideNav() {
      sidebar that says 57 next to a screen that says 3 is worse than no badge,
      because it is the number an officer glances at rather than reads. */
   const { data: dash } = useLive(useSponsorDashboard(SPONSOR_DASHBOARD), SPONSOR_DASHBOARD)
+  const { data: claims } = useLive(
+    useSponsorClaims(dash.sponsor.id, SPONSOR_CLAIMS),
+    SPONSOR_CLAIMS,
+  )
 
+  /* Both counts, from the same reads the screens use. A badge that disagreed
+     with the screen behind it is worse than no badge: it is the number an
+     officer glances at rather than reads. A zero shows nothing at all — an
+     empty queue is not news. */
   const badgeFor = (badge?: 'recon' | 'claims') => {
-    if (badge === 'recon') return dash.exceptions.open === 0 ? '' : String(dash.exceptions.open)
-    // Claims are the insurer's queue, not the sponsor's: the console shows the
-    // count so an HR officer knows a family is waiting, but the number does not
-    // come from this sponsor's dashboard. Until that read exists it stays put,
-    // and is marked here rather than looking derived.
-    return badge === 'claims' ? '4' : ''
+    const n = badge === 'recon' ? dash.exceptions.open : badge === 'claims' ? claims.open : 0
+    return n > 0 ? String(n) : ''
   }
 
   return (

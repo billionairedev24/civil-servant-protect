@@ -233,6 +233,76 @@ curl -s -XPOST localhost:8080/v1/claims/CLM-2026-0091/pay \
   -d '{"bankCode":"058","accountNumber":"0123456789"}'
 ```
 
+### What a sponsor may know
+
+Row-level security answers "may you see this row", which is the right question
+almost everywhere here and the wrong one twice. A sponsor may not see who a
+member has nominated, but must know *whether* they have nominated anybody —
+chasing the ones who have not is their job. A sponsor may not read a claim, but
+must know one exists on their member, because the insurer asks them one question
+about it.
+
+Both facts come from **projections** rather than from filtered queries:
+`members.has_payee_beneficiary` and the `sponsor_claim_view` table, maintained by
+trigger from rows the sponsor cannot read. A projection cannot accidentally grow
+a sensitive column the way a query against the real table can, and its policy is
+an ordinary one.
+
+A migration that reads existing rows must set `csp.unscoped` first — Flyway runs
+through the application's DataSource, which applies a scope at connection
+checkout, and with none set that scope is "nobody". A subquery under RLS does not
+fail; it returns nothing.
+
+### Enrolling somebody
+
+Enrolment is back-office work. The sponsor already holds these people's records
+— name, service number, grade, NIN — so an HR officer enrols them and the member
+finds out by SMS. There is **no self-service enrolment endpoint**, deliberately:
+membership follows payroll, so a public one would add no members and one attack,
+where somebody who has read a civil servant's details attaches a phone number
+they control to that person's cover.
+
+Everything is under the sponsor, needs `MEMBERS_MANAGE`, and is scoped by RLS:
+
+```bash
+# Check a staff record against NIMC without creating anything. 200 with
+# verified:false for a mismatch — that is an answer, not a bad request.
+curl -s -XPOST localhost:8080/v1/sponsors/$SPONSOR/enrolment/verify \
+  -H "Authorization: Bearer $ADMIN" -H 'Content-Type: application/json' \
+  -d '{"nin":"22233344455","fullName":"Ngozi Chidinma Bello","dateOfBirth":"1990-04-12"}'
+
+# 201. Creates the member, the account they sign in with, and their cover.
+curl -s -XPOST localhost:8080/v1/sponsors/$SPONSOR/members \
+  -H "Authorization: Bearer $ADMIN" -H 'Content-Type: application/json' \
+  -d '{"nin":"22233344455","fullName":"Ngozi Chidinma Bello",
+       "dateOfBirth":"1990-04-12","msisdn":"+2348031234567",
+       "serviceNo":"5512340","grade":"GL 12","tier":"standard"}'
+# {"cspId":"CSP-114-88215","tier":"standard","inForceSince":"2026-10-01", …}
+
+# A list of new starters, capped at 1,000.
+curl -s -XPOST localhost:8080/v1/sponsors/$SPONSOR/members/batch \
+  -H "Authorization: Bearer $ADMIN" -H 'Content-Type: application/json' \
+  -d '{"members":[ … ]}'
+# {"submitted":5,"enrolled":3,"rejected":[{"row":3,"name":"…","reason":"No record at NIMC"}]}
+```
+
+Three things are worth knowing:
+
+- **Cover starts on the first of next month**, not today. The first deduction
+  comes off the next payroll run, and cover that began before anybody paid for
+  it is a claim window the record cannot account for.
+- **The list does not fail wholesale.** Each row is its own transaction, so a
+  file of two hundred with three bad NINs enrols a hundred and ninety-seven
+  people and names the three by line number. One transaction would roll the lot
+  back and send an officer to a spreadsheet to find the problem themselves.
+- **The NIN is never stored in the clear and never comes back.** A hash to match
+  on, a ciphertext to re-send with, and nothing in a log or an error message —
+  the console reports a bad row by its line number for the same reason.
+
+The console screen is **Members → Add members**. It parses the staff list in the
+browser and shows what it read — which header each field came from, how many
+rows, which lines it will not send — before anybody is created by it.
+
 ### Loading a schedule
 
 ```bash
@@ -429,15 +499,20 @@ Real, and deliberately not papered over.
 3. **Some screens still read fixtures.** Sign-in, and the money and people
    screens on all three surfaces, read the API when `VITE_API_URL` is set —
    contributions, the protection card, beneficiaries and their annual
-   confirmation, claim tracking, the console's dashboard and its reconciliation
-   queue including the maker–checker pair. Still on fixtures: the console's
-   roster, schedule upload, direct-debit run, remittances, claims queue,
-   reports and settings; the member's family cover and cover-detail screens;
-   and the whole enrolment run, which has no endpoints behind it yet.
+   confirmation, claim tracking, and the console's dashboard, reconciliation
+   queue with its maker–checker pair, member roster, claims and schedule
+   upload, and the console's **Add and remove members** screen, which enrols
+   people for real — one at a time or from a staff list.
+
+   Still on fixtures: the console's direct-debit run, remittances, reports and
+   settings; the member's family cover and cover-detail screens; and the
+   *removal* half of the members screen — taking somebody off the schedule is
+   not an endpoint yet, and the leaver cards there are still illustrative.
 
    A screen that has not been wired says the same numbers it always did — the
    fixtures and the seed agree — so the difference is where the figure comes
    from, not what it says.
+
 4. **Spring Batch, but no Kafka.** Schedule upload stages the rows and hands
    off to a chunked, restartable job; the endpoint answers **202** with a batch
    reference and the console polls
@@ -473,11 +548,23 @@ Real, and deliberately not papered over.
    `HSM_ENABLED=true` with a config file and PIN selects it, and the `prod`
    profile refuses to start without it.
 
-   One finding worth stating plainly: **HS256 member tokens cannot be signed
-   inside an HSM.** The signer needs the key bytes, so hardware custody and
-   symmetric signing are incompatible here. Moving member tokens to ES256 is
-   the fix and has not been done — it is a token-format change with a rollover,
-   not a config flag.
+   Member tokens are **HS256 under the config vault and ES256 under the HSM**,
+   because the algorithm is the vault's decision and only ES256 can be signed by
+   a key that stays inside the device. Two consequences worth knowing:
+
+   - The public half is published at `GET /v1/auth/jwks`. Under HS256 that set
+     is empty — a shared secret has no public half, which is why every service
+     wanting to check a member's session today has to be trusted to mint one
+     too. The USSD gateway and the claims service should not be.
+   - Cutting over changes the algorithm, so set `csp.crypto.previous-hmac-secret`
+     for one deploy. Without it, every token minted a minute before the switch
+     stops working — an eight-hour refresh token worthless at the moment of
+     cutover, including for a member halfway through a claim.
+
+   **What is not tested:** the PKCS#11 provider wiring. The ES256 path is
+   covered against a software EC key, which is the same code except where the
+   signature is computed; the hardware itself cannot be exercised here.
+
 7. **Translations are machine-drafted** and have had no native-speaker pass. Ten
    of them were drafted in this session rather than carried from the design
    bundle — see the README.

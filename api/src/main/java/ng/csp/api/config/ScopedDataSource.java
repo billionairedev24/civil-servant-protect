@@ -34,7 +34,24 @@ public class ScopedDataSource extends DelegatingDataSource {
   }
 
   private static Connection apply(Connection connection) throws SQLException {
-    var scope = RlsScope.current();
+    try {
+      write(connection, RlsScope.current());
+    } catch (SQLException e) {
+      // A connection we could not scope is more dangerous than no connection.
+      connection.close();
+      throw e;
+    }
+    return connection;
+  }
+
+  /**
+   * Writes a scope onto a connection.
+   *
+   * <p>Used at checkout, and again by {@link RlsScope#set} for a connection already bound to an open
+   * transaction — a scope change that did not reach that connection was the cause of five separate
+   * silent bugs, so it is not left to call sites to remember.
+   */
+  static void write(Connection connection, RlsScope scope) throws SQLException {
     try (var statement = connection.prepareStatement(
         """
         SELECT set_config('csp.member_id',  ?, false),
@@ -47,11 +64,6 @@ public class ScopedDataSource extends DelegatingDataSource {
       statement.setString(3, scope.assessor() ? "on" : "off");
       statement.setString(4, scope.unscoped() ? "on" : "off");
       statement.execute();
-    } catch (SQLException e) {
-      // A connection we could not scope is more dangerous than no connection.
-      connection.close();
-      throw e;
     }
-    return connection;
   }
 }

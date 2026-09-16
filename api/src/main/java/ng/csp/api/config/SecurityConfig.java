@@ -73,6 +73,10 @@ public class SecurityConfig {
                     .requestMatchers(
                         HttpMethod.POST, "/v1/auth/otp", "/v1/auth/verify", "/v1/auth/refresh")
                     .permitAll()
+                    // A public key is public. The point of publishing it is that
+                    // no service has to be handed one out of band.
+                    .requestMatchers(HttpMethod.GET, "/v1/auth/jwks")
+                    .permitAll()
                     .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")
                     .permitAll()
                     .anyRequest()
@@ -113,10 +117,9 @@ public class SecurityConfig {
     };
   }
 
-  /** HS256 for the tokens this service mints for members. */
+  /** The tokens this service mints, under whichever key signed them. See TokenKeys. */
   private JwtDecoder memberTokenDecoder() {
-    var key = new SecretKeySpec(keys.signingSecret(), "HmacSHA256");
-    return NimbusJwtDecoder.withSecretKey(key).macAlgorithm(MacAlgorithm.HS256).build();
+    return ng.csp.api.crypto.TokenKeys.decoder(keys.verifying());
   }
 
   /**

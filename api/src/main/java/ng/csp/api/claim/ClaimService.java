@@ -277,6 +277,85 @@ public class ClaimService {
         .list();
   }
 
+  /**
+   * A claim on a sponsor's member, as the sponsor may see it.
+   *
+   * <p>Deliberately thin, and the thinness is the product. A sponsor is the employer: they need to
+   * know a claim exists so they can answer the one question the insurer asks them — was this person
+   * in service on that date — and so an HR officer can be kind to a family walking into their
+   * office. They do not need the cause of death, the medical documents, the diagnosis, or the
+   * beneficiary's bank details, and this record cannot carry them.
+   *
+   * <p>The amount is not here either. What a family is paid is between them and the insurer; an
+   * employer knowing their late colleague's household received ₦5,000,000 is a disclosure nobody
+   * consented to. Aggregate figures are fine and are what the screen shows.
+   */
+  public record SponsorClaim(
+      String ref, String type, String state, Instant openedAt, String memberName, String cspId,
+      /** Whether the insurer is waiting on the employer for something. */
+      boolean awaitingSponsor) {}
+
+  public record SponsorClaims(List<SponsorClaim> claims, int open, int paidThisYear, long paidThisYearMinor) {}
+
+  /**
+   * Claims on this sponsor's members.
+   *
+   * <p>Scoped by row-level security rather than by this query: the caller's scope is their own
+   * sponsor, so a sponsor id in the request that is not theirs returns nothing rather than someone
+   * else's members — see RlsScope and the members_by_rail policy.
+   */
+  public SponsorClaims forSponsor(UUID sponsorId) {
+    var claims =
+        db.sql(
+                """
+                /*
+                 * A projection, not `claims`.
+                 *
+                 * `claims` is closed to a sponsor by policy and stays closed: a
+                 * policy loose enough to let them read the row lets them read
+                 * the amount, the assessor's note and the payout account through
+                 * any query that asks, because RLS is row-level and this
+                 * restriction is about columns. sponsor_claim_view holds the
+                 * few facts an employer is entitled to and cannot grow the rest
+                 * by accident. See V10.
+                 */
+                SELECT v.claim_ref, v.type, v.state, v.created_at, v.awaiting_sponsor,
+                       m.display_name, m.csp_id
+                  FROM sponsor_claim_view v JOIN members m ON m.id = v.member_id
+                 WHERE v.sponsor_id = :s AND v.paid_at IS NULL
+                 ORDER BY v.created_at DESC
+                 LIMIT 100
+                """)
+            .param("s", sponsorId)
+            .query(
+                (rs, n) ->
+                    new SponsorClaim(
+                        rs.getString("claim_ref"),
+                        rs.getString("type"),
+                        rs.getString("state"),
+                        Rows.instant(rs, "created_at"),
+                        rs.getString("display_name"),
+                        rs.getString("csp_id"),
+                        rs.getBoolean("awaiting_sponsor")))
+            .list();
+
+    /*
+     * Paid this year, in total. An employer seeing "₦18.4m went to the families
+     * of your staff" is the number that gets a scheme renewed, and it discloses
+     * nothing about any one household.
+     */
+    var totals =
+        db.sql(
+                """
+                SELECT paid_count AS n, paid_minor AS total FROM csp.sponsor_claims_paid(:s)
+                """)
+            .param("s", sponsorId)
+            .query((rs, n) -> new long[] {rs.getInt("n"), rs.getLong("total")})
+            .single();
+
+    return new SponsorClaims(claims, claims.size(), (int) totals[0], totals[1]);
+  }
+
   public record QueueItem(
       String ref, String type, String state, Instant openedAt,
       String memberName, String cspId, int outstandingDocs) {}

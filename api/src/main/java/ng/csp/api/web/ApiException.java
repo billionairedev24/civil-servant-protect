@@ -49,6 +49,17 @@ public class ApiException extends RuntimeException {
     return new ApiException(HttpStatus.CONFLICT, code, message);
   }
 
+  /**
+   * Something we depend on is not answering.
+   *
+   * <p>503 rather than 500, because the difference matters to whoever is looking at it: a 500 means
+   * this service is broken and somebody should be paged, a 503 means NIMC is down and the answer is
+   * to wait. A client may also retry a 503 and should not retry a 500.
+   */
+  public static ApiException serviceUnavailable(String message) {
+    return new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "upstream_unavailable", message);
+  }
+
   public static ApiException tooManyRequests(String message) {
     return new ApiException(HttpStatus.TOO_MANY_REQUESTS, "locked", message);
   }

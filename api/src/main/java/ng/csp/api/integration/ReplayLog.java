@@ -12,8 +12,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.databind.ObjectMapper;
 
 /**
@@ -40,14 +41,79 @@ public class ReplayLog {
   private final ObjectMapper json;
   private final Resilient resilient;
 
-  public ReplayLog(JdbcClient db, ObjectMapper json, Resilient resilient) {
+  /*
+   * Its own transaction, opened by hand.
+   *
+   * @Transactional(REQUIRES_NEW) on these methods did nothing, because they are
+   * called from `around` on `this` and never go through the proxy. Worse, it
+   * looked right: the log worked for every caller who happened to be unscoped
+   * and failed only for a request already scoped to a sponsor, with a row-level
+   * security violation from a table nobody thought they were writing to.
+   *
+   * A template makes the boundary explicit, and — this is the part that matters
+   * — lets the scope be set *outside* it. ScopedDataSource applies the scope
+   * when a connection is checked out, so setting it inside the transaction is
+   * always too late.
+   */
+  private final TransactionTemplate ownTransaction;
+
+  public ReplayLog(
+      JdbcClient db, ObjectMapper json, Resilient resilient, PlatformTransactionManager transactions) {
     this.db = db;
     this.json = json;
     this.resilient = resilient;
+    this.ownTransaction = new TransactionTemplate(transactions);
+    this.ownTransaction.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
   }
 
-  /** One call: what it is, what it is about, and how to know it is the same call twice. */
-  public record Call(String system, String operation, String subject, String idempotencyKey) {}
+  /**
+   * Runs something unscoped, in a transaction of its own.
+   *
+   * <p>In that order. The scope is a ThreadLocal read at connection checkout, and the transaction is
+   * what checks out the connection — so unscoped has to be set before the transaction begins, not
+   * inside it.
+   *
+   * <p>The transaction is separate so that a caller's rollback cannot erase the record of a call
+   * that has already gone out. That is the one row which must survive whatever happens to the
+   * request that made it.
+   */
+  private <T> T recordSeparately(Supplier<T> work) {
+    return RlsScope.runUnscoped(() -> ownTransaction.execute(status -> work.get()));
+  }
+
+  /**
+   * One call: what it is, what it is about, and whether doing it twice would be a mistake.
+   *
+   * <p>That last part is the distinction that matters, and it is stated rather than inferred.
+   * Sending a payout twice pays a family twice; verifying a NIN twice costs a fraction of a naira.
+   * Treating every call as once-only looks safe and is not — it made a second enrolment attempt for
+   * the same person fail with "already done", so an officer who mistyped a date of birth could never
+   * correct it.
+   */
+  public record Call(String system, String operation, String subject, String idempotencyKey,
+      boolean onceOnly) {
+
+    /**
+     * A call that must happen at most once, ever.
+     *
+     * <p>Money, and anything else with a consequence in the world that cannot be taken back. The key
+     * is the caller's own reference — a claim reference, a challenge id — and a second call carrying
+     * it does not go out.
+     */
+    public static Call once(String system, String operation, String subject, String key) {
+      return new Call(system, operation, subject, key, true);
+    }
+
+    /**
+     * A call that may be made again: a read, a lookup, a verification.
+     *
+     * <p>Still recorded, because "did we ask NIMC about this person, and what did they say" is worth
+     * knowing. Each attempt gets its own row rather than colliding with the last one.
+     */
+    public static Call repeatable(String system, String operation, String subject) {
+      return new Call(system, operation, subject, subject + ":" + UUID.randomUUID(), false);
+    }
+  }
 
   /**
    * Records the attempt, runs it through the breaker, records the outcome.
@@ -57,8 +123,7 @@ public class ReplayLog {
    * two workers racing on the same claim cannot both decide they are first.
    */
   public <T> T around(Call call, Map<String, Object> request, Supplier<T> work) {
-    var existing = alreadySucceeded(call);
-    if (existing) {
+    if (call.onceOnly() && alreadySucceeded(call)) {
       log.info("{} {} already done for {} — not calling again", call.system(), call.operation(), call.subject());
       throw new AlreadyDone(call);
     }
@@ -87,7 +152,7 @@ public class ReplayLog {
   }
 
   private boolean alreadySucceeded(Call call) {
-    return RlsScope.runUnscoped(
+    return recordSeparately(
         () ->
             db.sql(
                     """
@@ -103,16 +168,8 @@ public class ReplayLog {
             > 0);
   }
 
-  /*
-   * Its own transaction, deliberately.
-   *
-   * If this joined the caller's, a rollback would erase the record of a call
-   * that had already gone out — the one row that must survive whatever happens
-   * to the request that made it.
-   */
-  @Transactional(propagation = Propagation.REQUIRES_NEW)
   UUID begin(Call call, Map<String, Object> request) {
-    return RlsScope.runUnscoped(
+    return recordSeparately(
         () ->
             db.sql(
                     """
@@ -137,10 +194,9 @@ public class ReplayLog {
                 .single());
   }
 
-  @Transactional(propagation = Propagation.REQUIRES_NEW)
   void finish(UUID id, String state, Object response, String error, Instant started) {
     var ms = (int) Math.min(Duration.between(started, Instant.now()).toMillis(), Integer.MAX_VALUE);
-    RlsScope.runUnscoped(
+    recordSeparately(
         () ->
             db.sql(
                     """
@@ -166,7 +222,7 @@ public class ReplayLog {
       String error, Instant startedAt) {}
 
   public List<Stuck> stuck(int limit) {
-    return RlsScope.runUnscoped(
+    return recordSeparately(
         () ->
             db.sql(
                     """
