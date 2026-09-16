@@ -28,6 +28,8 @@ export interface Strings {
   continue: string
   back: string
   or: string
+  /** List separator for "A and B" — payee names are joined at render time. */
+  and: string
   size_note: string
   signin_title: string
   signin_sub: string
@@ -216,6 +218,7 @@ export const STRINGS: Record<Lang, Strings> = {
     continue: "Continue",
     back: "Back",
     or: "OR",
+    and: "and",
     size_note: "Works on a slow connection · 4.1 MB",
     signin_title: "Sign in",
     signin_sub: "Use whichever one you have.",
@@ -396,6 +399,7 @@ export const STRINGS: Record<Lang, Strings> = {
     continue: "Ci gaba",
     back: "Koma baya",
     or: "KO",
+    and: "da",
     size_note: "Yana aiki da hanyar sadarwa mai rauni · 4.1 MB",
     signin_title: "Shiga",
     signin_sub: "Yi amfani da duk wanda kake da shi.",
@@ -576,6 +580,7 @@ export const STRINGS: Record<Lang, Strings> = {
     continue: "Tẹ̀síwájú",
     back: "Padà",
     or: "TÀBÍ",
+    and: "àti",
     size_note: "Ó ń ṣiṣẹ́ lórí ìsopọ̀ tí ó lọ́ra · 4.1 MB",
     signin_title: "Wọlé",
     signin_sub: "Lo èyíkéyìí tí o ní.",
@@ -756,6 +761,7 @@ export const STRINGS: Record<Lang, Strings> = {
     continue: "Gaa n'ihu",
     back: "Laghachi",
     or: "MAỌBỤ",
+    and: "na",
     size_note: "Ọ na-arụ ọrụ na njikọ dị nwayọọ · 4.1 MB",
     signin_title: "Banye",
     signin_sub: "Jiri nke ọ bụla i nwere.",
@@ -936,6 +942,7 @@ export const STRINGS: Record<Lang, Strings> = {
     continue: "Continue",
     back: "Go back",
     or: "OR",
+    and: "and",
     size_note: "E dey work even if network slow · 4.1 MB",
     signin_title: "Enta",
     signin_sub: "Use any one wey you get.",

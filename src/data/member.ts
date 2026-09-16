@@ -12,7 +12,19 @@ export const MEMBER = {
   name: 'Adaeze Okafor',
   fullName: 'Adaeze N. Okafor',
   initials: 'AO',
-  cspId: '4471-2098',
+  /**
+   * The CSP-ID is the product's identity artefact, so it has exactly one value
+   * and all three applications read it from here. The design bundle gave the
+   * phone `4471-2098` and the web `CSP-114-88214` for the same person, and the
+   * console used both — including inside one screen, where the exception route
+   * said one and its detail panel said the other.
+   *
+   * `serviceNo` is what we hold. The August file says 4471209 — one digit out —
+   * which is the console's unmatched-deduction story: real money, deducted from
+   * a real person, that cannot be tied to a CSP-ID until someone decides.
+   */
+  cspId: 'CSP-114-88214',
+  serviceNo: '4471208',
   grade: 'GL 12',
   ministry: 'Fed. Min. of Education',
   role: 'Principal Education Officer',
@@ -57,10 +69,35 @@ export interface Beneficiary {
 }
 
 export const BENEFICIARIES: readonly Beneficiary[] = [
-  { name: 'Chinedu Okafor', relIndex: 0, phone: '0803 •• •• 214', share: 60 },
-  { name: 'Ngozi Okafor', relIndex: 1, phone: '0803 •• •• 991', share: 40 },
+  // Chinedu's number was the member's own in the bundle's phone fixture.
+  { name: 'Chinedu Okafor', relIndex: 0, phone: '0803 •• •• 118', share: 60 },
+  { name: 'Ngozi Okafor', relIndex: 1, phone: '0806 •• •• 903', share: 40 },
   { name: 'Emeka Okafor', relIndex: 2, phone: '—', share: 0 },
 ]
+
+/**
+ * Who a death claim actually pays. A beneficiary holding no share is named on
+ * the record but is not a payee — that gap is the entire reason the annual
+ * re-confirmation screen exists, so the two must never be conflated.
+ */
+export const PAYEES = BENEFICIARIES.filter((b) => b.share > 0)
+
+/**
+ * "Chinedu and Ngozi Okafor". Derived rather than written out, because the
+ * phone and the web each hard-coded their own version of this sentence and
+ * they had drifted to naming different people.
+ *
+ * The shared surname collapses only when every payee actually shares it.
+ */
+export function payeeNames(and: string): string {
+  const parts = PAYEES.map((b) => b.name)
+  const surnames = parts.map((n) => n.slice(n.lastIndexOf(' ') + 1))
+  const names = surnames.every((s) => s === surnames[0])
+    ? parts.map((n, i) => (i === parts.length - 1 ? n : n.slice(0, n.lastIndexOf(' '))))
+    : parts
+  if (names.length === 1) return names[0]
+  return `${names.slice(0, -1).join(', ')} ${and} ${names[names.length - 1]}`
+}
 
 export const FAMILY_COVER = [
   { name: 'Chinedu Okafor', relIndex: 0, cover: '₦2,000,000', price: '₦1,200/mo', icon: 'ph ph-heart', active: true },
@@ -71,7 +108,7 @@ export const FAMILY_COVER = [
 /** Claim wizard review rows; keys are i18n `sum_k`. */
 export const CLAIM_SUMMARY_VALUES = [
   'Death of the member',
-  'Adaeze Okafor · 4471-2098',
+  `${MEMBER.name} · ${MEMBER.cspId}`,
   'Chinedu Okafor',
   '3 / 4',
   'GTBank ••4471',

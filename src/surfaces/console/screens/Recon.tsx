@@ -1,6 +1,7 @@
 import { Icon } from '../../../components/Icon'
 import { Kicker, Mono } from '../../../components/primitives'
 import { PageSub, PageTitle, Panel } from '../../../components/surface'
+import { MEMBER } from '../../../data/member'
 import { C } from '../../../theme/tokens'
 import { RECON_PAYROLL, RECON_SELF, tone } from '../data'
 import { useConsole } from '../state'
@@ -206,15 +207,15 @@ export function ConsoleException() {
   const memberPanel = payroll
     ? [
         { k: 'Name on our record', v: 'Adaeze Nkiru Okafor', match: true },
-        { k: 'Service number', v: '4471208', match: false },
+        { k: 'Service number', v: MEMBER.serviceNo, match: false },
         { k: 'NIN', v: '•••• •••• 4471', match: true },
         { k: 'Grade level', v: 'GL 12', match: true },
         { k: 'Plan amount', v: '₦2,500', match: true },
-        { k: 'CSP-ID', v: '4471-2098', match: null },
+        { k: 'CSP-ID', v: MEMBER.cspId, match: null },
       ]
     : [
         { k: 'Member', v: 'Adaeze Nkiru Okafor', match: true },
-        { k: 'CSP-ID', v: '4471-2098', match: null },
+        { k: 'CSP-ID', v: MEMBER.cspId, match: null },
         { k: 'Mandate authorised', v: '04.03.2024', match: true },
         { k: 'Paid on time', v: '28 of 30 months', match: true },
         { k: 'Plan amount', v: '₦2,500', match: true },

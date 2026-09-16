@@ -1,6 +1,6 @@
 import { Icon } from '../../../components/Icon'
 import { Kicker, Mono } from '../../../components/primitives'
-import { CLAIM, MEMBER } from '../../../data/member'
+import { CLAIM, MEMBER, payeeNames } from '../../../data/member'
 import { C } from '../../../theme/tokens'
 import { Screen } from '../Screen'
 import { usePhone } from '../state'
@@ -80,7 +80,7 @@ export function HomeScreen() {
         <Kicker size={9.5} color="inherit" style={{ opacity: 0.85 }}>{t.if_you_die}</Kicker>
         <div style={{ fontSize: 40, fontWeight: 700, letterSpacing: '-.035em', marginTop: 5 }}>₦5,500,000</div>
         <div style={{ fontSize: 14, lineHeight: 1.5, marginTop: 5, opacity: 0.9 }}>
-          {t.paid_to} <span style={{ fontWeight: 600 }}>Chinedu Okafor</span>
+          {t.paid_to} <span style={{ fontWeight: 600 }}>{payeeNames(t.and)}</span>
         </div>
         <div style={{ height: 1, background: 'rgba(242,247,244,.22)', margin: '16px 0' }} />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>

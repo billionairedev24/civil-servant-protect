@@ -24,8 +24,14 @@ your network via `npm run dev -- --host`.
 | http://localhost:5173/m/home | What a member sees each month |
 | http://localhost:5173/m/id | The protection card — who collects, and the CSP-ID |
 | http://localhost:5173/m/contrib | **The trust artefact.** 14 months, and what is not yet confirmed |
+| http://localhost:5173/m/benes | Who gets paid — **press "Add a beneficiary"** |
 | http://localhost:5173/m/accident | Report an accident — works offline, four taps |
 | http://localhost:5173/m/track | A claim trail that is time-stamped and append-only |
+
+**The beat worth pausing on:** on `/m/benes`, adding the third name puts Emeka
+on the record holding 0%. The app says so instead of accepting it quietly —
+which is the entire reason the annual re-confirmation screen
+(http://localhost:5173/m/beneconf) exists.
 
 **The line to say on `/m/contrib`:** the current month is grey and says so.
 Nothing here claims a payment nobody has seen yet. That is the whole product.
@@ -40,6 +46,9 @@ Nothing here claims a payment nobody has seen yet. That is the whole product.
 
 Narrow the window below 1024 to show the rail collapse to a tab row — cyber-cafe
 and office machines are not all widescreen.
+
+Same CSP-ID, same beneficiaries, same shares as the phone. That is worth saying
+out loud if you have just shown `/m/benes`: it is one record, not two demos.
 
 ## 3. The sponsor console (3 min)
 

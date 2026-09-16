@@ -1,24 +1,23 @@
 /**
- * Fixtures for the member web surface.
+ * Fixtures for the member web application.
  *
- * Note for the build team: the design gives web a different member reference
- * (CSP-114-88214) and a different beneficiary set (50/30/20 including a minor)
- * from the phone design (4471-2098, 60/40). Both are reproduced as designed
- * rather than silently reconciled — see README, "Known inconsistencies".
+ * The identity and the family are NOT re-declared here — they come from
+ * `src/data/member.ts`, because they belong to the member rather than to a
+ * surface. The design bundle gave the phone and the web different values for
+ * both (a different CSP-ID, a different set of beneficiaries with different
+ * relationships and shares), which made "the same member on a desk browser"
+ * untrue the moment anyone put the two screens side by side.
+ *
+ * What stays here is genuinely web-only: the full benefit matrix the phone
+ * truncates, the session list, and the ledger's extra columns.
  */
+import { BENEFICIARIES, FAMILY_COVER, MEMBER } from '../../data/member'
 import type { Sponsor } from '../../data/sponsors'
 
+/** One member record, spread so the web can add the fields only it shows. */
 export const WEB_MEMBER = {
-  name: 'Adaeze Okafor',
-  fullName: 'Adaeze N. Okafor',
-  initials: 'AO',
-  cspId: 'CSP-114-88214',
-  inForce: '01.10.2025',
-  grade: 'GL 12',
-  dob: '04.11.1987',
-  gross: '₦318,400',
-  phoneMasked: '0803 •• •• 214',
-  phoneEntry: '803 000 214',
+  ...MEMBER,
+  inForce: MEMBER.inForceSince,
   kinPhone: '+234 806 •• •• 903',
 } as const
 
@@ -34,17 +33,31 @@ export const SCHEDULE_MATRIX: readonly (readonly string[])[] = [
   ['—', '₦250,000', '₦500,000', '₦750,000'],
 ]
 
-export const WEB_BENEFICIARIES = [
-  { name: 'Chinedu Okafor', rel: 'Spouse', phone: '0803 •• •• 118', id: 'NIN ••••4412', share: '50%' },
-  { name: 'Ngozi Okafor', rel: 'Mother', phone: '0806 •• •• 903', id: 'NIN ••••7781', share: '30%' },
-  { name: 'Amaka Okafor', rel: 'Daughter, 14', phone: '—', id: 'Birth cert. on file', share: '20%' },
-] as const
+/** The relationship word is in the i18n `fam_n` list, indexed the same way the
+    phone indexes it; web renders English, so it is spelled out for the table. */
+const REL = ['Spouse', 'Daughter, 14', 'Son, 9'] as const
 
-export const WEB_FAMILY = [
-  { name: 'Chinedu Okafor', dob: '12.03.1985', rel: 'Spouse', sum: '₦1,000,000', price: '₦900' },
-  { name: 'Amaka Okafor', dob: '04.07.2012', rel: 'Daughter, 14', sum: '₦500,000', price: '₦500' },
-  { name: 'Obiora Okafor', dob: '19.01.2017', rel: 'Son, 9', sum: '₦500,000', price: '₦400' },
-] as const
+/** The one identity document each beneficiary is on file with. A minor has a
+    birth certificate rather than a NIN — BENE_RULES below turns on that. */
+const BENE_ID = ['NIN ••••4412', 'Birth cert. on file', 'Birth cert. on file'] as const
+
+export const WEB_BENEFICIARIES = BENEFICIARIES.map((b, i) => ({
+  name: b.name,
+  rel: REL[b.relIndex],
+  phone: b.phone,
+  id: BENE_ID[i],
+  share: `${b.share}%`,
+}))
+
+const DOB = ['12.03.1985', '04.07.2012', '19.01.2017'] as const
+
+export const WEB_FAMILY = FAMILY_COVER.map((f, i) => ({
+  name: f.name,
+  dob: DOB[i],
+  rel: REL[f.relIndex],
+  sum: f.cover,
+  price: f.price.replace('/mo', ''),
+}))
 
 export type LedgerStatus = 'Received' | 'Pending' | 'Retried'
 
