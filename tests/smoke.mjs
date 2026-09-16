@@ -102,7 +102,11 @@ try {
     if (m.type() === 'error') problems.push(`console: ${m.text()}`)
   })
 
-  await page.goto(BASE, { waitUntil: 'networkidle' })
+  // 'load' rather than 'networkidle': networkidle is timing-sensitive and
+  // Playwright discourages it. What actually matters is that the shell has
+  // painted, so wait for the surface tabs.
+  await page.goto(BASE, { waitUntil: 'load', timeout: 60_000 })
+  await page.getByRole('button', { name: 'Phone', exact: true }).first().waitFor({ timeout: 30_000 })
 
   const surface = (name) => page.getByRole('button', { name, exact: true }).click()
   const open = async (label) => {

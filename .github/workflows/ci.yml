@@ -33,4 +33,27 @@ jobs:
       # languages and both console device modes, failing on any uncaught
       # exception or console error.
       - name: Smoke test
-        run: npm run smoke
+        shell: bash
+        run: npm run smoke 2>&1 | tee smoke.log
+
+      # A failure here is about the browser, not the types, so the output has to
+      # reach whoever is reading the PR rather than only the raw job log.
+      - name: Report smoke failure
+        if: failure()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          {
+            echo '### Smoke test failed'
+            echo ''
+            echo '```'
+            tail -80 smoke.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ -n "$PR" ]; then
+            body="$(printf '**CI smoke test failed**\n\n```\n%s\n```\n' "$(tail -80 smoke.log)")"
+            gh api "repos/${{ github.repository }}/issues/$PR/comments" -f body="$body" >/dev/null
+          fi
