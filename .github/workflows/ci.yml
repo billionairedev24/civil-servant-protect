@@ -36,14 +36,13 @@ jobs:
         shell: bash
         run: npm run smoke 2>&1 | tee smoke.log
 
-      # A failure here is about the browser, not the types, so the output has to
-      # reach whoever is reading the PR rather than only the raw job log.
+      # A browser failure needs its output where the change is reviewed, not
+      # only in a log archive. The job summary carries the full tail; the
+      # ::error:: annotation carries a one-line version, which surfaces on the
+      # PR and in the checks API without needing a write-scoped token.
       - name: Report smoke failure
         if: failure()
         shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PR: ${{ github.event.pull_request.number }}
         run: |
           {
             echo '### Smoke test failed'
@@ -53,7 +52,6 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
-          if [ -n "$PR" ]; then
-            body="$(printf '**CI smoke test failed**\n\n```\n%s\n```\n' "$(tail -80 smoke.log)")"
-            gh api "repos/${{ github.repository }}/issues/$PR/comments" -f body="$body" >/dev/null
-          fi
+          detail=$(grep -E '^\s*(✗|console:|uncaught:)' smoke.log | head -5 | tr '\n' ' ' | cut -c1-900)
+          [ -n "$detail" ] || detail=$(tail -5 smoke.log | tr '\n' ' ' | cut -c1-900)
+          echo "::error title=Smoke test::${detail}"
