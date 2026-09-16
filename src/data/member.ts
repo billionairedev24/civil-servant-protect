@@ -52,6 +52,16 @@ export const RECORD_VALUES = [
 export const TIER_NAMES = ['Basic', 'Standard', 'Enhanced', 'Executive'] as const
 export const TIER_PRICES = ['₦1,500', '₦2,500', '₦4,000', '₦6,000'] as const
 
+/**
+ * What the API calls the same four tiers, in the same order.
+ *
+ * Kept beside the display names so the two cannot drift: the console picks a
+ * tier by position in TIER_NAMES and has to send a code, and a screen sending
+ * "Standard" where the server validates `basic|standard|enhanced|executive`
+ * fails at the far end for a reason nobody can see from here.
+ */
+export const TIER_CODES = ['basic', 'standard', 'enhanced', 'executive'] as const
+
 /** Benefit schedule amounts; the labels are i18n `sched`. */
 export const SCHEDULE_VALUES = [
   '₦5,000,000',

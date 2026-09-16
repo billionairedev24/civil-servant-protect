@@ -2,8 +2,9 @@ import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tan
 import type { CspApi } from './client'
 import { useApi } from './provider'
 import type {
-  BeneficiarySet, Claim, ClaimQueueItem, Ledger, MemberSummary, MyClaim, ProtectionCard,
-  Reconciliation, Roster, ScheduleBatch, ScheduleRow, SponsorClaims, SponsorDashboard,
+  BeneficiarySet, Claim, ClaimQueueItem, Ledger, MemberSummary, MyClaim, NewMember,
+  ProtectionCard, Reconciliation, Roster, ScheduleBatch, ScheduleRow, SponsorClaims,
+  SponsorDashboard,
 } from './types'
 
 /**
@@ -48,6 +49,21 @@ export const keys = {
  */
 function shared<T>(api: CspApi | null, fixture: T) {
   return { enabled: api !== null, placeholderData: fixture }
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/**
+ * The same, for a read addressed to one sponsor.
+ *
+ * Screens take the sponsor's id from the dashboard, and the dashboard stands in
+ * the fixture until the real one lands — so for that moment the id in hand is
+ * `fixture-federal`, and a request fired with it asks the API about a sponsor
+ * that does not exist. Waiting for an id the server could have issued costs a
+ * fraction of a second and removes a 500 nobody caused.
+ */
+function sharedForSponsor<T>(api: CspApi | null, fixture: T, sponsorId: string) {
+  return { enabled: api !== null && UUID.test(sponsorId), placeholderData: fixture }
 }
 
 // ── Member ───────────────────────────────────────────────────────────────────
@@ -187,7 +203,7 @@ export function useReconciliation(
     queryKey: keys.reconciliation(sponsorId, cycleId),
     queryFn: () => api!.reconciliation(sponsorId, cycleId),
     staleTime: 15_000,
-    ...shared(api, fixture),
+    ...sharedForSponsor(api, fixture, sponsorId),
   })
 }
 
@@ -210,7 +226,7 @@ export function useRoster(
     // A roster of eight thousand does not change while somebody reads it, and
     // re-fetching on every keystroke's debounce would be the expensive part.
     staleTime: 60_000,
-    ...shared(api, fixture),
+    ...sharedForSponsor(api, fixture, sponsorId),
   })
 }
 
@@ -234,7 +250,7 @@ export function useSponsorClaims(sponsorId: string, fixture: SponsorClaims): Use
     queryKey: keys.sponsorClaims(sponsorId),
     queryFn: () => api!.sponsorClaims(sponsorId),
     staleTime: 60_000,
-    ...shared(api, fixture),
+    ...sharedForSponsor(api, fixture, sponsorId),
   })
 }
 
@@ -273,6 +289,40 @@ export function useScheduleBatch(
     enabled: api !== null && batchId !== null,
     refetchInterval: (query) =>
       query.state.data?.state === 'staged' ? 1_000 : false,
+  })
+}
+
+/**
+ * Enrol one person.
+ *
+ * <p>Invalidates the whole sponsor rather than the roster alone: a new member
+ * changes the headline count on the dashboard and adds one to "no beneficiary
+ * named", and an officer who has just enrolled somebody is about to look at
+ * both.
+ */
+export function useEnrol(sponsorId: string) {
+  const { api } = useApi()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (body: NewMember) => api!.enrol(sponsorId, body),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.sponsor() }),
+  })
+}
+
+/**
+ * Enrol a list.
+ *
+ * <p>Succeeds with rejections inside it — a file of two hundred with three bad
+ * NINs is a success that enrolled a hundred and ninety-seven, not an error. So
+ * the screen reads `rejected` on the happy path, and `onError` is for the
+ * request never landing.
+ */
+export function useEnrolAll(sponsorId: string) {
+  const { api } = useApi()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (members: NewMember[]) => api!.enrolAll(sponsorId, members),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.sponsor() }),
   })
 }
 

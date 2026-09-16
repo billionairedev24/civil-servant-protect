@@ -11,7 +11,7 @@
  * than a copy of it. A test against a transpiled duplicate is a test of the
  * duplicate.
  */
-import { parseSchedule, CsvError } from '../src/api/csv.ts'
+import { parseSchedule, parseStaffList, CsvError } from '../src/api/csv.ts'
 
 let passed = 0
 const failures = []
@@ -105,10 +105,111 @@ check('a row with no service number cannot be matched, so it is not sent', () =>
   eq(r.problems[0], { line: 2, reason: 'No service number' }, 'problem')
 })
 
+/*
+ * The staff list. A bad row here does not mis-deduct — it creates a person and
+ * texts a phone number to tell them they are covered, which is why every one of
+ * these checks is about holding a row back rather than sending it up.
+ */
+const STAFF = 'nin,name,dob,phone,service_no,grade,tier'
+
+check('reads a staff list', () => {
+  const r = parseStaffList(`${STAFF}\n22233344455,Adaeze Okafor,12/04/1990,08031234567,4471208,GL 12,enhanced\n`)
+  eq(
+    r.rows,
+    [{
+      nin: '22233344455',
+      fullName: 'Adaeze Okafor',
+      dateOfBirth: '1990-04-12',
+      msisdn: '+2348031234567',
+      serviceNo: '4471208',
+      grade: 'GL 12',
+      tier: 'enhanced',
+    }],
+    'rows',
+  )
+})
+
+check('a date without a year in front is read day-first', () => {
+  // 03/04/1985 is the third of April here, not the fourth of March. Read the
+  // other way it moves a birthday nine months and fails the NIMC match.
+  const r = parseStaffList(`${STAFF}\n22233344455,A B C,03/04/1985,08031234567,,,\n`)
+  eq(r.rows[0].dateOfBirth, '1985-04-03', 'dob')
+})
+
+check('an ISO date is left as it is', () => {
+  const r = parseStaffList(`${STAFF}\n22233344455,A B C,1985-04-03,08031234567,,,\n`)
+  eq(r.rows[0].dateOfBirth, '1985-04-03', 'dob')
+})
+
+check('a date that is not a day is refused, not rolled forward', () => {
+  // Date would make 31/02 the 3rd of March and enrol somebody with a birthday
+  // they do not have.
+  const r = parseStaffList(`${STAFF}\n22233344455,A B C,31/02/1985,08031234567,,,\n`)
+  eq(r.rows.length, 0, 'rows')
+  eq(r.problems[0].reason, '"31/02/1985" is not a date', 'reason')
+})
+
+check('every way a Nigerian mobile is written comes out the same', () => {
+  const written = ['08031234567', '0803 123 4567', '+2348031234567', '234 803 123 4567', '8031234567']
+  const rows = written
+    .map((p) => `22233344455,A B C,1990-04-12,${p},,,`)
+    .join('\n')
+  const r = parseStaffList(`${STAFF}\n${rows}\n`)
+  eq(r.rows.map((x) => x.msisdn), Array(5).fill('+2348031234567'), 'numbers')
+})
+
+check('a number that is not one is held back rather than guessed at', () => {
+  const r = parseStaffList(`${STAFF}\n22233344455,A B C,1990-04-12,0803123,,,\n`)
+  eq(r.rows.length, 0, 'rows')
+  eq(r.problems[0], { line: 2, reason: '"0803123" is not a phone number' }, 'problem')
+})
+
+check('a short NIN is reported by line number and never echoed', () => {
+  const r = parseStaffList(`${STAFF}\n2223334,A B C,1990-04-12,08031234567,,,\n`)
+  eq(r.problems, [{ line: 2, reason: 'NIN is not eleven digits' }], 'problems')
+  if (JSON.stringify(r.problems).includes('2223334')) {
+    throw new Error('the NIN is in the message')
+  }
+})
+
+check('a blank plan takes the one chosen on the screen', () => {
+  const r = parseStaffList(`${STAFF}\n22233344455,A B C,1990-04-12,08031234567,,,\n`, 'executive')
+  eq(r.rows[0].tier, 'executive', 'tier')
+})
+
+check('a plan the scheme does not sell is refused', () => {
+  const r = parseStaffList(`${STAFF}\n22233344455,A B C,1990-04-12,08031234567,,,platinum\n`)
+  eq(r.rows.length, 0, 'rows')
+  eq(r.problems[0].reason, '"platinum" is not a plan', 'reason')
+})
+
+check('service number and grade are optional, the four that identify are not', () => {
+  const r = parseStaffList('nin,full_name,date_of_birth,mobile\n22233344455,A B C,1990-04-12,08031234567\n')
+  eq(r.rows[0].serviceNo, undefined, 'service no')
+  eq(r.rows[0].tier, 'standard', 'tier')
+
+  let thrown = null
+  try {
+    parseStaffList('nin,full_name,mobile\n22233344455,A B C,08031234567\n')
+  } catch (e) {
+    thrown = e
+  }
+  if (!(thrown instanceof CsvError)) throw new Error('expected a CsvError')
+  if (!thrown.message.includes('date of birth')) throw new Error(thrown.message)
+})
+
+check('a good row survives a bad one, with the bad one named', () => {
+  const r = parseStaffList(
+    `${STAFF}\n22233344455,A B C,1990-04-12,08031234567,,,\n2223334,D E F,1990-04-12,08031234568,,,\n22233344466,G H I,1990-04-12,08031234569,,,\n`,
+  )
+  eq(r.rows.length, 2, 'rows')
+  eq(r.problems, [{ line: 3, reason: 'NIN is not eleven digits' }], 'problems')
+})
+
 console.log()
 if (failures.length > 0) {
   console.log(`✗ ${failures.length} of ${passed + failures.length} CSV assertions failed:`)
   for (const f of failures) console.log(`  ${f}`)
   process.exit(1)
 }
-console.log(`✓ ${passed} CSV assertions passed — the schedule parser reads what payroll sends`)
+console.log(`✓ ${passed} CSV assertions passed — the parsers read what payroll and HR send`)

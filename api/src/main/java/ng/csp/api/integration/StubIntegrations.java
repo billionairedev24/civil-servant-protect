@@ -40,7 +40,7 @@ public class StubIntegrations {
         // The code is not written down, here or anywhere: see Redacted. It is
         // in Redis for five minutes and that is the only copy.
         return replay.around(
-            new ReplayLog.Call("comms", "send_otp", subject, "otp:" + subject),
+            ReplayLog.Call.once("comms", "send_otp", subject, "otp:" + subject),
             Redacted.of("channel", "sms").msisdn("to", msisdn).withheld("code").build(),
             () -> {
               log.info("SMS (stub) to {}: your code is {}", Redacted.maskMsisdn(msisdn), code);
@@ -51,7 +51,7 @@ public class StubIntegrations {
       @Override
       public Accepted notify(String msisdn, String template, Map<String, String> values, String subject) {
         return replay.around(
-            new ReplayLog.Call("comms", "notify", subject, "notify:%s:%s".formatted(template, subject)),
+            ReplayLog.Call.once("comms", "notify", subject, "notify:%s:%s".formatted(template, subject)),
             Redacted.of("template", template).msisdn("to", msisdn).plain("values", values).build(),
             () -> {
               log.info("SMS (stub) to {}: [{}] {}", Redacted.maskMsisdn(msisdn), template, values);
@@ -71,7 +71,7 @@ public class StubIntegrations {
   Nimc stubNimc(ReplayLog replay) {
     return (nin, fullName, dateOfBirth, subject) ->
         replay.around(
-            new ReplayLog.Call("nimc", "verify", subject, "nimc:" + subject),
+            ReplayLog.Call.repeatable("nimc", "verify", subject),
             // The NIN is what the call is about and is still not recorded.
             Redacted.of("name", fullName).withheld("nin").plain("dob", String.valueOf(dateOfBirth)).build(),
             () -> {
@@ -100,7 +100,7 @@ public class StubIntegrations {
       @Override
       public String resolveAccountName(String bankCode, String accountNumber, String subject) {
         return replay.around(
-            new ReplayLog.Call("payout", "resolve_name", subject, "resolve:%s:%s".formatted(bankCode, accountNumber)),
+            ReplayLog.Call.repeatable("payout", "resolve_name", subject),
             Redacted.of("bank", bankCode).account("account", accountNumber).build(),
             () -> {
               if (accountNumber == null || !accountNumber.matches("\\d{10}")) {
@@ -117,7 +117,7 @@ public class StubIntegrations {
             // The claim reference is the idempotency key, so a second
             // instruction for the same claim is refused by the index rather
             // than by anyone remembering to check.
-            new ReplayLog.Call("payout", "transfer", claimRef, "transfer:" + claimRef),
+            ReplayLog.Call.once("payout", "transfer", claimRef, "transfer:" + claimRef),
             Redacted.of("bank", to.bankCode())
                 .account("account", to.accountNumber())
                 .plain("amountMinor", amountMinor)

@@ -1,16 +1,21 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Icon } from '../../../components/Icon'
 import { Kicker, Mono } from '../../../components/primitives'
 import { PageSub, PageTitle, Panel } from '../../../components/surface'
-import { TIER_NAMES, TIER_PRICES } from '../../../data/member'
+import { TIER_CODES, TIER_NAMES, TIER_PRICES } from '../../../data/member'
 import { C } from '../../../theme/tokens'
 import { LEAVERS, tone } from '../data'
 import { useConsole } from '../state'
 import { ROSTER_FIXTURE, SPONSOR_CLAIMS, SPONSOR_DASHBOARD } from '../../../api/fixtures'
-import { useRoster, useSponsorClaims, useSponsorDashboard } from '../../../api/queries'
+import {
+  useEnrol, useEnrolAll, useRoster, useSponsorClaims, useSponsorDashboard,
+} from '../../../api/queries'
 import { NotLive, dayFirst, titleCase, useLive } from '../../../api/live'
+import { useApi } from '../../../api/provider'
+import { useAuth } from '../../../api/auth'
+import { CsvError, msisdnOf, parseStaffList, type StaffListResult } from '../../../api/csv'
 import { initialsOf } from '../../../data/member'
-import type { RosterMember, SponsorClaim } from '../../../api/types'
+import type { BulkEnrolment, Enrolled, RosterMember, SponsorClaim } from '../../../api/types'
 
 /**
  * What a member's month looks like, as a row.
@@ -227,19 +232,99 @@ export function ConsoleRoster() {
   )
 }
 
+/** Empty, and what the form goes back to once somebody is enrolled. */
+const BLANK = { fullName: '', nin: '', dateOfBirth: '', msisdn: '', serviceNo: '', grade: '' }
+
 /**
  * Add and remove. The important half is removal: taking someone off the
  * schedule stops the deduction, it does not cancel their cover.
+ *
+ * <p>Enrolment lives here and nowhere else. The sponsor holds these people's
+ * records already — this screen is an officer transcribing a personnel file, not
+ * a member applying — and there is deliberately no self-service version: the
+ * member hears about it by SMS and signs in with the number typed here.
  */
 export function ConsoleMembers() {
   const { payroll, addMode, tier, set, go } = useConsole()
+  const { can } = useAuth()
+  const { live } = useApi()
+  const { data: dash, provisional } = useLive(useSponsorDashboard(SPONSOR_DASHBOARD), SPONSOR_DASHBOARD)
 
-  const fields = [
-    { label: 'FULL NAME AS ON PAYROLL', ph: 'Adaeze Nkiru Okafor' },
-    { label: payroll ? 'SERVICE / IPPIS NUMBER' : 'PHONE NUMBER', ph: payroll ? '4471208' : '0803 000 0000' },
-    { label: 'NIN', ph: '11 digits' },
-    { label: 'GRADE LEVEL', ph: 'GL 12' },
-  ]
+  const [form, setForm] = useState(BLANK)
+  const [staff, setStaff] = useState<StaffListResult | null>(null)
+  const [filename, setFilename] = useState('')
+  const [problem, setProblem] = useState<string | null>(null)
+  const file = useRef<HTMLInputElement>(null)
+
+  const enrol = useEnrol(dash.sponsor.id)
+  const enrolAll = useEnrolAll(dash.sponsor.id)
+
+  /*
+   * The same string the server's @PreAuthorize names. An officer who cannot
+   * enrol should see the screen and not the button that will be refused.
+   *
+   * And not while the dashboard is still standing in its fixture: the sponsor
+   * in the URL comes from it, and for that moment it is the fixture's id. A
+   * POST fired then would try to enrol somebody onto a sponsor that does not
+   * exist — the one request on this screen where being briefly wrong creates a
+   * person.
+   */
+  const mayEnrol = can('MEMBERS_MANAGE') && !provisional
+
+  const field = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setForm((f) => ({ ...f, [key]: e.target.value }))
+
+  /* Parsed here rather than posted as a file, so the officer sees what we read
+     before anybody is created and texted — which columns were used, how many
+     rows, and which lines we will not send. */
+  const choose = async (chosen: File) => {
+    setProblem(null)
+    setStaff(null)
+    enrolAll.reset()
+    setFilename(chosen.name)
+    try {
+      setStaff(parseStaffList(await chosen.text(), TIER_CODES[tier]))
+    } catch (e) {
+      setProblem(e instanceof CsvError ? e.message : 'That file could not be read.')
+    }
+  }
+
+  const addOne = () => {
+    const msisdn = msisdnOf(form.msisdn)
+    if (!mayEnrol || enrol.isPending || msisdn === null) return
+    setProblem(null)
+    enrol.mutate(
+      {
+        nin: form.nin.replace(/\D/g, ''),
+        fullName: form.fullName.trim(),
+        dateOfBirth: form.dateOfBirth,
+        msisdn,
+        serviceNo: form.serviceNo.trim() || undefined,
+        grade: form.grade.trim() || undefined,
+        tier: TIER_CODES[tier],
+      },
+      {
+        // Cleared on success, and the NIN with it: this screen holds L3 data for
+        // as long as somebody is typing it and no longer.
+        onSuccess: () => setForm(BLANK),
+        onError: (e) => setProblem(e instanceof Error ? e.message : 'That did not work.'),
+      },
+    )
+  }
+
+  const addAll = () => {
+    if (!staff || !mayEnrol || staff.rows.length === 0 || enrolAll.isPending) return
+    setProblem(null)
+    enrolAll.mutate(staff.rows, {
+      onError: (e) => setProblem(e instanceof Error ? e.message : 'That file could not be sent.'),
+    })
+  }
+
+  const complete =
+    form.fullName.trim().length > 2 &&
+    form.nin.replace(/\D/g, '').length === 11 &&
+    form.dateOfBirth !== '' &&
+    msisdnOf(form.msisdn) !== null
 
   return (
     <>
@@ -292,20 +377,52 @@ export function ConsoleMembers() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 11, marginTop: 16 }}>
               {/* A <label> rather than a <div>: the mono caption above each box
                   is the field's only name, and a placeholder is not one. */}
-              {fields.map((f) => (
-                <label key={f.label} style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                  <Mono size={10} color={C.faint} style={{ letterSpacing: '.1em' }}>{f.label}</Mono>
-                  <input
-                    type="text"
-                    placeholder={f.ph}
-                    style={{
-                      width: '100%', boxSizing: 'border-box', padding: '12px 13px',
-                      border: `1px solid ${C.line3}`, borderRadius: 9, background: '#FDFDFB',
-                      fontSize: 14, color: C.ink, outline: 'none', fontFamily: 'inherit',
-                    }}
-                  />
-                </label>
-              ))}
+              <Field
+                label="FULL NAME AS ON PAYROLL"
+                placeholder="Adaeze Nkiru Okafor"
+                value={form.fullName}
+                onChange={field('fullName')}
+              />
+              <Field
+                label="NIN"
+                placeholder="11 digits"
+                value={form.nin}
+                onChange={field('nin')}
+                inputMode="numeric"
+                /* Never filled from the browser's saved data and never offered
+                   to it. A NIN is the one field on this screen the server will
+                   not store in the clear, and autofill is a copy of it kept
+                   somewhere nobody decided to keep it. */
+                autoComplete="off"
+                note="Checked against NIMC before anyone is created. We keep a hash and an encrypted copy — never the number."
+              />
+              <Field
+                label="DATE OF BIRTH"
+                type="date"
+                value={form.dateOfBirth}
+                onChange={field('dateOfBirth')}
+                note="As NIMC holds it. A mismatched date is the commonest reason a verification fails."
+              />
+              <Field
+                label="PHONE NUMBER"
+                placeholder="0803 000 0000"
+                value={form.msisdn}
+                onChange={field('msisdn')}
+                inputMode="tel"
+                note="Where we text them, and the only thing they sign in with. Check it against the personnel file."
+              />
+              <Field
+                label={payroll ? 'SERVICE / IPPIS NUMBER' : 'SERVICE NUMBER (OPTIONAL)'}
+                placeholder="4471208"
+                value={form.serviceNo}
+                onChange={field('serviceNo')}
+              />
+              <Field
+                label="GRADE LEVEL"
+                placeholder="GL 12"
+                value={form.grade}
+                onChange={field('grade')}
+              />
               <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                 <Mono size={10} color={C.faint} style={{ letterSpacing: '.1em' }}>STARTING PLAN</Mono>
                 <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
@@ -343,24 +460,71 @@ export function ConsoleMembers() {
                 }}
               >
                 <Icon name="ph ph-file-arrow-up" size={30} color={C.g} />
-                <div style={{ fontSize: 14.5, fontWeight: 600, marginTop: 8 }}>Drop a staff list here</div>
+                <div style={{ fontSize: 14.5, fontWeight: 600, marginTop: 8 }}>Choose a staff list</div>
                 <div style={{ fontSize: 12.5, lineHeight: 1.5, color: C.mut, marginTop: 4 }}>
-                  CSV or XLSX with service number, NIN, name, grade level and plan. We validate every NIN before anyone
-                  is added.
+                  A CSV with NIN, name, date of birth and phone number. Service number, grade and plan
+                  if you have them — anything missing takes the plan chosen on the other tab. Every NIN
+                  is checked against NIMC before that person is created.
                 </div>
-                <button type="button" className="btn btn-outline" style={{ marginTop: 12, height: 42, padding: '0 18px', fontSize: 13.5 }}>
-                  Choose a file
+                <input
+                  ref={file}
+                  type="file"
+                  accept=".csv,text/csv"
+                  aria-label="Staff list"
+                  style={{ display: 'none' }}
+                  onChange={(e) => {
+                    const chosen = e.target.files?.[0]
+                    if (chosen) void choose(chosen)
+                    // Cleared so choosing the same file twice fires again —
+                    // an officer who fixed three lines and re-saved it.
+                    e.target.value = ''
+                  }}
+                />
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  style={{ marginTop: 12, height: 42, padding: '0 18px', fontSize: 13.5 }}
+                  onClick={() => file.current?.click()}
+                >
+                  {filename || 'Choose a file'}
                 </button>
               </div>
-              <div style={{ fontSize: 12, lineHeight: 1.5, color: C.faint, marginTop: 10 }}>
-                Last upload: 37 rows, 35 added, 2 held for a NIN mismatch.
-              </div>
+              {staff && <StaffSummary staff={staff} />}
             </>
           )}
 
-          <button type="button" className="btn btn-md btn-primary" style={{ width: '100%', marginTop: 16, height: 50, gap: 8 }}>
-            {addMode === 0 ? 'Add to the September schedule' : 'Validate and add 37 people'}
+          {problem && <Problem message={problem} />}
+          {enrol.data && <EnrolledNote enrolled={enrol.data} />}
+          {enrolAll.data && <BulkNote result={enrolAll.data} />}
+
+          <button
+            type="button"
+            className="btn btn-md btn-primary"
+            style={{ width: '100%', marginTop: 16, height: 50, gap: 8 }}
+            disabled={
+              !mayEnrol ||
+              (addMode === 0 ? !complete || enrol.isPending : !staff?.rows.length || enrolAll.isPending)
+            }
+            title={can('MEMBERS_MANAGE') ? undefined : 'Your role cannot enrol members.'}
+            onClick={addMode === 0 ? addOne : addAll}
+          >
+            {addMode === 0
+              ? enrol.isPending
+                ? 'Verifying with NIMC…'
+                : 'Verify and enrol'
+              : enrolAll.isPending
+                ? `Enrolling ${staff?.rows.length ?? 0}…`
+                : staff
+                  ? `Verify and enrol ${staff.rows.length.toLocaleString('en-NG')} people`
+                  : 'Choose a file first'}
           </button>
+
+          {!live && (
+            <div style={{ fontSize: 12, lineHeight: 1.5, color: C.faint, marginTop: 10 }}>
+              Demonstration data. With an API configured, this creates the member, starts their cover
+              on the first of next month and texts them to open the app.
+            </div>
+          )}
         </div>
 
         <div style={{ padding: 18, border: `1px solid ${C.clayBorder}`, borderRadius: 12, background: C.white }}>
@@ -419,6 +583,138 @@ export function ConsoleMembers() {
         </div>
       </div>
     </>
+  )
+}
+
+/** One labelled box, with the sentence that says why it matters underneath. */
+function Field({
+  label,
+  note,
+  ...input
+}: { label: string; note?: string } & React.InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <label style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+      <Mono size={10} color={C.faint} style={{ letterSpacing: '.1em' }}>{label}</Mono>
+      <input
+        type="text"
+        {...input}
+        style={{
+          width: '100%', boxSizing: 'border-box', padding: '12px 13px',
+          border: `1px solid ${C.line3}`, borderRadius: 9, background: '#FDFDFB',
+          fontSize: 14, color: C.ink, outline: 'none', fontFamily: 'inherit',
+        }}
+      />
+      {note && <span style={{ fontSize: 11.5, lineHeight: 1.45, color: C.faint }}>{note}</span>}
+    </label>
+  )
+}
+
+function Problem({ message }: { message: string }) {
+  return (
+    <div
+      role="alert"
+      style={{
+        display: 'flex', alignItems: 'flex-start', gap: 9, marginTop: 12, padding: '11px 12px',
+        border: `1px solid ${C.clayBorder2}`, borderRadius: 10, background: C.clayBg,
+      }}
+    >
+      <Icon name="ph-fill ph-warning-circle" size={16} color={C.clay} />
+      <span style={{ fontSize: 12.5, lineHeight: 1.45, color: C.clayInk }}>{message}</span>
+    </div>
+  )
+}
+
+/** What we read out of the file, before anybody is created by it. */
+function StaffSummary({ staff }: { staff: StaffListResult }) {
+  return (
+    <div
+      style={{
+        marginTop: 12, padding: '12px 13px', border: `1px solid ${C.line}`,
+        borderRadius: 10, background: C.white,
+      }}
+    >
+      <div style={{ fontSize: 13.5, fontWeight: 600 }}>
+        {staff.rows.length.toLocaleString('en-NG')} people ready
+      </div>
+      <Mono size={11} color={C.faint} style={{ display: 'block', marginTop: 4, lineHeight: 1.6 }}>
+        {Object.entries(staff.usedColumns).map(([field, header]) => (
+          <span key={field} style={{ display: 'block' }}>
+            {field} ← {header}
+          </span>
+        ))}
+      </Mono>
+      {staff.problems.length > 0 && (
+        <div style={{ fontSize: 12.5, lineHeight: 1.5, color: C.ochre, marginTop: 8 }}>
+          {/* By line number, never by what was in it. The cell we could not read
+              is as likely as not the NIN. */}
+          {staff.problems.length} line(s) will not be sent — line {staff.problems[0].line}:{' '}
+          {staff.problems[0].reason}
+          {staff.problems.length > 1 ? `, and ${staff.problems.length - 1} more.` : '.'}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/**
+ * One person, enrolled.
+ *
+ * The CSP-ID is the thing to write on the personnel file, and the date is the
+ * one an officer will be asked about: cover starts on the first of next month
+ * because that is when the first deduction is made.
+ */
+function EnrolledNote({ enrolled }: { enrolled: Enrolled }) {
+  return (
+    <div
+      role="status"
+      style={{
+        marginTop: 12, padding: '12px 13px', border: `1px solid ${C.gBorder}`,
+        borderRadius: 10, background: C.gTint,
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <Icon name="ph-fill ph-check-circle" size={17} color={C.g} />
+        <span style={{ fontSize: 13.5, fontWeight: 700, color: C.gd }}>Enrolled</span>
+        <Mono size={12.5} color={C.gd}>{enrolled.cspId}</Mono>
+      </div>
+      <div style={{ fontSize: 12.5, lineHeight: 1.5, color: C.mut, marginTop: 6 }}>
+        {titleCase(enrolled.tier)} cover from {dayFirst(enrolled.inForceSince)}, collected by{' '}
+        {enrolled.collectionRail === 'payroll' ? 'payroll deduction' : 'direct debit'}. We have texted
+        them to open the app
+        {enrolled.beneficiariesNamed ? '.' : ' and name who should be paid.'}
+      </div>
+    </div>
+  )
+}
+
+/** A file's worth, and what it could not do. */
+function BulkNote({ result }: { result: BulkEnrolment }) {
+  return (
+    <div
+      role="status"
+      style={{
+        marginTop: 12, padding: '12px 13px', borderRadius: 10,
+        border: `1px solid ${result.rejected.length > 0 ? C.ochreBorder : C.gBorder}`,
+        background: result.rejected.length > 0 ? C.ochreBg : C.gTint,
+      }}
+    >
+      <div style={{ fontSize: 13.5, fontWeight: 700 }}>
+        {result.enrolled.toLocaleString('en-NG')} of {result.submitted.toLocaleString('en-NG')}{' '}
+        enrolled
+      </div>
+      {result.rejected.length > 0 && (
+        <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 5 }}>
+          {/* Every one of them, with the line number. A count alone sends an
+              officer back to the spreadsheet to find them by hand, which is how
+              a file with three bad rows becomes a week. */}
+          {result.rejected.map((r) => (
+            <div key={`${r.row}-${r.name}`} style={{ fontSize: 12.5, lineHeight: 1.5, color: C.ochre }}>
+              <Mono size={11.5} color={C.ochre}>Line {r.row}</Mono> · {r.name} — {r.reason}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
 

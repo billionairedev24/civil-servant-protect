@@ -253,6 +253,56 @@ through the application's DataSource, which applies a scope at connection
 checkout, and with none set that scope is "nobody". A subquery under RLS does not
 fail; it returns nothing.
 
+### Enrolling somebody
+
+Enrolment is back-office work. The sponsor already holds these people's records
+— name, service number, grade, NIN — so an HR officer enrols them and the member
+finds out by SMS. There is **no self-service enrolment endpoint**, deliberately:
+membership follows payroll, so a public one would add no members and one attack,
+where somebody who has read a civil servant's details attaches a phone number
+they control to that person's cover.
+
+Everything is under the sponsor, needs `MEMBERS_MANAGE`, and is scoped by RLS:
+
+```bash
+# Check a staff record against NIMC without creating anything. 200 with
+# verified:false for a mismatch — that is an answer, not a bad request.
+curl -s -XPOST localhost:8080/v1/sponsors/$SPONSOR/enrolment/verify \
+  -H "Authorization: Bearer $ADMIN" -H 'Content-Type: application/json' \
+  -d '{"nin":"22233344455","fullName":"Ngozi Chidinma Bello","dateOfBirth":"1990-04-12"}'
+
+# 201. Creates the member, the account they sign in with, and their cover.
+curl -s -XPOST localhost:8080/v1/sponsors/$SPONSOR/members \
+  -H "Authorization: Bearer $ADMIN" -H 'Content-Type: application/json' \
+  -d '{"nin":"22233344455","fullName":"Ngozi Chidinma Bello",
+       "dateOfBirth":"1990-04-12","msisdn":"+2348031234567",
+       "serviceNo":"5512340","grade":"GL 12","tier":"standard"}'
+# {"cspId":"CSP-114-88215","tier":"standard","inForceSince":"2026-10-01", …}
+
+# A list of new starters, capped at 1,000.
+curl -s -XPOST localhost:8080/v1/sponsors/$SPONSOR/members/batch \
+  -H "Authorization: Bearer $ADMIN" -H 'Content-Type: application/json' \
+  -d '{"members":[ … ]}'
+# {"submitted":5,"enrolled":3,"rejected":[{"row":3,"name":"…","reason":"No record at NIMC"}]}
+```
+
+Three things are worth knowing:
+
+- **Cover starts on the first of next month**, not today. The first deduction
+  comes off the next payroll run, and cover that began before anybody paid for
+  it is a claim window the record cannot account for.
+- **The list does not fail wholesale.** Each row is its own transaction, so a
+  file of two hundred with three bad NINs enrols a hundred and ninety-seven
+  people and names the three by line number. One transaction would roll the lot
+  back and send an officer to a spreadsheet to find the problem themselves.
+- **The NIN is never stored in the clear and never comes back.** A hash to match
+  on, a ciphertext to re-send with, and nothing in a log or an error message —
+  the console reports a bad row by its line number for the same reason.
+
+The console screen is **Members → Add members**. It parses the staff list in the
+browser and shows what it read — which header each field came from, how many
+rows, which lines it will not send — before anybody is created by it.
+
 ### Loading a schedule
 
 ```bash
@@ -451,11 +501,13 @@ Real, and deliberately not papered over.
    contributions, the protection card, beneficiaries and their annual
    confirmation, claim tracking, and the console's dashboard, reconciliation
    queue with its maker–checker pair, member roster, claims and schedule
-   upload.
+   upload, and the console's **Add and remove members** screen, which enrols
+   people for real — one at a time or from a staff list.
 
    Still on fixtures: the console's direct-debit run, remittances, reports and
-   settings; the member's family cover and cover-detail screens; and the whole
-   enrolment run, which has no endpoints behind it yet.
+   settings; the member's family cover and cover-detail screens; and the
+   *removal* half of the members screen — taking somebody off the schedule is
+   not an endpoint yet, and the leaver cards there are still illustrative.
 
    A screen that has not been wired says the same numbers it always did — the
    fixtures and the seed agree — so the difference is where the figure comes

@@ -225,6 +225,54 @@ export interface ScheduleRow {
 }
 
 /**
+ * Somebody a sponsor is putting on the scheme.
+ *
+ * The sponsor already holds all of this — it is a staff record, not a form the
+ * member fills in. There is no self-service version: membership follows payroll,
+ * and a public enrolment endpoint would only be a way to attach a phone number
+ * you control to a civil servant whose details you have read.
+ */
+/** The four cover tiers, as the API spells them. */
+export type Tier = 'basic' | 'standard' | 'enhanced' | 'executive'
+
+export interface NewMember {
+  nin: string
+  fullName: string
+  /** ISO, because that is what the API takes. The screen shows day-first. */
+  dateOfBirth: string
+  /** +234 and ten digits. The invitation goes here, and so does every sign-in. */
+  msisdn: string
+  serviceNo?: string
+  grade?: string
+  tier: Tier
+  beneficiaries?: { name: string; relation: string; msisdn?: string; sharePct: number }[]
+}
+
+export interface Enrolled {
+  memberId: string
+  cspId: string
+  tier: Tier
+  priceMinor: number
+  inForceSince: string
+  collectionRail: string
+  beneficiariesNamed: boolean
+}
+
+/**
+ * What a list of new starters did.
+ *
+ * Both halves matter. `enrolled` is the good news, and `rejected` carries the
+ * spreadsheet line number and the reason — a file of two hundred with three bad
+ * NINs enrols a hundred and ninety-seven people and names the three.
+ */
+export interface BulkEnrolment {
+  submitted: number
+  enrolled: number
+  members: Enrolled[]
+  rejected: { row: number; name: string; reason: string }[]
+}
+
+/**
  * A schedule load in flight, or finished.
  *
  * `staged` is what the file contained; `matched` and `loaded` climb as the job
