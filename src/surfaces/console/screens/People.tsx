@@ -47,6 +47,7 @@ export function ConsoleRoster() {
         <Icon name="ph ph-magnifying-glass" size={17} color={C.faint} />
         <input
           type="text"
+          aria-label="Search members"
           placeholder="Name, service number, NIN or CSP-ID"
           style={{ flex: 1, minWidth: 0, border: 0, background: 'transparent', fontSize: 14, color: C.ink, outline: 'none' }}
         />
@@ -211,8 +212,10 @@ export function ConsoleMembers() {
 
           {addMode === 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 11, marginTop: 16 }}>
+              {/* A <label> rather than a <div>: the mono caption above each box
+                  is the field's only name, and a placeholder is not one. */}
               {fields.map((f) => (
-                <div key={f.label} style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                <label key={f.label} style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                   <Mono size={10} color={C.faint} style={{ letterSpacing: '.1em' }}>{f.label}</Mono>
                   <input
                     type="text"
@@ -223,7 +226,7 @@ export function ConsoleMembers() {
                       fontSize: 14, color: C.ink, outline: 'none', fontFamily: 'inherit',
                     }}
                   />
-                </div>
+                </label>
               ))}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                 <Mono size={10} color={C.faint} style={{ letterSpacing: '.1em' }}>STARTING PLAN</Mono>

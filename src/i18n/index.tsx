@@ -34,6 +34,10 @@ export function fill(template: string, values: Record<string, string>): string {
  * through, and `npm run build` fails loudly if a key is dropped.
  */
 export const EN_ONLY = {
+  // Screen-reader labels the bundle never had, because a mockup has no
+  // screen reader. These belong in the translation pass with the rest.
+  otp_delete: 'Delete last digit',
+
   // Annual beneficiary re-confirmation
   beneconf_badge: 'ONCE A YEAR',
   beneconf_due: 'DUE BY 30 SEPTEMBER',

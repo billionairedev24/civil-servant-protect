@@ -202,7 +202,13 @@ export function ContributionsScreen() {
                 </div>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: 15, fontWeight: 700, color: ic }}>₦2,500</div>
+                {/* The amount is the row's most important number, so it is ink
+                    rather than the icon's tint — C.gSoft is a decorative green
+                    that measures 2.0:1 on cream. Which rail paid it is already
+                    said by the icon and by the state line below. */}
+                <div style={{ fontSize: 15, fontWeight: 700, color: r.src === 2 ? C.mut : C.ink }}>
+                  ₦2,500
+                </div>
                 {/* `src` states are named for the payroll rail ("Payroll"), so a
                     cleared self-pay month borrows the rail-neutral "Confirmed"
                     from the legend rather than naming a deduction that never

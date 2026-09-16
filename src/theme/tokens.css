@@ -331,3 +331,19 @@ button:focus-visible,
 .mono {
   font-family: var(--mono);
 }
+
+/* Visible to a screen reader, not on screen. For a control whose meaning is
+   carried by an icon — the header's language picker sits beside a translate
+   glyph, and the glyph is not a name. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}

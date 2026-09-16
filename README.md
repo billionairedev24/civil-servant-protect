@@ -12,34 +12,48 @@ npm install
 npm run dev        # http://localhost:5173
 npm run build      # typecheck + production build
 npm run typecheck
-npm test           # smoke + rail branching; needs a build first
-npm run smoke      # drives all 56 screens in Chromium
+npm test           # smoke + rails + a11y; needs a build first
+npm run smoke      # loads all 48 routes in Chromium
 npm run test:rails # asserts the four rails actually branch
 npm run a11y       # audits against the spec's accessibility minimums
 ```
 
-Two tests, both driving a real browser, both run by CI on every PR.
+Three tests, all driving a real browser, all run by CI on every PR.
 
-`npm run smoke` guards the failure `tsc` cannot see: a screen that throws or renders blank. It drives every screen on
-every surface across all four rails, five languages and both console device modes, and fails on any uncaught exception
-or console error. It has already caught a clipped button and a font that silently never loaded.
+`npm run smoke` guards the failure `tsc` cannot see: a screen that throws or renders blank. It loads every route in all
+three applications across the four rails, five languages and the scenario flags, and fails on any uncaught exception or
+console error. It has already caught a clipped button and a font that silently never loaded.
 
 `npm run test:rails` guards the product's core invariant — that the rail actually branches. 72 assertions on
 member- and officer-facing text, because a wrong branch looks like an HR officer told to upload a schedule on a rail
 that has none, or a member told their salary was docked when it never was. Writing it found exactly that bug.
 
-## The four surfaces
+`npm run a11y` reports contrast and hit-target findings per application and fails on a control with no accessible name.
 
-One shell (`src/App.tsx`) switches between them, with the rail and language pickers in the header driving all of them at
-once — the point being that a member, the same member on a desk browser, and their sponsor's officer are looking at one
-record on one collection rail.
+## Three applications
 
-| Surface | Screens | Where |
-|---|---|---|
-| Member · phone | 25 | `src/surfaces/phone` |
-| Member · web | 12 | `src/surfaces/web` |
-| Sponsor · console | 11 | `src/surfaces/console` |
-| Implementation spec | 8 sections | `src/surfaces/spec` |
+These are three separate products, not three views of one page, so each has its own route tree and its own chrome.
+
+| Application | Routes | Entry | Where |
+|---|---|---|---|
+| Member app (mobile) | 25 | `/m/home` | `src/surfaces/phone` |
+| Member web app | 12 | `/dashboard` | `src/surfaces/web` |
+| Sponsor console | 11 | `/console` | `src/surfaces/console` |
+
+`src/App.tsx` is a router, not a shell. Every screen is a real address — `/m/claim`, `/contributions`,
+`/console/reconciliation/exceptions/CSP-114-88214` — so deep links, the Back button and refresh all behave, and an
+officer can forward an exception by pasting the address bar.
+
+The member app fills the viewport and pins its tab bar to it; the web app puts a nav rail beside the content above
+1024 and a scrolling tab row below; the console is desktop-first but collapses to a bottom tab bar rather than
+degrading, because an HR officer in a state secretariat is often on a handset and needs the same screens, not fewer.
+
+Until there is a backend, the signed-in member's language and collection rail come from the query string rather than a
+session: `/m/pay?rail=self&lang=ha`. `?demo=late,offline,sun` drives the scenario states. That keeps the demo able to
+show all four rails without a rail switcher living in product chrome, where it would not belong. Language *is* a real
+account setting, so it stays in the web app's header.
+
+The implementation spec is documentation, not a screen; it lives in `docs/spec-source.ts`.
 
 ## The one idea everything hangs off
 
@@ -60,23 +74,32 @@ Identity, CSP-ID, cover and claims are identical in all four. Only the payment s
 which is what lets a member who transfers, retires or fails a deduction roll onto card without losing cover.
 
 The rail is modelled in `src/data/sponsors.ts` and branched in `src/data/collection.ts`. Treat it as a first-class field
-on the member record, resolved once at sign-in — see the spec surface, "Rail branching", for the full table.
+on the member record, resolved once at sign-in — see "Rail branching" in `docs/spec-source.ts` for the full table.
 
 ## Layout
 
 ```
 src/
-  App.tsx              surface shell — tabs, rail picker, language picker
+  App.tsx              router — three route trees, query-param rail/language/scenario
   theme/               palette (tokens.ts) + ground rules and the button system (tokens.css)
   i18n/                strings.ts (5 locales, generated from the bundle) + useT()
   data/                fixtures behind a typed layer: sponsors, member, collection
-  components/          Icon, primitives, shared panel/table surface
-  surfaces/            phone · web · console · spec
+  components/          Icon, primitives, shared panel/table surface, useMediaQuery
+  surfaces/
+    phone/             MemberMobileApp — nav.ts owns the screen list, state.tsx the session
+    web/               MemberWebApp    — nav.ts owns URLS and the reverse lookup
+    console/           SponsorConsoleApp — nav.ts owns CONSOLE_URLS
+docs/spec-source.ts    the implementation spec
+tests/harness.mjs      the route tables the browser tests drive
 ```
 
-**Data is fixtures.** Everything a screen renders comes from `src/data` and each surface's `data.ts`, never from the
-component. Swapping in a real API is a change to those modules and their callers' `await`, not to the JSX. The spec
-surface carries the intended request/response shapes per screen.
+Each application's `nav.ts` is the single place a screen's id, label and URL are declared; the shell derives the
+current screen from `useLocation()` and hands it to the state provider, which no longer owns it. Adding a screen means
+one entry there and one entry in the `SCREENS` record.
+
+**Data is fixtures.** Everything a screen renders comes from `src/data` and each application's `data.ts`, never from the
+component. Swapping in a real API is a change to those modules and their callers' `await`, not to the JSX.
+`docs/spec-source.ts` carries the intended request/response shapes per screen.
 
 **Copy is never inlined.** All member-facing strings come from `src/i18n/strings.ts` through `useT()`. Five locales —
 English, Hausa, Yorùbá, Igbo, Nigerian Pidgin — all complete at 168 keys.
@@ -97,7 +120,7 @@ These are real and deliberate — not oversights to tidy away.
 2. **34 copy keys are outstanding.** The four newest member screens (beneficiary re-confirmation, employer onboarding,
    why-your-contribution-changed, sunlight mode) and the console are English-only. They are collected in `EN_ONLY` in
    `src/i18n/index.tsx` so the translation pass has one file to work through rather than a hunt through JSX.
-3. **Sunlight mode is a contrast simulation, not a palette.** It filters the whole frame. A real high-contrast theme
+3. **Sunlight mode is a contrast simulation, not a palette.** `?demo=sun` filters the whole app. A real high-contrast theme
    needs its own token set — worth doing after translation review, because longer strings change the layout it has to
    survive.
 4. **Low-end Android diacritics are untested.** Yorùbá and Igbo marks on stock system fonts at 12px and below.
@@ -112,7 +135,7 @@ These are real and deliberate — not oversights to tidy away.
 8. **Hit targets are below the spec's 44px.** The spec asks for 44px everywhere; the design's chips, nav rows and
    table actions are 26–38px. Everything clears the 24px WCAG 2.2 floor, which was worth fixing outright, but going to
    44 would visibly change the density the design was tuned for — so it stays a design call. `npm run a11y` reports
-   the count per surface.
+   the count per application.
 
 ## One deliberate departure from the mockups
 
@@ -125,17 +148,26 @@ used outdoors in bright sun by people who may not read English well, that is the
 
 `faint` and `ghost` are now both `#636C67`. On this cream ground the AA-passing band is only `#5C6560`–`#636C67`, so a
 third tier *in lightness* cannot exist — the eyebrow hierarchy is carried by type instead (mono, 9px, `.12em`
-tracking), which is how it already read. Two smaller follow-ons came with it: the index-rail group label darkens to
-`mut` on a selected row, where the tint drops it below the line, and the green benefit card's eyebrow went from 70% to
-85% alpha.
+tracking), which is how it already read. Three smaller follow-ons came with it: the nav group label darkens to `mut` on
+a selected row, where the tint drops it below the line; the green benefit card's eyebrow went from 70% to 85% alpha;
+and the USSD line on the web app's green panel went from 75% to 88%, because it is a phone number someone may need to
+read in a hurry.
+
+One more came out of auditing every route rather than one screen per application: a contribution row's amount was
+drawn in `gSoft` (`#8ABBA1`, 2.0:1 on cream) to mark it as card-paid. The amount is the row's most important number, so
+it is ink now, and the icon and state line carry which rail paid it.
 
 `ghost2` (`#B9B6AB`) survives for decorative carets, unselected marks and disabled controls, which carry no text.
 
-`npm run a11y` now reports zero contrast failures on all four surfaces. If you want the original palette back, it is
-two values in `src/theme/tokens.ts` and `tokens.css`.
+`npm run a11y` now reports zero contrast failures across all 48 routes at both handset and desk widths. If you want the
+original palette back, it is two values in `src/theme/tokens.ts` and `tokens.css`.
 
 ## What this is not
 
 No backend, no auth, no persistence. Every flow is driveable end to end against fixtures; nothing is wired to IPPIS,
-NIMC, NIBSS or an underwriter. The spec surface documents what those integrations would need — and the transcripts in
-[`chats/`](./chats) record why they are contracts rather than signups.
+NIMC, NIBSS or an underwriter. `docs/spec-source.ts` documents what those integrations would need — and the transcripts
+in [`chats/`](./chats) record why they are contracts rather than signups.
+
+It is also not a reproduction of the Claude Design canvas the prototypes were presented on. The bundle in
+[`project/`](./project) shows the screens inside a phone bezel, beside an index rail listing every screen and a panel
+explaining how the surface works. Those are presentation, not product, and none of them are here.

@@ -37,40 +37,28 @@ export const CONSOLE_TABS: readonly { label: string; to: ConsoleScreen; icon: st
   { label: 'More', to: 'settings', icon: 'dots-three-circle' },
 ]
 
-export const CONSOLE_FRAME = {
-  desktop: { w: 1084, h: 812, border: '1px solid #DAD8CE', radius: 14, pad: '26px 30px 40px' },
-  mobile: { w: 390, h: 844, border: '10px solid #22262A', radius: 44, pad: '16px 18px 30px' },
-} as const
+/** The route each console screen owns. The console lives under /console so it
+    can be deployed beside the member app on one origin. */
+export const CONSOLE_URLS: Record<ConsoleScreen, string> = {
+  dash: '/console',
+  upload: '/console/schedule',
+  recon: '/console/reconciliation',
+  exception: '/console/reconciliation/exceptions/CSP-114-88214',
+  debit: '/console/direct-debit',
+  remit: '/console/remittances',
+  roster: '/console/members',
+  members: '/console/members/add',
+  claims: '/console/claims',
+  settings: '/console/settings',
+  reports: '/console/reports',
+}
 
-/**
- * The right-rail explainer. This is the whole thesis of the console: money
- * arrives as a batch you do not control, and the exceptions queue is the
- * product.
- */
-export const MONEY_NOTES: readonly { n: string; t: string; b: string }[] = [
-  {
-    n: '01',
-    t: 'Schedule out',
-    b: 'One row per member goes to the payroll office before the cut-off. Federal to the IPPIS unit, state to the Accountant-General, employer to their own finance team.',
-  },
-  {
-    n: '02',
-    t: 'Deducted at source',
-    b: 'Payroll applies it when salaries run. No money has moved to us yet — the employer is holding it.',
-  },
-  {
-    n: '03',
-    t: 'One lump sum arrives',
-    b: 'A single transfer covers every member for the month. Hundreds of people, one credit, days or weeks after the salary run.',
-  },
-  {
-    n: '04',
-    t: 'The return file decides cover',
-    b: "Only the reconciled schedule says who was actually deducted. The bank credit cannot tell you that, which is why the app says 'waiting for file' rather than 'paid'.",
-  },
-  {
-    n: '05',
-    t: 'Exceptions are the product',
-    b: 'Unmatched, missing, wrong amount, left service. Clearing them is what turns money into cover — and what unblocks the next run.',
-  },
-]
+/** Longest match wins, so /console/members/add does not resolve to the roster. */
+export function consoleScreenForPath(pathname: string): ConsoleScreen {
+  const path = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname
+  const ids = (Object.keys(CONSOLE_URLS) as ConsoleScreen[])
+    .sort((a, b) => CONSOLE_URLS[b].length - CONSOLE_URLS[a].length)
+  const hit = ids.find((id) => path === CONSOLE_URLS[id] || path.startsWith(`${CONSOLE_URLS[id]}/`))
+  return hit ?? 'dash'
+}
+

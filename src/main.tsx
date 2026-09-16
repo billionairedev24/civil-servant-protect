@@ -1,5 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { BrowserRouter } from 'react-router-dom'
 // Fonts and icons are self-hosted rather than pulled from a CDN. The member
 // app targets slow Nigerian connections and shared office machines behind
 // restrictive networks — a blocked font CDN must not change the layout.
@@ -17,6 +18,8 @@ import { App } from './App'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <BrowserRouter>
+      <App />
+    </BrowserRouter>
   </StrictMode>,
 )
