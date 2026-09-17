@@ -162,7 +162,64 @@ happens, and a pilot cannot start without it.
 
 ---
 
-## 4. What needs a decision from somebody else
+## 4. When each surface is finished
+
+### What "finished" means, per surface
+
+Not "the screens exist" — they all exist today. Finished means every screen
+reads and writes the real API, with nothing hard-coded behind it, verified
+against a running backend rather than asserted.
+
+| Surface | Finished when | Where it is now |
+|---|---|---|
+| **Console** | Every screen live, including an assessor who can assess and pay | One gap: the claim queue is read-only |
+| **Member web** | Every screen live, including filing a claim with evidence | One gap: the claim wizard files nothing |
+| **Member mobile** | An installable Android build doing the member journey offline-capable, with biometrics | Not started; the web app at `/m` is the stand-in |
+| **USSD** | The same journeys reachable with no smartphone | Not started |
+
+### The estimate
+
+A **build day** below means a day of focused work of the kind that produced
+enrolment, leavers, the debit run, remittances, family cover, settings, reports,
+the layout fix and the seed rework — that was one session. Estimates are for the
+work itself; anything waiting on a third party is marked and is not mine to
+promise.
+
+| # | Work | Build days | Blocked on |
+|---|---|---|---|
+| **1** | **Object storage** for claim evidence — MinIO locally, presigned upload, encryption, object lock | 0.5 | — |
+| **2** | **Member claim wizard** wired, both surfaces, with evidence attached | 0.5 | 1 |
+| **3** | **Assessor queue** wired — assess, pay, maker–checker in the UI | 0.5 | — |
+| | **→ Console and member web are finished here** | **1.5** | |
+| **4** | **React Native app**: shell, navigation, the member journey in RN primitives, MMKV offline card, biometrics, Hermes, ABI-split release config, CI that builds the APK | 5 | — |
+| **5** | Remaining `/m` screens ported to reach parity | 3 | 4 |
+| | **→ Mobile is finished here** | **8** | |
+| **6** | The four adapters over the wire — NIMC SOAP/IPsec, comms REST, NIBSS REST, SFTP poller | 3 | **Credentials, endpoints and sandbox access** for each |
+| **7** | Postgres HA + DR replica, pgAudit, Vault, mTLS, Loki, Sentry | 3 | Hosting decision |
+| **8** | Kafka between the load stages, workers autoscaling | 2 | — |
+| **9** | USSD twin | 2 | Aggregator access |
+| **10** | Next.js SSR for the member web | 3 | — |
+
+**Two things I cannot do from here.** This container has Gradle but no Android
+SDK, so the APK in item 4 is built in CI and installed by somebody with a
+handset — I can write it and prove it compiles, not that it runs on a Tecno.
+And every item marked *blocked on* waits on somebody outside this repository:
+NIMC will not issue a WSDL to a developer, and no amount of build days
+substitutes for that.
+
+### So, in order
+
+- **Console and member web: finished in the next session and a half.** Claims is
+  the only thing between here and "every screen live".
+- **Mobile: about eight build days after that**, of which five get to an
+  installable app doing the core journey and three reach parity with every
+  screen `/m` has.
+- **Everything a pilot needs: three to eight more build days of code**, but the
+  calendar is set by credentials, the NITDA ruling and a translation pass —
+  none of which are code, and all of which should be started now rather than
+  when the code is ready.
+
+## 5. What needs a decision from somebody else
 
 1. **Actuarial sign-off on the benefit figures** (2c.16), and the two wording
    items (2c.17).
