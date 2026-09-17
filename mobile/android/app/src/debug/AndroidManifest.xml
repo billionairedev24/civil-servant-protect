@@ -1,0 +1,17 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+  <!--
+    Plain HTTP, in debug builds only.
+
+    Android has refused cleartext by default since API 28, and the API in
+    development is `http://10.0.2.2:8080` on somebody's laptop. Scoped to the
+    debug variant rather than set on the app: a release build that quietly
+    allowed cleartext would send a member's session token over an open wifi in
+    a secretariat, and this is the sort of flag that survives a deadline.
+  -->
+  <application
+      android:usesCleartextTraffic="true"
+      tools:targetApi="28"
+      tools:ignore="GoogleAppIndexingWarning" />
+</manifest>

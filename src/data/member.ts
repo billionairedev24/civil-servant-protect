@@ -62,17 +62,6 @@ export const TIER_PRICES = ['₦1,500', '₦2,500', '₦4,000', '₦6,000'] as c
  */
 export const TIER_CODES = ['basic', 'standard', 'enhanced', 'executive'] as const
 
-/** Benefit schedule amounts; the labels are i18n `sched`. */
-export const SCHEDULE_VALUES = [
-  '₦5,000,000',
-  '+₦5,000,000',
-  'up to ₦5,000,000',
-  '₦50,000 / week',
-  '₦250,000',
-  '₦250,000',
-  '₦250,000',
-] as const
-
 export interface Beneficiary {
   name: string
   /** Index into the i18n `fam_n` list, so the relationship word follows language. */

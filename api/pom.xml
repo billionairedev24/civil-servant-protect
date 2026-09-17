@@ -23,6 +23,13 @@
     <resilience4j.version>2.4.0</resilience4j.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <springdoc.version>2.8.13</springdoc.version>
+    <!--
+      The S3 client, for claim evidence and roll files. Version pinned here
+      rather than taken from a BOM: Spring Boot manages neither, and an object
+      store holding death certificates is not somewhere to discover a transitive
+      upgrade.
+    -->
+    <awssdk.version>2.54.20</awssdk.version>
   </properties>
 
   <dependencies>
@@ -170,6 +177,23 @@
       here — append-only, RLS by rail, the share sum, the hash chain — live in
       the database, and an in-memory stand-in would test none of them.
     -->
+    <!--
+      S3, not a vendor SDK. The spec says S3-compatible so that MinIO, Ceph or a
+      provider's own store are all the same code — sovereignty means being able
+      to move, and a client written against one vendor's API cannot.
+    -->
+    <dependency>
+      <groupId>software.amazon.awssdk</groupId>
+      <artifactId>s3</artifactId>
+      <version>${awssdk.version}</version>
+      <exclusions>
+        <!-- Netty comes with the async client, which this does not use. -->
+        <exclusion>
+          <groupId>software.amazon.awssdk</groupId>
+          <artifactId>netty-nio-client</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
   </dependencies>
 
   <build>

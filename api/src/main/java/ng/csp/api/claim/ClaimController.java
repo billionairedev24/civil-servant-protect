@@ -9,7 +9,14 @@ import jakarta.validation.constraints.Size;
 import java.util.List;
 import java.util.Map;
 import ng.csp.api.auth.SessionUser;
+import ng.csp.api.evidence.Evidence;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.core.io.Resource;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -49,20 +56,60 @@ public class ClaimController {
     return claims.byRef(session, ref);
   }
 
-  public record AttachDocument(
+  public record BeginUpload(
       @NotBlank String docKey,
       @NotBlank String filename,
-      @NotBlank @Pattern(regexp = "application/pdf|image/jpeg|image/png") String contentType,
-      @Positive @Max(value = 10 * 1024 * 1024, message = "Documents are capped at 10 MB") int byteSize,
-      @NotBlank String storageKey) {}
+      @NotBlank @Pattern(
+              regexp = "application/pdf|image/jpeg|image/png",
+              message = "Send a PDF, a JPEG or a PNG.")
+          String contentType,
+      @Positive @Max(value = 10 * 1024 * 1024, message = "Documents are capped at 10 MB")
+          int byteSize) {}
 
+  /**
+   * Ask where to put a file.
+   *
+   * <p>The answer is a URL the client uploads to directly — a presigned PUT at the bucket, or this
+   * service's own endpoint in development. Either way the client follows what it is given and does
+   * not know which storage is behind it.
+   */
+  @PostMapping("/claims/{ref}/documents/upload")
+  @PreAuthorize("hasAuthority('PERM_CLAIM_CREATE')")
+  public Evidence.Upload beginUpload(
+      SessionUser session, @PathVariable String ref, @Valid @RequestBody BeginUpload body) {
+    return claims.beginUpload(
+        session, ref, body.docKey(), body.filename(), body.contentType(), body.byteSize());
+  }
+
+  public record AttachDocument(@NotBlank String docKey) {}
+
+  /** Confirm the upload landed. The server checks the store rather than taking the client's word. */
   @PostMapping("/claims/{ref}/documents")
   @PreAuthorize("hasAuthority('PERM_CLAIM_CREATE')")
   public ClaimService.DocumentResult attach(
       SessionUser session, @PathVariable String ref, @Valid @RequestBody AttachDocument body) {
-    return claims.attachDocument(
-        session, ref, body.docKey(), body.filename(), body.contentType(),
-        body.byteSize(), body.storageKey());
+    return claims.attachDocument(session, ref, body.docKey());
+  }
+
+  /**
+   * Read a document back — the assessor's copy of the certificate.
+   *
+   * <p>Streamed through this service rather than handed out as a presigned GET, because a presigned
+   * URL to a death certificate is a link that works for anyone who ends up with it, and these are
+   * exactly the documents whose reads should appear in an audit trail.
+   */
+  @GetMapping("/claims/{ref}/documents/{docKey}/file")
+  @PreAuthorize("hasAuthority('PERM_CLAIM_READ_OWN') or hasAuthority('PERM_CLAIM_READ_ANY')")
+  public ResponseEntity<Resource> document(
+      SessionUser session, @PathVariable String ref, @PathVariable String docKey) {
+    var doc = claims.document(session, ref, docKey);
+    return ResponseEntity.ok()
+        .contentType(MediaType.parseMediaType(doc.contentType()))
+        // Inline: an assessor wants to look at it, not collect a downloads folder.
+        .header(
+            HttpHeaders.CONTENT_DISPOSITION,
+            ContentDisposition.inline().filename(doc.filename()).build().toString())
+        .body(new InputStreamResource(doc.body()));
   }
 
   /** The member's own claims. Scoped to the session — there is no id to pass. */

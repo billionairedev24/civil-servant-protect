@@ -75,5 +75,61 @@ services:
       timeout: 5s
       retries: 30
 
+  # Claim evidence, when you want the real thing rather than a directory.
+  #
+  # `csp.evidence.mode=local` needs none of this and is the default, so this
+  # service is in the `s3` profile and stays down unless you ask for it:
+  #
+  #   docker compose --profile s3 up -d
+  #   EVIDENCE_MODE=s3 EVIDENCE_ENDPOINT=http://localhost:9000 \
+  #     EVIDENCE_BUCKET=csp-evidence EVIDENCE_ACCESS_KEY=csp \
+  #     EVIDENCE_SECRET_KEY=csp-secret mvn spring-boot:run
+  #
+  # Worth doing before anything ships: presigned URLs, CORS on the bucket and
+  # server-side encryption are all things that work on a directory and then do
+  # not work on a bucket.
+  minio:
+    image: quay.io/minio/minio:RELEASE.2025-04-22T22-12-26Z
+    profiles: ["s3"]
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: csp
+      MINIO_ROOT_PASSWORD: csp-secret
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "mc ready local || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  # Creates the bucket and lets the browser PUT to it, then exits.
+  #
+  # The CORS rule is the part people forget. A presigned URL the browser is not
+  # allowed to call fails as an opaque network error with nothing in any log,
+  # and the upload looks like it is the application's fault.
+  minio-init:
+    image: quay.io/minio/mc:RELEASE.2025-04-16T18-13-26Z
+    profiles: ["s3"]
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        mc alias set local http://minio:9000 csp csp-secret
+        mc mb --ignore-existing local/csp-evidence
+        mc anonymous set none local/csp-evidence
+        cat >/tmp/cors.json <<'JSON'
+        {"CORSRules":[{"AllowedOrigins":["*"],"AllowedMethods":["PUT","GET","HEAD"],
+          "AllowedHeaders":["*"],"ExposeHeaders":["ETag"],"MaxAgeSeconds":3000}]}
+        JSON
+        mc cors set local/csp-evidence /tmp/cors.json
+        echo "bucket csp-evidence ready"
+
 volumes:
   db-data:
+  minio-data:

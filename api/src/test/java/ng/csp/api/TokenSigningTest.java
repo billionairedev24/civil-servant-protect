@@ -187,6 +187,7 @@ class TokenSigningTest {
             List.of("http://localhost:[*]"),
             "https://member-auth.csp.test",
             null,
+            null,
             null);
     return new TokenService(props, fixedVault(key));
   }

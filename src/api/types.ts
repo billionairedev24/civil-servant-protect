@@ -130,6 +130,21 @@ export interface Claim {
   documents: { key: string; state: string; filename: string | null; uploadedAt: string | null }[]
 }
 
+/**
+ * Where to send one document, and how.
+ *
+ * The client follows this rather than knowing which storage is behind it: a
+ * presigned PUT at a bucket, or the API's own upload endpoint in development.
+ * `headers` is exact — against a bucket they are covered by the signature.
+ */
+export interface ClaimUpload {
+  key: string
+  url: string
+  method: string
+  headers: Record<string, string>
+  expiresAt: string
+}
+
 /** A row in the member's own claim list. The detail comes from `Claim`. */
 export interface MyClaim {
   ref: string
@@ -178,6 +193,26 @@ export interface RemovedDependant {
   /** Cover runs to here: the month has been paid for. */
   coveredUntil: string
   effectiveFrom: string
+}
+
+/**
+ * The benefit schedule: what each tier is sold as, and for how much.
+ *
+ * Keyed rather than positional, so a locale can order the rows its own way and
+ * a benefit added later does not shift every figure on the screen by one.
+ * `valueMinor` is null for a benefit a tier does not include — which is not the
+ * same as zero, and reads as "—" rather than "₦0".
+ */
+export interface BenefitSchedule {
+  /** The policy wording these figures belong to. It changes when they do. */
+  wordingVersion: string
+  effectiveFrom: string
+  tiers: {
+    code: Tier
+    name: string
+    priceMinor: number
+    benefits: { key: string; valueMinor: number | null; text: string | null }[]
+  }[]
 }
 
 export interface SponsorDashboard {
@@ -324,6 +359,21 @@ export interface Remittance {
   creditedCount: number
   varianceMinor: number
   openExceptions: number
+}
+
+/**
+ * What came back from sending a claim's money.
+ *
+ * `accountName` is the name the bank returned for that account, not the one
+ * anybody typed. It is the check that catches a transposed digit, so the screen
+ * shows it rather than the name it already had.
+ */
+export interface Paid {
+  ref: string
+  state: string
+  sessionId: string
+  amountMinor: number
+  accountName: string
 }
 
 export interface ClaimQueueItem {

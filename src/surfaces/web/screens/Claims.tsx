@@ -3,6 +3,10 @@ import { Kicker, Mono } from '../../../components/primitives'
 import { CLAIM } from '../../../data/member'
 import { CLAIM_FIXTURE, MY_CLAIMS } from '../../../api/fixtures'
 import { useClaim, useMyClaims } from '../../../api/queries'
+import { useClaimWizard } from '../../../api/claim'
+import { webFile } from '../../../api/client'
+import { DocumentPicker, docName } from '../../../components/DocumentPicker'
+import { EN_ONLY, fill } from '../../../i18n'
 import { NotLive, dayFirst, useLive } from '../../../api/live'
 import { C, MONO } from '../../../theme/tokens'
 import { WEB_CLAIM_SUMMARY } from '../data'
@@ -21,6 +25,25 @@ const CL_ICONS = [
  */
 export function WebClaim() {
   const { t, clStep, cl, set, go } = useWeb()
+  const claim = useClaimWizard()
+
+  // The server's list for this claim type, not the mockup's four papers. Empty
+  // on fixtures, where no claim was opened and the demo runs as it always has.
+  const docs = claim.ref ? claim.requiredDocs : []
+  const busy = claim.opening || Object.values(claim.docState).includes('sending')
+
+  const next = async () => {
+    // The claim is created on the way out of "who for": the server decides
+    // which papers it wants, and it needs both answers to decide.
+    if (clStep === 1) {
+      const opened = await claim.open(cl[0], cl[1])
+      if (claim.error && !opened) return
+    }
+    if (clStep < 4) return set({ clStep: clStep + 1 })
+    set({ clStep: 0 })
+    claim.reset()
+    go('track')
+  }
 
   return (
     <div className="rise page">
@@ -43,7 +66,11 @@ export function WebClaim() {
       <div style={{ marginTop: 20 }}>
         <PageTitle>{t.cl_q[clStep]}</PageTitle>
       </div>
-      <div style={{ fontSize: 14, lineHeight: 1.5, color: C.mut, marginTop: 5 }}>{t.cl_h[clStep]}</div>
+      {/* See the note on the phone screen: `cl_h[4]` carries the mockup's claim
+          number, which would print above the member's real one. */}
+      {clStep < 4 && (
+        <div style={{ fontSize: 14, lineHeight: 1.5, color: C.mut, marginTop: 5 }}>{t.cl_h[clStep]}</div>
+      )}
 
       {clStep < 2 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 9, marginTop: 18, maxWidth: 560 }}>
@@ -77,49 +104,115 @@ export function WebClaim() {
       {clStep === 2 && (
         <>
           <div className="cards" style={{ marginTop: 18 }}>
-            {t.docs_n.map((name, i) => {
-              const done = i < 2
-              return (
-                <div
-                  key={name}
-                  style={{
-                    padding: 16,
-                    border: `1.5px dashed ${done ? '#B9D3C6' : C.line9}`,
-                    borderRadius: 11,
-                    background: done ? C.gTint : C.white,
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
-                    <div>
-                      <div style={{ fontSize: 14.5, fontWeight: 600 }}>{name}</div>
-                      <div style={{ fontSize: 12.5, color: C.mut, marginTop: 2 }}>{t.docs_s[i]}</div>
+            {docs.length > 0
+              ? docs.map((key) => {
+                  const state = claim.docState[key] ?? 'waiting'
+                  const done = state === 'received'
+                  const failed = state === 'failed'
+                  return (
+                    <div
+                      key={key}
+                      style={{
+                        padding: 16,
+                        border: `1.5px dashed ${done ? '#B9D3C6' : failed ? C.clay : C.line9}`,
+                        borderRadius: 11,
+                        background: done ? C.gTint : C.white,
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontSize: 14.5, fontWeight: 600 }}>{docName(key)}</div>
+                          <div
+                            style={{
+                              fontSize: 12.5, marginTop: 2,
+                              color: failed ? C.clayInk : done ? C.g : C.mut,
+                            }}
+                          >
+                            {done
+                              ? EN_ONLY.doc_received
+                              : failed
+                                ? EN_ONLY.doc_failed
+                                : state === 'sending'
+                                  ? EN_ONLY.doc_sending
+                                  : 'PDF, JPG or PNG · max 10 MB'}
+                          </div>
+                        </div>
+                        <Icon
+                          name={
+                            done
+                              ? 'ph-fill ph-check-circle'
+                              : failed
+                                ? 'ph-fill ph-warning-circle'
+                                : 'ph ph-upload-simple'
+                          }
+                          size={20}
+                          color={done ? C.g : failed ? C.clay : C.faint}
+                        />
+                      </div>
+                      <div style={{ marginTop: 11, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <DocumentPicker
+                          docKey={key}
+                          state={state}
+                          compact
+                          onPick={(file) => void claim.send(key, webFile(file))}
+                        />
+                      </div>
                     </div>
-                    <Icon
-                      name={done ? 'ph-fill ph-check-circle' : 'ph ph-upload-simple'}
-                      size={20}
-                      color={done ? C.g : C.faint}
-                    />
+                  )
+                })
+              : t.docs_n.map((name, i) => (
+                  <div
+                    key={name}
+                    style={{
+                      padding: 16,
+                      border: `1.5px dashed ${i < 2 ? '#B9D3C6' : C.line9}`,
+                      borderRadius: 11,
+                      background: i < 2 ? C.gTint : C.white,
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
+                      <div>
+                        <div style={{ fontSize: 14.5, fontWeight: 600 }}>{name}</div>
+                        <div style={{ fontSize: 12.5, color: C.mut, marginTop: 2 }}>{t.docs_s[i]}</div>
+                      </div>
+                      <Icon
+                        name={i < 2 ? 'ph-fill ph-check-circle' : 'ph ph-upload-simple'}
+                        size={20}
+                        color={i < 2 ? C.g : C.faint}
+                      />
+                    </div>
+                    <div style={{ marginTop: 11 }}>
+                      <Mono size={10.5} color={C.faint}>
+                        {i < 2 ? 'PDF · 1.2 MB' : 'PDF, JPG or PNG · max 10 MB'}
+                      </Mono>
+                    </div>
                   </div>
-                  <div style={{ marginTop: 11, display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <button type="button" className="btn btn-secondary" style={{ height: 34, padding: '0 14px', fontSize: 12.5 }}>
-                      {done ? 'Replace' : t.docs_a[i]}
-                    </button>
-                    <Mono size={10.5} color={C.faint}>
-                      {done ? 'PDF · 1.2 MB' : 'PDF, JPG or PNG · max 10 MB'}
-                    </Mono>
-                  </div>
-                </div>
-              )
-            })}
+                ))}
           </div>
+
+          {docs.length > 0 && (
+            <div
+              style={{
+                marginTop: 12, fontSize: 14, fontWeight: 600,
+                color: claim.outstanding === 0 ? C.g : C.ochre,
+              }}
+            >
+              {claim.outstanding === 0
+                ? EN_ONLY.doc_all_in
+                : claim.outstanding === 1
+                  ? EN_ONLY.doc_outstanding_one
+                  : fill(EN_ONLY.doc_outstanding_many, { n: String(claim.outstanding) })}
+            </div>
+          )}
+
           <div
             style={{
               marginTop: 12, padding: '14px 16px', borderRadius: 10, background: C.white,
               border: `1px solid ${C.line}`, fontSize: 13, lineHeight: 1.55, color: C.mut,
             }}
           >
-            Web accepts PDF, JPG and PNG up to 10 MB each, and lets a relative drag a scan straight in. The phone flow
-            photographs the same papers — both land in the same document store with the same OCR pass. {t.docs_note}
+            Web takes a dragged-in scan and the phone photographs the same papers — both go to the same
+            store, straight from the browser, and never through the API. {docs.length > 0 ? EN_ONLY.doc_photograph_note : t.docs_note}
           </div>
         </>
       )}
@@ -155,8 +248,13 @@ export function WebClaim() {
         <div style={{ marginTop: 18, padding: 24, borderRadius: 13, background: C.g, color: C.gTint, maxWidth: 560 }}>
           <Icon name="ph-fill ph-check-circle" size={34} />
           <div style={{ fontSize: 19, fontWeight: 600, marginTop: 12 }}>
-            {t.claim_ref} {CLAIM.newRef}
+            {t.claim_ref} {claim.ref ?? CLAIM.newRef}
           </div>
+          {claim.funeralAdvanceRef && (
+            <div style={{ fontSize: 14, marginTop: 4, color: 'rgba(241,246,243,.9)' }}>
+              {t.funeral_first} {claim.funeralAdvanceRef}
+            </div>
+          )}
           <div style={{ fontSize: 13.5, lineHeight: 1.55, color: 'rgba(241,246,243,.85)', marginTop: 6 }}>
             {t.assessor_note}
           </div>
@@ -177,12 +275,27 @@ export function WebClaim() {
         <button
           type="button"
           className="btn btn-primary"
-          style={{ height: 46, padding: '0 24px', fontSize: 15 }}
-          onClick={() => (clStep < 4 ? set({ clStep: clStep + 1 }) : go('track'))}
+          style={{ height: 46, padding: '0 24px', fontSize: 15, opacity: busy ? 0.7 : 1 }}
+          // Held until every paper is in: a claim finished with documents
+          // outstanding sits at documents_pending and nobody is told why.
+          disabled={busy || (clStep === 2 && docs.length > 0 && claim.outstanding > 0)}
+          onClick={() => void next()}
         >
-          {t.cl_cta[clStep]}
+          {claim.opening ? EN_ONLY.claim_opening : t.cl_cta[clStep]}
         </button>
       </div>
+
+      {claim.error && (
+        <div
+          style={{
+            marginTop: 12, maxWidth: 560, padding: '13px 15px', borderRadius: 10,
+            border: `1px solid ${C.clay}`, background: C.clayBg,
+            fontSize: 13.5, lineHeight: 1.5, color: C.clayInk,
+          }}
+        >
+          {claim.error}
+        </div>
+      )}
     </div>
   )
 }
@@ -283,12 +396,16 @@ export function WebTrack() {
 
           <Panel pad={17}>
             <Kicker size={9.5}>DOCUMENTS</Kicker>
+            {/* The claim's own documents and their real states. This panel used
+                to list the mockup's four papers and call the first three
+                ACCEPTED whatever the claim said — including on a claim still
+                waiting for all of them. */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginTop: 9 }}>
-              {t.docs_n.map((name, i) => {
-                const accepted = i < 3
+              {claim.documents.map((doc) => {
+                const received = doc.state === 'received'
                 return (
                   <div
-                    key={name}
+                    key={doc.key}
                     style={{
                       display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center',
                       padding: '8px 0', borderTop: '1px solid #EFEEE8',
@@ -296,14 +413,18 @@ export function WebTrack() {
                   >
                     <span style={{ display: 'flex', gap: 8, alignItems: 'center', minWidth: 0 }}>
                       <Icon
-                        name={accepted ? 'ph-fill ph-check-circle' : 'ph ph-clock'}
+                        name={received ? 'ph-fill ph-check-circle' : 'ph ph-clock'}
                         size={15}
-                        color={accepted ? C.g : C.ochre}
+                        color={received ? C.g : C.ochre}
                       />
-                      <span style={{ fontSize: 13 }}>{name}</span>
+                      <span style={{ fontSize: 13, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {docName(doc.key)}
+                      </span>
                     </span>
-                    <span style={{ fontFamily: MONO, fontSize: 10, fontWeight: 600, color: accepted ? C.g : C.ochre }}>
-                      {accepted ? 'ACCEPTED' : 'OPTIONAL'}
+                    <span
+                      style={{ fontFamily: MONO, fontSize: 10, fontWeight: 600, color: received ? C.g : C.ochre }}
+                    >
+                      {received ? 'RECEIVED' : 'WAITING'}
                     </span>
                   </div>
                 )

@@ -8,8 +8,11 @@
  * possible rather than aspirational.
  */
 import type {
-  AddedDependant, AuditEntry, BeneficiarySet, BulkEnrolment, Claim, ClaimQueueItem, ConsoleUser,
-  DebitRun, Dependant, Enrolled, Leaver, Ledger, MemberSummary, MyClaim, NewMember, ProtectionCard,
+  AddedDependant, AuditEntry, BenefitSchedule, BeneficiarySet, BulkEnrolment, Claim, ClaimQueueItem,
+  ClaimUpload, ConsoleUser, DebitRun, Dependant, Enrolled, Leaver, Ledger, MemberSummary, MyClaim,
+  NewMember,
+  Paid,
+  ProtectionCard,
   Reconciliation, RemovedDependant, Remittance, Roster, ScheduleBatch, ScheduleRow, Session,
   SponsorClaims, SponsorDashboard, Tokens,
 } from './types'
@@ -40,6 +43,27 @@ export class ApiError extends Error {
   get isRefused(): boolean {
     return this.status === 403 || this.status === 409
   }
+}
+
+/**
+ * One document, on its way to storage.
+ *
+ * A shape rather than `File`, because the two surfaces have different things in
+ * hand: a browser has a `File` from an input, and a handset has a `file://` URI
+ * from the camera that has to be read into a blob first. The three fields the
+ * server is told about — name, type and size — are the same either way, and
+ * `body` is whatever that platform can actually PUT.
+ */
+export interface UploadFile {
+  name: string
+  type: string
+  size: number
+  body: BodyInit
+}
+
+/** A browser's `File` already is one of these; this says so without a cast. */
+export function webFile(file: File): UploadFile {
+  return { name: file.name, type: file.type, size: file.size, body: file }
 }
 
 export interface TokenStore {
@@ -217,6 +241,18 @@ export class CspApi {
     return this.call('POST', '/v1/members/me/beneficiaries/confirm', {})
   }
 
+  /**
+   * The benefit schedule.
+   *
+   * <p>Public: it is a price list. Every screen that shows what a tier pays out
+   * reads it from here, because a figure a client holds is a figure that is
+   * wrong the day the wording changes — and this one is what a family is told
+   * they are owed.
+   */
+  schedule(): Promise<BenefitSchedule> {
+    return this.call('GET', '/v1/products/schedule', undefined, { anonymous: true })
+  }
+
   /** Who is on the member's family cover, including anyone taken off. */
   dependants(): Promise<{ dependants: Dependant[] }> {
     return this.call('GET', '/v1/members/me/dependants')
@@ -256,6 +292,73 @@ export class CspApi {
     answers?: Record<string, unknown>
   }): Promise<{ claimRef: string; requiredDocs: string[]; funeralAdvanceRef: string | null }> {
     return this.call('POST', '/v1/claims', body)
+  }
+
+  /**
+   * Attach one document to a claim: ask, send, confirm.
+   *
+   * <p>Three steps rather than a multipart POST, because the middle one does not
+   * come here — the file goes straight to object storage on the URL the server
+   * hands back. A ten-megabyte scan of a death certificate through the API is a
+   * request thread spent copying bytes.
+   *
+   * The headers matter. Against a bucket they are part of the presigned
+   * signature, so the browser must send exactly those and nothing else; a
+   * helpfully-added header is a 403 nobody can explain.
+   */
+  async uploadClaimDocument(
+    ref: string,
+    docKey: string,
+    file: UploadFile,
+    onProgress?: (fraction: number) => void,
+  ): Promise<{ docKey: string; outstanding: number }> {
+    const where: ClaimUpload = await this.call(
+      'POST',
+      `/v1/claims/${encodeURIComponent(ref)}/documents/upload`,
+      { docKey, filename: file.name, contentType: file.type, byteSize: file.size },
+    )
+
+    onProgress?.(0)
+    const sent = await fetch(where.url, {
+      method: where.method,
+      headers: where.headers,
+      body: file.body,
+    })
+    if (!sent.ok) {
+      /*
+       * Deliberately not the storage service's own error body. S3 answers in
+       * XML with a code like SignatureDoesNotMatch, which is true, unhelpful,
+       * and not something to put in front of somebody who has just lost a
+       * relative.
+       */
+      throw new ApiError(
+        sent.status,
+        'upload_failed',
+        'That file did not reach us. Check your connection and try again.',
+      )
+    }
+    onProgress?.(1)
+
+    // The server checks the store before it believes this.
+    return this.call('POST', `/v1/claims/${encodeURIComponent(ref)}/documents`, { docKey })
+  }
+
+  /**
+   * A document back — the assessor's copy, and the claimant's own.
+   *
+   * Fetched with the session's token rather than linked to. A URL that opens a
+   * death certificate without one works for whoever ends up holding it, and
+   * these are exactly the reads that belong in an audit trail.
+   */
+  async claimDocument(ref: string, docKey: string): Promise<{ blob: Blob; filename: string }> {
+    const { blob, headers } = await this.call<{ blob: Blob; headers: Headers }>(
+      'GET',
+      `/v1/claims/${encodeURIComponent(ref)}/documents/${encodeURIComponent(docKey)}/file`,
+      undefined,
+      { binary: true },
+    )
+    const named = /filename="([^"]+)"/.exec(headers.get('content-disposition') ?? '')
+    return { blob, filename: named?.[1] ?? `${docKey}.pdf` }
   }
 
   // ── Sponsor console ────────────────────────────────────────────────────────
@@ -347,6 +450,29 @@ export class CspApi {
   }
 
   /**
+   * The assessor's decision.
+   *
+   * `amountMinor` is theirs to set on an approval and is ignored otherwise. The
+   * note is required by the server and is kept on the claim trail — a decline
+   * with no reason on the record is the thing an ombudsman asks about.
+   */
+  assessClaim(
+    ref: string,
+    body: { decision: 'approve' | 'decline' | 'request_more'; note: string; amountMinor?: number },
+  ): Promise<{ ref: string; state: string }> {
+    return this.call('POST', `/v1/claims/${encodeURIComponent(ref)}/assess`, body)
+  }
+
+  /**
+   * Send an approved claim's money. A different permission, held by a different
+   * person — the server refuses the assessor who approved it, and so does the
+   * database.
+   */
+  payClaim(ref: string, body: { bankCode: string; accountNumber: string }): Promise<Paid> {
+    return this.call('POST', `/v1/claims/${encodeURIComponent(ref)}/pay`, body)
+  }
+
+  /**
    * An export, as a file the browser can save.
    *
    * <p>Not a link the screen can point at: every request carries a bearer token,
@@ -402,7 +528,7 @@ export class CspApi {
     method: string,
     path: string,
     body?: unknown,
-    options: { anonymous?: boolean; retried?: boolean; raw?: boolean } = {},
+    options: { anonymous?: boolean; retried?: boolean; raw?: boolean; binary?: boolean } = {},
   ): Promise<T> {
     const headers: Record<string, string> = {}
     if (body !== undefined) headers['Content-Type'] = 'application/json'
@@ -440,6 +566,17 @@ export class CspApi {
     }
 
     if (response.status === 204) return undefined as T
+
+    /*
+     * A body that is not text at all — a scanned certificate.
+     *
+     * Read before `text()` gets to it: decoding a PDF or a JPEG as UTF-8 and
+     * re-encoding it produces a file that opens as garbage, and the failure
+     * looks like a storage problem rather than a client one.
+     */
+    if (response.ok && options.binary) {
+      return { blob: await response.blob(), headers: response.headers } as T
+    }
 
     const text = await response.text()
     const payload = text ? safeJson(text) : null

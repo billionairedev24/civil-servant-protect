@@ -99,8 +99,8 @@ API docs are at http://localhost:8080/swagger-ui.html.
 
 ```bash
 npm install
-npm run dev                                   # fixtures, no backend needed
-VITE_API_URL=http://localhost:8080 npm run dev  # live, against the API
+npm run dev                  # against the API on localhost:8080
+VITE_API_URL= npm run dev    # fixtures, no backend needed
 
 # The console additionally needs Keycloak, or its sign-in button has nothing
 # to go to:
@@ -109,10 +109,20 @@ VITE_OIDC_ISSUER=http://localhost:8081/realms/csp \
 npm run dev
 ```
 
-`VITE_API_URL` is the only switch for the member apps. Unset, the screens read `src/data` exactly as
-they always have — which is how the design gets reviewed and how the
-rail-branching tests run, neither of which should need Postgres. Set, the same
-screens read the API.
+`VITE_API_URL` is the only switch, and **`.env.development` sets it**, so
+`npm run dev` talks to the API. That default is deliberate: it used to be the
+other way round, and somebody reviewing the product opened it, saw the figures
+the design bundle has always shown, and concluded that nothing was integrated.
+They were right about what they were looking at — with the variable unset, not
+one screen calls the backend.
+
+Fixtures are still one command away and are still how the design gets reviewed
+and how the rail-branching tests run, neither of which should need Postgres.
+When the apps are running on them, **every screen carries a "Demo data · no API
+configured" badge** in the corner, so the two can never be mistaken again.
+
+A production build takes the variable from the environment; `.env.development`
+applies to `npm run dev` only.
 
 Data access is **TanStack Query** (`src/api/`):
 
@@ -226,6 +236,80 @@ L3 data never reaches this table: a phone number is stored as `+234803•••�
 an account as `••••6789`, and a NIN or a one-time code as `«withheld»`. It is
 the table somebody exports to a spreadsheet at 2am, which is exactly why.
 
+### A claim's evidence
+
+Documents do not come through the API. The client asks where to put a file, PUTs
+it there itself, and then confirms — the same three steps whether the store is a
+bucket in Abuja or a directory on your laptop, because the client follows the URL
+it is handed and never learns which one it got.
+
+```bash
+# 1. Where does this go?
+curl -s -XPOST localhost:8080/v1/claims/CLM-2026-0092/documents/upload \
+  -H "Authorization: Bearer $MEMBER" -H 'Content-Type: application/json' \
+  -d '{"docKey":"death_certificate","filename":"cert.pdf",
+       "contentType":"application/pdf","byteSize":24}'
+# {"key":"claims/22c87e01-…/death_certificate/fc366227-….pdf",
+#  "url":"http://localhost:8080/v1/evidence/claims/22c87e01-…",
+#  "method":"PUT","headers":{"Content-Type":"application/pdf"},
+#  "expiresAt":"2026-09-17T04:14:09Z"}
+
+# 2. Send the bytes to that URL, with exactly the headers it returned. Against a
+#    bucket they are part of the signature, and a fifth header is a 403.
+curl -s -XPUT "$URL" -H 'Content-Type: application/pdf' --data-binary @cert.pdf
+
+# 3. Confirm. The server looks in the store rather than taking your word for it.
+curl -s -XPOST localhost:8080/v1/claims/CLM-2026-0092/documents \
+  -H "Authorization: Bearer $MEMBER" -H 'Content-Type: application/json' \
+  -d '{"docKey":"death_certificate"}'
+# {"docKey":"death_certificate","outstanding":3}
+```
+
+When the last one lands, `outstanding` reaches 0 and the claim moves to
+`assessing` by itself. Step 3 against a file that never arrived is a 400 and the
+claim stays where it was — a claim reaching an assessor with nothing behind it
+means a bereaved family being asked for the certificate a second time.
+
+The storage key is the server's. It is never accepted from the caller, and a
+second upload of the same document gets a new key rather than overwriting the
+first — which is what retention needs, and what stops different bytes appearing
+behind a key an assessor has already read.
+
+Reading one back, as the assessor does:
+
+```bash
+curl -s localhost:8080/v1/claims/CLM-2026-0092/documents/death_certificate/file \
+  -H "Authorization: Bearer $ASSESSOR" -o cert.pdf
+```
+
+That stream goes through the API rather than out as a presigned GET: a signed
+link to a death certificate works for whoever ends up holding it, and these are
+the reads that belong in an audit trail.
+
+**Locally this writes to a directory** (`csp.evidence.root`, default
+`./var/evidence`) and the upload URL is this service's own — no encryption at
+rest, no object lock, one machine. Enough to work the claim path with nothing
+installed; refused outright under the `prod` profile.
+
+**For the real thing**, any S3-compatible store:
+
+```bash
+docker compose --profile s3 up -d           # MinIO, plus a bucket with CORS set
+EVIDENCE_MODE=s3 EVIDENCE_ENDPOINT=http://localhost:9000 \
+EVIDENCE_BUCKET=csp-evidence EVIDENCE_ACCESS_KEY=csp EVIDENCE_SECRET_KEY=csp-secret \
+  mvn spring-boot:run
+```
+
+Uploads then go straight to the bucket on a presigned PUT with SSE-S3, and the
+API never sees the bytes. Worth switching to before anything ships: presigned
+URLs, bucket CORS and server-side encryption all work on a directory and then do
+not work on a bucket. The startup log says which one you are on:
+
+```
+Claim evidence: local directory /home/you/repo/api/var/evidence
+Claim evidence: s3 http://localhost:9000/csp-evidence
+```
+
 ### Paying a claim
 
 The money path is two decisions by two people, like everything else here:
@@ -239,7 +323,20 @@ Neither role holds the other's permission, and the database says the same thing
 again with `payer_is_not_assessor` — so an account that could approve a payout
 and then make it does not exist, whatever the service layer is asked to do.
 
+In the console this is **Assess claims**, which only appears for an account
+holding `CLAIM_READ_ANY` — an employer's finance officer has no business knowing
+the queue exists. It is not the **Claims** screen beside it: that one is a
+sponsor looking at their own staff with the amount, the cause and the documents
+all withheld.
+
 ```bash
+# What is waiting, oldest first — every sponsor's claims, not one rail's.
+curl -s localhost:8080/v1/claims -H "Authorization: Bearer $ASSESSOR" | jq
+
+# The evidence itself, streamed under the assessor's own token.
+curl -s localhost:8080/v1/claims/CLM-2026-0091/documents/death_certificate/file \
+  -H "Authorization: Bearer $ASSESSOR" -o certificate.pdf
+
 # The assessor decides.
 curl -s -XPOST localhost:8080/v1/claims/CLM-2026-0091/assess \
   -H "Authorization: Bearer $ASSESSOR" -H 'Content-Type: application/json' \
@@ -627,7 +724,8 @@ than assumption:
 
 ## Known gaps
 
-Real, and deliberately not papered over.
+Real, and deliberately not papered over. [docs/plan.md](docs/plan.md) carries the
+same list sequenced — what blocks what, and what needs somebody else's decision.
 
 1. **The phone app is React Native in the spec and a web app here.** `/m` is
    mobile-first React that shares the i18n table and design tokens, which is most
@@ -665,8 +763,14 @@ Real, and deliberately not papered over.
    from the same rows the screens show. PDF is offered as a disabled button with
    the reason, rather than a control that does nothing.
 
-   Still on fixtures: the member's cover-detail screen, which is not only wiring
-   — see gap 8.
+   The member's **cover detail** reads the benefit schedule now, on both
+   surfaces, so the phone and the web app cannot quote different figures for the
+   same cover — and neither can the plan chooser underneath them, which was
+   still promising ₦3m of death cover two inches below a table saying ₦2m.
+
+   Every member and console screen is wired. What remains fixtures is the
+   illustrative content around them: the leaver examples on the enrolment page,
+   the contacts on the settings page, the recent-exports list.
 
    A screen that has not been wired says the same numbers it always did — the
    fixtures and the seed agree — so the difference is where the figure comes
@@ -728,19 +832,22 @@ Real, and deliberately not papered over.
    of them were drafted in this session rather than carried from the design
    bundle — see the README.
 8. **Benefit figures are illustrative**, pending actuarial, legal and
-   underwriting sign-off — and the design and the API do not currently agree
-   about them, which is a product decision rather than a wiring one.
+   underwriting sign-off. They now come from one place: `Pricing.SCHEDULE`,
+   served at `GET /v1/products/schedule` and read by every screen that shows
+   what a tier pays out.
 
-   `Pricing.SCHEDULE` sells six benefits: death, accident extra, disability, a
-   weekly income, a funeral advance and hospital cash. The screens show seven,
-   named differently — accident medical bills, funeral assistance and children's
-   education — and five of the figures differ from the server's. Basic death
-   cover reads ₦3,000,000 on the web app and ₦2,000,000 in the API; executive
-   reads ₦15,000,000 against ₦20,000,000.
+   The design and the API used to disagree — the web app sold seven benefits
+   where the API sells six, and five figures differed, with basic death cover
+   reading ₦3,000,000 against the API's ₦2,000,000. **The API won**, on the
+   product owner's decision, and the screens read it now.
 
-   So the cover-detail screen is deliberately still on fixtures. Wiring it would
-   mean choosing which of the two is right, and that is a decision for whoever
-   owns the product — with the translated labels behind it, which need a native
-   speaker per language rather than a developer with a dictionary. Everything
-   needed to wire it exists: `GET /v1/products/schedule` serves the schedule
-   with a wording version and an effective date.
+   Two loose ends that decision leaves, both for whoever owns the wording:
+
+   - `hospital_cash` is labelled "Accident medical bills" in English. The other
+     four languages already say "accident hospital money", which is the key's
+     meaning, so no translation was invented — but the English string is worth a
+     second look.
+   - "Children's education" is still in the translation table and no longer
+     appears anywhere, because the API does not sell it. It was left in rather
+     than deleted from five languages: removing a translated string to add it
+     back later is how one gets lost.

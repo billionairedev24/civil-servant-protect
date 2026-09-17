@@ -130,7 +130,9 @@ machines behind restrictive networks; a blocked font CDN must not change the lay
 
 ## Known gaps, carried forward from the design
 
-These are real and deliberate — not oversights to tidy away.
+These are real and deliberate — not oversights to tidy away. For where the build
+as a whole stands, what is not done and the order it should be done in, see
+[docs/plan.md](docs/plan.md).
 
 1. **Translations are machine-drafted.** Every non-English line needs a native-speaker pass before any pilot. Insurance
    and payment vocabulary is where it fails hardest: *beneficiary*, *sum assured*, *grace period*, *mandate*.
@@ -141,11 +143,12 @@ These are real and deliberate — not oversights to tidy away.
    needs its own token set — worth doing after translation review, because longer strings change the layout it has to
    survive.
 4. **Low-end Android diacritics are untested.** Yorùbá and Igbo marks on stock system fonts at 12px and below.
-5. **The member's benefit and family-cover amounts are still per-surface.** The identity, beneficiaries and family are
-   now one record in `src/data/member.ts` that all three applications read (see below), but the phone's headline sum
-   assured is ₦5,500,000 against the web's ₦5,000,000, because the phone design includes the family top-up in the
-   figure and the web design does not. Both are defensible; which one a member should see is a product call.
-6. **Benefit figures are illustrative**, pending actuarial, legal and underwriting sign-off.
+5. ~~**The member's benefit and family-cover amounts are still per-surface.**~~ Closed. Every figure that says what
+   cover pays now comes from `GET /v1/products/schedule` and the member's own record, so the phone's headline and the
+   web's agree by construction rather than by review. The phone's ₦5,500,000 against the web's ₦5,000,000 was the
+   clearest symptom.
+6. **Benefit figures are illustrative**, pending actuarial, legal and underwriting sign-off — now served from one
+   place, `Pricing.SCHEDULE`, so signing them off is a change to one file.
 7. **The ten newest strings have had no translation pass at all.** Closing the payroll-prose gap below meant writing
    `paid_sub_self`, `ct_note_self`, `ct_legend_self`, `pay_if_body_self`, `pay_grace`, `pay_grace_self`,
    `home_pay_head_self`, `ct_src_card` and the two `ct_src_pending*` keys in all five locales. They are machine-drafted

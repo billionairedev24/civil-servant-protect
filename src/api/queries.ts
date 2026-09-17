@@ -2,7 +2,8 @@ import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tan
 import type { CspApi } from './client'
 import { useApi } from './provider'
 import type {
-  AuditEntry, BeneficiarySet, Claim, ClaimQueueItem, ConsoleUser, DebitRun, Dependant, Leaver,
+  AuditEntry, BenefitSchedule, BeneficiarySet, Claim, ClaimQueueItem, ConsoleUser, DebitRun,
+  Dependant, Leaver,
   Ledger, MemberSummary, MyClaim, NewMember, ProtectionCard, Reconciliation, Remittance, Roster,
   ScheduleBatch, ScheduleRow, SponsorClaims, SponsorDashboard,
 } from './types'
@@ -22,6 +23,7 @@ export const keys = {
   card: () => [...keys.member(), 'card'] as const,
   beneficiaries: () => [...keys.member(), 'beneficiaries'] as const,
   claims: () => [...keys.member(), 'claims'] as const,
+  schedule: () => ['products', 'schedule'] as const,
   dependants: () => [...keys.member(), 'dependants'] as const,
   claim: (ref: string) => ['claim', ref] as const,
   sponsor: () => ['sponsor'] as const,
@@ -179,6 +181,24 @@ export function useConfirmBeneficiaries() {
   })
 }
 
+/**
+ * The benefit schedule.
+ *
+ * <p>Long stale time and no polling: a price list changes when a policy wording
+ * does, which is not during somebody's session. Shared by every screen that
+ * shows what a tier pays out, so the phone and the web app cannot quote
+ * different figures for the same cover.
+ */
+export function useSchedule(fixture: BenefitSchedule) {
+  const { api } = useApi()
+  return useQuery({
+    queryKey: keys.schedule(),
+    queryFn: () => api!.schedule(),
+    staleTime: 24 * 60 * 60_000,
+    ...shared(api, fixture),
+  })
+}
+
 /** The family cover: who is on it, and who was taken off. */
 export function useDependants(fixture: { dependants: Dependant[] }) {
   const { api } = useApi()
@@ -281,6 +301,46 @@ export function useClaimQueue(
     queryFn: () => api!.claimQueue(),
     staleTime: 30_000,
     ...shared(api, fixture),
+  })
+}
+
+/**
+ * The assessor's decision on one claim.
+ *
+ * No optimistic state. A claim that shows "approved" for a moment and then goes
+ * back to being assessed — on the screen where somebody is deciding whether a
+ * family is paid — is worse than a second's wait.
+ */
+export function useAssessClaim(ref: string) {
+  const { api } = useApi()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (body: { decision: 'approve' | 'decline' | 'request_more'; note: string; amountMinor?: number }) =>
+      api!.assessClaim(ref, body),
+    onSuccess: () => {
+      // The queue's counts and this claim's own record both moved.
+      queryClient.invalidateQueries({ queryKey: keys.claimQueue() })
+      queryClient.invalidateQueries({ queryKey: keys.claim(ref) })
+    },
+  })
+}
+
+/**
+ * Sending the money. Held by operations, never by the assessor who approved it.
+ *
+ * The claim reference is the idempotency key server-side, so a double-click
+ * cannot pay twice — which is the one mistake here that cannot be undone by
+ * editing a row.
+ */
+export function usePayClaim(ref: string) {
+  const { api } = useApi()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (body: { bankCode: string; accountNumber: string }) => api!.payClaim(ref, body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: keys.claimQueue() })
+      queryClient.invalidateQueries({ queryKey: keys.claim(ref) })
+    },
   })
 }
 

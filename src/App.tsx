@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from 'react'
 import { Navigate, Route, Routes, useSearchParams } from 'react-router-dom'
 import { AuthProvider } from './api/auth'
+import { DataSourceBadge } from './api/live'
 import { ApiProvider } from './api/provider'
 import { LangProvider, type Lang } from './i18n'
 import type { SponsorId } from './data/sponsors'
@@ -62,6 +63,9 @@ export function App() {
           <Route path="/*" element={<MemberWebApp {...shared} />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+          {/* One label, everywhere, whenever these screens are reading
+              fixtures. See DataSourceBadge. */}
+          <DataSourceBadge />
         </AuthProvider>
       </ApiProvider>
     </LangProvider>

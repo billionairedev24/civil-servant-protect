@@ -3,16 +3,18 @@ import { Icon } from '../../../components/Icon'
 import { Kicker, Mono } from '../../../components/primitives'
 import { TIER_NAMES, TIER_PRICES, payeeNames } from '../../../data/member'
 import { C, MONO } from '../../../theme/tokens'
-import { SCHEDULE_MATRIX, WEB_ONLY_COVER } from '../data'
+import { WEB_ONLY_COVER } from '../data'
 import { FeatureRow, PageSub, PageTitle, Panel, StatusPill, Table, TableHead } from '../../../components/surface'
 import {
-  BENEFICIARY_SET, DEPENDANTS, LEDGER_FIXTURE, MEMBER_SUMMARY, PROTECTION_CARD,
+  BENEFICIARY_SET, BENEFIT_SCHEDULE, DEPENDANTS, LEDGER_FIXTURE, MEMBER_SUMMARY, PROTECTION_CARD,
 } from '../../../api/fixtures'
 import {
   useAddDependant, useBeneficiaries, useCard, useContributions, useDependants,
-  useRemoveDependant, useSummary,
+  useRemoveDependant, useSchedule, useSummary,
 } from '../../../api/queries'
-import { NotLive, dayFirst, naira, periodLabel, titleCase, useLive } from '../../../api/live'
+import {
+  BENEFIT_LABEL_INDEX, NotLive, benefitValue, dayFirst, naira, periodLabel, titleCase, useLive,
+} from '../../../api/live'
 import { useWeb } from '../state'
 
 export function WebDashboard() {
@@ -251,11 +253,27 @@ export function WebBenefits() {
   const { t, tier, sponsor } = useWeb()
   const payroll = sponsor.payroll
   const template = '1.6fr repeat(4,1fr)'
+  const { data: schedule, failed } = useLive(useSchedule(BENEFIT_SCHEDULE), BENEFIT_SCHEDULE)
+
+  /*
+   * The rows are the API's benefits, in the API's order, and the columns are
+   * the API's tiers at the API's prices. Nothing here is a figure this screen
+   * knows: what a tier pays out is what a family will be told they are owed,
+   * and a client holding its own copy is a client that is wrong the day the
+   * policy wording changes.
+   */
+  const rows = schedule.tiers[0]?.benefits ?? []
 
   return (
     <div className="rise page">
       <PageTitle>{t.cover_title}</PageTitle>
       <PageSub>{t.cover_sub} · every tier side by side, which the phone shows one at a time</PageSub>
+      {failed && <NotLive what="This schedule" />}
+      {/* The wording these figures belong to. A benefit schedule without a
+          version is a promise nobody can date. */}
+      <Mono size={11} color={C.faint} style={{ display: 'block', marginTop: 6 }}>
+        Wording {schedule.wordingVersion} · in force from {dayFirst(schedule.effectiveFrom)}
+      </Mono>
 
       <div style={{ marginTop: 18 }}>
         <Table>
@@ -263,31 +281,35 @@ export function WebBenefits() {
             <div style={{ padding: '11px 16px', fontFamily: MONO, fontSize: 9.5, letterSpacing: '.1em', color: C.g }}>
               BENEFIT
             </div>
-            {TIER_NAMES.map((name, i) => (
-              <div key={name} style={{ padding: '11px 12px', textAlign: 'right' }}>
+            {schedule.tiers.map((plan, i) => (
+              <div key={plan.code} style={{ padding: '11px 12px', textAlign: 'right' }}>
                 <span style={{ display: 'block', fontSize: 12.5, fontWeight: tier === i ? 700 : 500, color: tier === i ? C.gd : C.mut }}>
-                  {name}
+                  {plan.name}
                 </span>
-                <Mono size={10} color={C.faint} style={{ display: 'block', marginTop: 1 }}>{TIER_PRICES[i]}</Mono>
+                <Mono size={10} color={C.faint} style={{ display: 'block', marginTop: 1 }}>
+                  {naira(plan.priceMinor)}
+                </Mono>
               </div>
             ))}
           </div>
 
-          {t.sched.map((label, r) => (
+          {rows.map((row, r) => (
             <div
-              key={label}
+              key={row.key}
               style={{ display: 'grid', gridTemplateColumns: template, borderTop: '1px solid #EFEEE8', background: r % 2 ? '#FCFCFA' : C.white }}
             >
-              <div style={{ padding: '12px 16px', fontSize: 14, fontWeight: 500 }}>{label}</div>
-              {TIER_NAMES.map((name, c) => (
+              <div style={{ padding: '12px 16px', fontSize: 14, fontWeight: 500 }}>
+                {t.sched[BENEFIT_LABEL_INDEX[row.key]] ?? row.key.replace(/_/g, ' ')}
+              </div>
+              {schedule.tiers.map((plan, c) => (
                 <div
-                  key={name}
+                  key={plan.code}
                   style={{
                     padding: 12, textAlign: 'right', fontFamily: MONO, fontSize: 12.5,
                     fontWeight: tier === c ? 600 : 400, color: tier === c ? C.ink : C.mut,
                   }}
                 >
-                  {SCHEDULE_MATRIX[r]?.[c] ?? '—'}
+                  {benefitValue(plan.benefits.find((b) => b.key === row.key)?.valueMinor)}
                 </div>
               ))}
             </div>

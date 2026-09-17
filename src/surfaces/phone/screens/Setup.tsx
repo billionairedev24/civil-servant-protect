@@ -3,8 +3,11 @@ import { Kicker, Mono, RecordRow, StepBars } from '../../../components/primitive
 import { EN_ONLY } from '../../../i18n'
 import { SPONSORS } from '../../../data/sponsors'
 import {
-  EMPLOYER_ONBOARDING, MEMBER, RECORD_VALUES, TIER_NAMES, TIER_PRICES, BENEFICIARIES,
+  EMPLOYER_ONBOARDING, MEMBER, RECORD_VALUES, TIER_CODES, TIER_NAMES, TIER_PRICES, BENEFICIARIES,
 } from '../../../data/member'
+import { BENEFIT_SCHEDULE } from '../../../api/fixtures'
+import { useSchedule } from '../../../api/queries'
+import { BENEFIT_LABEL_INDEX, naira, useLive } from '../../../api/live'
 import { C, MONO } from '../../../theme/tokens'
 import { Screen, BackButton } from '../Screen'
 import { usePhone } from '../state'
@@ -220,10 +223,34 @@ export function EnrolScreen() {
 /** Shared by enrolment step 2 and the benefits screen's plan switcher. */
 export function TierList({ selected, onSelect }: { selected: number; onSelect: (i: number) => void }) {
   const { t } = usePhone()
+  const { data: schedule } = useLive(useSchedule(BENEFIT_SCHEDULE), BENEFIT_SCHEDULE)
+
+  /*
+   * The line under each plan: the headline benefit, from that plan's own
+   * figures.
+   *
+   * It used to be a translated sentence per tier — "₦3m life · ₦3m accident ·
+   * ₦150k medical" — which went on saying ₦3m after the schedule said ₦2m, two
+   * inches under a table that said ₦2m. Those strings are gone; a summary of
+   * figures has to be made of the figures.
+   *
+   * One benefit, not three. Death, accident and disability carry the same
+   * amount on every tier, so listing all three was one number said three times
+   * — and the labels are sentences, written to stand on their own line in five
+   * languages rather than to be strung together with a dot between them.
+   */
+  const headline = (code: string) => {
+    const plan = schedule.tiers.find((p) => p.code === code)
+    const death = plan?.benefits.find((b) => b.key === 'death')
+    if (!death?.valueMinor) return ''
+    return `${naira(death.valueMinor)} · ${t.sched[BENEFIT_LABEL_INDEX.death]}`
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
       {TIER_NAMES.map((name, i) => {
         const on = selected === i
+        const plan = schedule.tiers[i]
         return (
           <button
             key={name}
@@ -238,9 +265,13 @@ export function TierList({ selected, onSelect }: { selected: number; onSelect: (
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
               <span style={{ fontSize: 17, fontWeight: 700 }}>{name}</span>
-              <span style={{ fontSize: 17, fontWeight: 700, color: on ? C.gd : C.ink }}>{TIER_PRICES[i]}</span>
+              <span style={{ fontSize: 17, fontWeight: 700, color: on ? C.gd : C.ink }}>
+                {plan ? naira(plan.priceMinor) : TIER_PRICES[i]}
+              </span>
             </div>
-            <div style={{ fontSize: 13, lineHeight: 1.45, color: C.mut, marginTop: 5 }}>{t.tier_d[i]}</div>
+            <div style={{ fontSize: 13, lineHeight: 1.45, color: C.mut, marginTop: 5 }}>
+              {headline(TIER_CODES[i])}
+            </div>
           </button>
         )
       })}

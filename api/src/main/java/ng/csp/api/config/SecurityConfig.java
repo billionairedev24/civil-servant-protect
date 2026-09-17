@@ -77,7 +77,34 @@ public class SecurityConfig {
                     // no service has to be handed one out of band.
                     .requestMatchers(HttpMethod.GET, "/v1/auth/jwks")
                     .permitAll()
+                    /*
+                     * The benefit schedule is a price list.
+                     *
+                     * Every screen that says what a tier pays out reads it, and
+                     * some of them are read before anybody has signed in — the
+                     * enrolment screens an officer works through, the public
+                     * pages. Behind a token it 401s and each screen quietly
+                     * falls back to its own copy of the figures, which is the
+                     * arrangement that let the app and the API disagree about
+                     * what a family is owed in the first place.
+                     */
+                    .requestMatchers(HttpMethod.GET, "/v1/products/schedule")
+                    .permitAll()
                     .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")
+                    .permitAll()
+                    /*
+                     * The development stand-in for a presigned upload URL.
+                     *
+                     * Open for the same reason a presigned URL is: the thing
+                     * being presented is the URL itself, which this service
+                     * issued a moment earlier to an authenticated claimant and
+                     * which contains an unguessable key. LocalEvidenceController
+                     * exists only when csp.evidence.mode is 'local', and the
+                     * prod profile refuses to start on that mode — so in a real
+                     * deployment this matcher has no handler behind it and
+                     * uploads never touch this service at all.
+                     */
+                    .requestMatchers(HttpMethod.PUT, "/v1/evidence/**")
                     .permitAll()
                     .anyRequest()
                     .authenticated())

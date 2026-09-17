@@ -20,6 +20,7 @@ import { ConsoleException, ConsoleRecon } from './screens/Recon'
 import { ConsoleClaims, ConsoleMembers, ConsoleRoster } from './screens/People'
 import { ConsoleDebit, ConsoleRemit } from './screens/Money'
 import { ConsoleReports, ConsoleSettings } from './screens/Admin'
+import { ConsoleAssessing } from './screens/Assessing'
 
 const SCREENS: Record<ConsoleScreen, () => JSX.Element> = {
   dash: ConsoleDashboard,
@@ -31,6 +32,7 @@ const SCREENS: Record<ConsoleScreen, () => JSX.Element> = {
   roster: ConsoleRoster,
   members: ConsoleMembers,
   claims: ConsoleClaims,
+  assessing: ConsoleAssessing,
   settings: ConsoleSettings,
   reports: ConsoleReports,
 }
@@ -111,6 +113,10 @@ function Shell() {
 
 function SideNav() {
   const { screen, sponsor, go } = useConsole()
+  /* An item the session may not use is not shown at all, rather than shown and
+     refused. A sponsor's finance officer has no business knowing there is an
+     assessor's queue, and an assessor is not one of their staff. */
+  const { can } = useAuth()
   const officer = useOfficer()
   /* The queue counts in the rail, from the same read the dashboard uses — a
      sidebar that says 57 next to a screen that says 3 is worse than no badge,
@@ -170,7 +176,7 @@ function SideNav() {
               {group}
             </Mono>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {CONSOLE_NAV.filter((n) => n.group === group).map((it) => {
+              {CONSOLE_NAV.filter((n) => n.group === group && (!n.needs || can(n.needs))).map((it) => {
                 const on = screen === it.id
                 const badge = badgeFor(it.badge)
                 return (

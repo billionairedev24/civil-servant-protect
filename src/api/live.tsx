@@ -63,6 +63,43 @@ export function useLive<T>(
 }
 
 /**
+ * A standing mark, whenever the apps are running on fixtures.
+ *
+ * Small, fixed, and on every screen of all three surfaces, because the
+ * alternative was somebody reading the product for an hour and concluding the
+ * backend was not connected. They were right about what they were looking at —
+ * with `VITE_API_URL` unset, not one screen calls the API — and nothing on the
+ * page said so.
+ *
+ * Absent entirely when an API is configured, so it costs the real product
+ * nothing. It is not a warning: fixtures are how the design is reviewed and how
+ * the rail tests run. It is a label.
+ */
+export function DataSourceBadge() {
+  const { live } = useApi()
+  if (live) return null
+  return (
+    <div
+      // Not a live region: it never changes, and announcing it on every route
+      // change would be noise in a screen reader.
+      style={{
+        position: 'fixed', left: 12, bottom: 12, zIndex: 40,
+        display: 'flex', alignItems: 'center', gap: 7,
+        padding: '6px 11px', borderRadius: 999,
+        border: `1px solid ${C.ochreBorder}`, background: C.ochreBg, color: C.ochreInk,
+        fontSize: 11.5, fontWeight: 600, pointerEvents: 'none',
+      }}
+    >
+      <span
+        aria-hidden="true"
+        style={{ width: 6, height: 6, borderRadius: '50%', background: C.ochre }}
+      />
+      Demo data · no API configured
+    </div>
+  )
+}
+
+/**
  * Shown above figures that could not be refreshed.
  *
  * Says what is wrong and what it means for what is on screen, because "Error"
@@ -89,70 +126,14 @@ export function NotLive({ what = 'These figures' }: { what?: string }) {
   )
 }
 
-/**
- * Money, from minor units.
- *
- * The API speaks kobo as integers and the screens have always shown "₦2,500", so
- * the conversion lives in one place rather than in each screen's JSX. Naira are
- * whole here because every figure in this product is: contributions, sums
- * assured and payouts are all set in whole naira, and a trailing ".00" on a
- * payslip-adjacent number reads as an error.
- */
-export function naira(minor: number | null | undefined): string {
-  if (minor == null) return '—'
-  return `₦${Math.round(minor / 100).toLocaleString('en-NG')}`
-}
-
-/**
- * A wire enum as a person reads it: `standard` → "Standard".
- *
- * The API speaks lower-case identifiers because they are values, not prose. A
- * screen that prints one straight into a sentence gets "standard plan · in
- * force since…", which reads like a typo rather than a tier name.
- */
-export function titleCase(value: string | null | undefined): string {
-  if (!value) return ''
-  return value[0].toUpperCase() + value.slice(1).replace(/_/g, ' ')
-}
-
-/** "16.07.2025" — the form Nigerian forms and payslips use. */
-export function dayFirst(iso: string | null | undefined): string {
-  if (!iso) return '—'
-  const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) return '—'
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${pad(date.getUTCDate())}.${pad(date.getUTCMonth() + 1)}.${date.getUTCFullYear()}`
-}
-
 /*
- * Month names, written out rather than taken from `toLocaleDateString`.
+ * The formatters live in `format.ts` and are re-exported here.
  *
- * Intl's "short" month for en-NG is "Sept" — four letters for one month out of
- * twelve — which put "AUG 2025" and "SEPT 2026" at either end of the same axis.
- * It is also an ICU-version detail, so the same build could render differently
- * on a different machine, and these strings are asserted in the rail tests.
+ * Every screen imports them from this module and should keep doing so — the
+ * split exists so that a bundle with no DOM in it (the phone) can take the
+ * formatting without the components.
  */
-const SHORT_MONTHS = [
-  'JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC',
-] as const
-
-export const LONG_MONTHS = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
-] as const
-
-/** "SEP 2026" from an ISO date or a period like "2026-09-01". */
-export function periodLabel(iso: string | null | undefined): string {
-  if (!iso) return '—'
-  const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) return '—'
-  return `${SHORT_MONTHS[date.getUTCMonth()]} ${date.getUTCFullYear()}`
-}
-
-/** "September", for a sentence. `periodLabel` gives "SEP 2026", for a label. */
-export function monthName(iso: string | null | undefined): string {
-  if (!iso) return 'This'
-  const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) return 'This'
-  return LONG_MONTHS[date.getUTCMonth()]
-}
+export {
+  BENEFIT_LABEL_INDEX, LONG_MONTHS, benefitValue, dayFirst, monthName, naira, periodLabel,
+  shortNaira, titleCase,
+} from './format'

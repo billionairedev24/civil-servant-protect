@@ -1,0 +1,49 @@
+{
+  "extends": "@react-native/typescript-config",
+  "compilerOptions": {
+    /*
+     * Resolve `.native.ts` first, exactly as Metro does.
+     *
+     * Without this, `tsc` reads `src/api/env.ts` — the Vite one, with
+     * `import.meta.env` in it — and reports an error about a file this bundle
+     * never contains. With it, the typecheck sees the same modules the bundler
+     * will.
+     */
+    "moduleSuffixes": [".native", ""],
+
+    /*
+     * One React, and it is this app's.
+     *
+     * The shared hooks live above this folder, so TypeScript resolves their
+     * `react` types by walking up to the repository root — which is React 18,
+     * because the web app is. This app is on the React that React Native 0.87
+     * ships with, and `ReactNode` is not the same type in the two (19 added
+     * bigint). Without this every shared component is rejected where it is
+     * used.
+     *
+     * Two React versions in one repository is not the end state; it is what is
+     * true while the web app is on 18. Metro is told the same thing about the
+     * runtime copy in `metro.config.js`.
+     */
+    "paths": {
+      "react": ["./node_modules/@types/react"],
+      "react/jsx-runtime": ["./node_modules/@types/react/jsx-runtime"]
+    },
+
+    /*
+     * DOM, for the shared code rather than for this app.
+     *
+     * The API client is written against `fetch`, `Headers`, `Response`, `Blob`
+     * and `File` — web platform types that React Native implements at runtime
+     * and does not ship declarations for. The alternative is re-declaring them
+     * here, which is a second definition of the platform to keep in step.
+     *
+     * It does mean `document` typechecks in this folder. Nothing here uses it,
+     * and a `document` reference in a React Native screen fails loudly on the
+     * first render rather than quietly.
+     */
+    "lib": ["ESNext", "DOM"]
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx", "index.js"],
+  "exclude": ["node_modules", "android"]
+}

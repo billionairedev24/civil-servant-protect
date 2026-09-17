@@ -1,8 +1,9 @@
 import { Icon } from '../../../components/Icon'
 import { Kicker, Mono } from '../../../components/primitives'
-import { MEMBER_SUMMARY } from '../../../api/fixtures'
+import { BENEFIT_SCHEDULE, MEMBER_SUMMARY } from '../../../api/fixtures'
 import { initialsOf } from '../../../data/member'
-import { useSummary } from '../../../api/queries'
+import { useSchedule, useSummary } from '../../../api/queries'
+import { naira, useLive } from '../../../api/live'
 import { CLAIM, MEMBER, payeeNames } from '../../../data/member'
 import { C } from '../../../theme/tokens'
 import { Screen } from '../Screen'
@@ -19,7 +20,16 @@ export function HomeScreen() {
      also what shows while the request is in flight, because a member opening
      this to check whether their deduction arrived should see last month's
      figures at once rather than a spinner. */
-  const { data: summary } = useSummary(MEMBER_SUMMARY)
+  // Through useLive, so a failed refresh falls back to the fixture explicitly
+  // rather than leaving `data` undefined — see the note on that hook.
+  const { data: summary } = useLive(useSummary(MEMBER_SUMMARY), MEMBER_SUMMARY)
+  const { data: schedule } = useLive(useSchedule(BENEFIT_SCHEDULE), BENEFIT_SCHEDULE)
+
+  /* What an accident adds to the death benefit, for this member's tier. */
+  const accidentExtraMinor =
+    schedule.tiers
+      .find((plan) => plan.code === summary.cover.tier)
+      ?.benefits.find((b) => b.key === 'accident_extra')?.valueMinor ?? 0
   const memberName = summary?.member.name ?? MEMBER.name
 
   /* The pay row is the first thing a member checks when a payslip looks wrong,
@@ -92,7 +102,13 @@ export function HomeScreen() {
           is credibility, and this card carries most of it. */}
       <div style={{ marginTop: 18, padding: 20, borderRadius: 16, background: C.g, color: '#F2F7F4' }}>
         <Kicker size={9.5} color="inherit" style={{ opacity: 0.85 }}>{t.if_you_die}</Kicker>
-        <div style={{ fontSize: 40, fontWeight: 700, letterSpacing: '-.035em', marginTop: 5 }}>₦5,500,000</div>
+        {/* The member's own cover, from their record — not a number written
+            here. This card said ₦5,500,000 while the schedule two taps away
+            said ₦5,000,000, which is the kind of disagreement a family finds
+            out about at the worst possible moment. */}
+        <div style={{ fontSize: 40, fontWeight: 700, letterSpacing: '-.035em', marginTop: 5 }}>
+          {naira(summary.cover.sumAssuredMinor)}
+        </div>
         <div style={{ fontSize: 14, lineHeight: 1.5, marginTop: 5, opacity: 0.9 }}>
           {t.paid_to} <span style={{ fontWeight: 600 }}>{payeeNames(t.and)}</span>
         </div>
@@ -100,7 +116,11 @@ export function HomeScreen() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
           <div>
             <div style={{ fontSize: 12.5, opacity: 0.85 }}>{t.accident_amount}</div>
-            <div style={{ fontSize: 22, fontWeight: 700, marginTop: 1 }}>₦10,500,000</div>
+            {/* Death plus the accident benefit, added here because that is what
+                the sentence promises: what an accident pays *on top*. */}
+            <div style={{ fontSize: 22, fontWeight: 700, marginTop: 1 }}>
+              {naira(summary.cover.sumAssuredMinor + accidentExtraMinor)}
+            </div>
           </div>
           <button type="button" className="btn btn-xs btn-on-green" onClick={() => go('benefits')}>
             {t.see_cover}

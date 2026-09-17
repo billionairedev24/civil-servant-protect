@@ -189,3 +189,145 @@ jobs:
           detail=$(grep -E '^\s*(✗|console:|uncaught:)' smoke.log | head -5 | tr '\n' ' ' | cut -c1-900)
           [ -n "$detail" ] || detail=$(tail -5 smoke.log | tr '\n' ' ' | cut -c1-900)
           echo "::error title=Smoke test::${detail}"
+
+  # The phone app.
+  #
+  # This job exists because nowhere else can build it: an APK needs the Android
+  # SDK, and the machine this was written on has Gradle and no SDK at all. So
+  # "it compiles" is proved here rather than claimed, and the sizes below are
+  # measured rather than estimated.
+  #
+  # It does not prove the app runs. Nothing short of a handset does that, and
+  # the artefact is uploaded so somebody can install it and find out.
+  mobile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      # No setup-android action. The GitHub Ubuntu image ships the SDK with its
+      # licences already accepted, and the action that installs one on top of it
+      # is a third-party dependency that failed on the first run for reasons
+      # nobody here can read — this repository cannot fetch Actions log blobs.
+      # Checked explicitly instead, so a missing SDK says so in one line.
+      - name: Android SDK
+        shell: bash
+        run: |
+          sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          if [ -z "$sdk" ] || [ ! -d "$sdk" ]; then
+            echo "::error title=Mobile::No Android SDK on this runner (ANDROID_HOME unset)."
+            exit 1
+          fi
+          echo "sdk.dir=$sdk" > mobile/android/local.properties
+          echo "Using $sdk"
+
+      # The root's too: Metro compiles `src/` from the repository, which is the
+      # point of the whole arrangement — the phone and the browser run the same
+      # API client, the same i18n table and the same claim wizard.
+      - name: Install
+        run: |
+          npm ci
+          npm ci --prefix mobile
+
+      # Against the shared code, with `.native.ts` resolution on — so the
+      # typecheck sees the modules Metro will actually bundle.
+      - name: Typecheck
+        run: npm run typecheck --prefix mobile
+
+      # Bundling is where a shared module that cannot cross to React Native
+      # shows up: a DOM type is a compile error, but a `document` reference or a
+      # Vite-only import is not, and it fails here instead.
+      - name: Bundle
+        working-directory: mobile
+        run: |
+          npx react-native bundle --platform android --dev false \
+            --entry-file index.js \
+            --bundle-output /tmp/index.android.bundle --assets-dest /tmp/assets
+
+      - name: Build the APKs
+        working-directory: mobile/android
+        shell: bash
+        run: ./gradlew assembleRelease --no-daemon 2>&1 | tee ../../gradle.log
+
+      # The spec's budget is 8 MB per ABI. Reported rather than enforced: this
+      # is the first build, the number is what it is, and a job that failed on
+      # it before anyone has seen it would just get the check deleted.
+      - name: Sizes
+        shell: bash
+        run: |
+          rows=''
+          for apk in mobile/android/app/build/outputs/apk/release/*.apk; do
+            bytes=$(stat -c%s "$apk")
+            mb=$(awk "BEGIN{printf \"%.1f\", $bytes/1048576}")
+            verdict=$(awk "BEGIN{print ($bytes <= 8388608) ? \"within\" : \"over\"}")
+            rows="${rows}$(basename "$apk") ${mb} MB ${verdict} the 8 MB budget%0A"
+          done
+
+          {
+            echo '### APK sizes'
+            echo ''
+            echo '| Build | Size | Against the 8 MB budget |'
+            echo '|---|---|---|'
+            for apk in mobile/android/app/build/outputs/apk/release/*.apk; do
+              bytes=$(stat -c%s "$apk")
+              mb=$(awk "BEGIN{printf \"%.1f\", $bytes/1048576}")
+              verdict=$(awk "BEGIN{print ($bytes <= 8388608) ? \"within\" : \"over\"}")
+              echo "| $(basename "$apk") | ${mb} MB | ${verdict} |"
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          # Also as an annotation. A step summary cannot be read back through
+          # the checks API, and this number is one the spec names — it should
+          # not need a browser to find out.
+          echo "::notice title=APK sizes::${rows}"
+
+      # The ARM builds only. The x86 ones exist so an emulator can run
+      # something and are not what anybody installs on a phone.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: csp-mobile-apks
+          path: |
+            mobile/android/app/build/outputs/apk/release/*-armeabi-v7a-release.apk
+            mobile/android/app/build/outputs/apk/release/*-arm64-v8a-release.apk
+          retention-days: 14
+
+      # The same reasoning as the smoke test's reporter, pushed further.
+      #
+      # Actions log blobs are not fetchable from every environment this is
+      # worked on from, and neither are artifacts — both live on the same
+      # storage. Annotations come back through the checks API, so the failure
+      # travels in one. Newlines are %0A because that is how a workflow command
+      # carries them.
+      - name: Report failure
+        if: failure()
+        shell: bash
+        run: |
+          {
+            echo '### The phone app did not build'
+            echo ''
+            echo '```'
+            tail -120 gradle.log 2>/dev/null || echo 'Failed before Gradle ran.'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ -f gradle.log ]; then
+            # Gradle puts the cause under "What went wrong" and the useful
+            # detail in the twenty-odd lines after it.
+            detail=$(awk '/What went wrong/,0' gradle.log | head -30)
+            [ -n "$detail" ] || detail=$(grep -E '^(e:|error:|FAILURE|Caused by)' gradle.log | head -12)
+            [ -n "$detail" ] || detail=$(tail -30 gradle.log)
+          else
+            detail='Failed before Gradle ran.'
+          fi
+          encoded=$(printf '%s' "$detail" | sed -e 's/%/%25/g' -e 's/\r/%0D/g' | awk '{printf "%s%%0A", $0}')
+          echo "::error title=Mobile::${encoded}"

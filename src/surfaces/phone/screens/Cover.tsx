@@ -1,12 +1,16 @@
 import { Icon } from '../../../components/Icon'
 import { Kicker, Mono, ScreenTitle, Sub } from '../../../components/primitives'
 import { EN_ONLY, fill } from '../../../i18n'
-import { MEMBER, SCHEDULE_VALUES, TIER_NAMES } from '../../../data/member'
-import { BENEFICIARY_SET, DEPENDANTS, MEMBER_SUMMARY, PROTECTION_CARD } from '../../../api/fixtures'
+import { MEMBER, TIER_NAMES } from '../../../data/member'
 import {
-  useBeneficiaries, useCard, useConfirmBeneficiaries, useDependants, useSummary,
+  BENEFICIARY_SET, BENEFIT_SCHEDULE, DEPENDANTS, MEMBER_SUMMARY, PROTECTION_CARD,
+} from '../../../api/fixtures'
+import {
+  useBeneficiaries, useCard, useConfirmBeneficiaries, useDependants, useSchedule, useSummary,
 } from '../../../api/queries'
-import { NotLive, dayFirst, naira, useLive } from '../../../api/live'
+import {
+  BENEFIT_LABEL_INDEX, NotLive, benefitValue, dayFirst, naira, useLive,
+} from '../../../api/live'
 import { C } from '../../../theme/tokens'
 import { Screen } from '../Screen'
 import { usePhone } from '../state'
@@ -148,23 +152,44 @@ export function ProtectionCardScreen() {
 
 export function BenefitsScreen() {
   const { t, tier, set } = usePhone()
+  const { data: schedule, failed } = useLive(useSchedule(BENEFIT_SCHEDULE), BENEFIT_SCHEDULE)
+
+  /*
+   * The tier being looked at, which is the demo's chooser here and the member's
+   * own plan when one is signed in. Its benefits, in the API's order, with the
+   * API's figures — the same numbers the web app shows in its four-column
+   * table, because both read the one schedule.
+   */
+  const plan = schedule.tiers[tier] ?? schedule.tiers[1] ?? schedule.tiers[0]
+
   return (
     <Screen scroll>
       <ScreenTitle style={{ paddingTop: 12 }}>{t.cover_title}</ScreenTitle>
       <Sub>{t.cover_sub}</Sub>
+      {failed && <NotLive what="This schedule" />}
 
       <div style={{ marginTop: 14 }}>
-        {t.sched.map((k, i) => (
+        {plan?.benefits.map((benefit) => (
           <div
-            key={k}
+            key={benefit.key}
             style={{
               display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
               gap: 14, padding: '14px 0', borderBottom: `1px solid ${C.line5}`,
             }}
           >
-            <div style={{ fontSize: 15, fontWeight: 500 }}>{k}</div>
-            <div style={{ fontSize: 15.5, fontWeight: 700, whiteSpace: 'nowrap', color: C.g }}>
-              {SCHEDULE_VALUES[i]}
+            <div style={{ fontSize: 15, fontWeight: 500 }}>
+              {t.sched[BENEFIT_LABEL_INDEX[benefit.key]] ?? benefit.key.replace(/_/g, ' ')}
+            </div>
+            <div
+              style={{
+                fontSize: 15.5, fontWeight: 700, whiteSpace: 'nowrap',
+                // A benefit this tier does not include is grey and "—", not a
+                // green figure. It is the difference between a promise to pay
+                // nothing and no promise at all.
+                color: benefit.valueMinor == null ? C.faint : C.g,
+              }}
+            >
+              {benefitValue(benefit.valueMinor)}
             </div>
           </div>
         ))}

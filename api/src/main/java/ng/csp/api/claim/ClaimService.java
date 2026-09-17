@@ -1,13 +1,16 @@
 package ng.csp.api.claim;
 
+import java.io.InputStream;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
+import ng.csp.api.auth.Permission;
 import ng.csp.api.auth.Role;
 import ng.csp.api.auth.SessionUser;
 import ng.csp.api.domain.Claims;
+import ng.csp.api.evidence.Evidence;
 import ng.csp.api.integration.Payout;
 import ng.csp.api.integration.ReplayLog;
 import ng.csp.api.web.ApiException;
@@ -23,11 +26,13 @@ public class ClaimService {
   private final JdbcClient db;
   private final ObjectMapper json;
   private final Payout payout;
+  private final Evidence evidence;
 
-  public ClaimService(JdbcClient db, ObjectMapper json, Payout payout) {
+  public ClaimService(JdbcClient db, ObjectMapper json, Payout payout, Evidence evidence) {
     this.db = db;
     this.json = json;
     this.payout = payout;
+    this.evidence = evidence;
   }
 
   public record Opened(String claimRef, List<String> requiredDocs, String funeralAdvanceRef) {}
@@ -186,43 +191,116 @@ public class ClaimService {
 
   public record DocumentResult(String docKey, int outstanding) {}
 
+  /**
+   * Somewhere to put one document, and permission to put it there.
+   *
+   * <p>Two calls rather than one, because the bytes do not come through this service: the client
+   * asks where to send the file, sends it to object storage itself, and then confirms. Ten megabytes
+   * of scanned certificate through a request thread is a thread spent copying, and on a claim surge
+   * those threads are wanted for claims.
+   *
+   * <p>The storage key is chosen here and never accepted from the caller. A key a caller picks is a
+   * path a caller can traverse, and until this existed the API wrote down whatever string it was
+   * handed.
+   */
   @Transactional
-  public DocumentResult attachDocument(
+  public Evidence.Upload beginUpload(
       SessionUser session, String ref, String docKey, String filename,
-      String contentType, int byteSize, String storageKey) {
+      String contentType, int byteSize) {
 
-    var claim =
-        db.sql("SELECT id, member_id FROM claims WHERE claim_ref = :ref")
-            .param("ref", ref)
-            .query((rs, n) -> new Object[] {rs.getObject("id", UUID.class), rs.getObject("member_id", UUID.class)})
-            .optional()
-            .orElseThrow(() -> ApiException.notFound("No claim with that reference."));
+    var claim = ownClaim(session, ref);
 
-    if (!claim[1].equals(session.memberId())) {
-      throw ApiException.forbidden("That claim is not yours.");
-    }
+    /*
+     * One key per upload attempt, not per document. A second attempt writes a
+     * new object rather than overwriting the first, which is what object lock
+     * requires and what lets an assessor see that a file was replaced rather
+     * than quietly find different bytes behind the same key.
+     */
+    var key = "claims/%s/%s/%s%s".formatted(claim[0], docKey, UUID.randomUUID(), extensionFor(contentType));
 
     var updated =
         db.sql(
                 """
                 UPDATE claim_documents
-                   SET state = 'received', filename = :f, content_type = :ct,
-                       byte_size = :size, storage_key = :key, uploaded_at = now()
-                 WHERE claim_id = :c AND doc_key = :k
+                   SET filename = :f, content_type = :ct, byte_size = :size, storage_key = :key
+                 WHERE claim_id = :c AND doc_key = :k AND state <> 'received'
                 """)
             .param("f", filename)
             .param("ct", contentType)
             .param("size", byteSize)
-            .param("key", storageKey)
+            .param("key", key)
             .param("c", claim[0])
             .param("k", docKey)
             .update();
 
-    // The required list is derived server-side, so a client asking to attach
-    // something outside it is out of date rather than right.
     if (updated == 0) {
-      throw ApiException.badRequest("%s is not a document this claim asks for.".formatted(docKey));
+      throw ApiException.badRequest(
+          "%s is not a document this claim is still waiting for.".formatted(docKey));
     }
+
+    return evidence.begin(key, contentType, byteSize);
+  }
+
+  /** The extension keeps a downloaded file openable; the content type is what is enforced. */
+  private static String extensionFor(String contentType) {
+    return switch (contentType) {
+      case "application/pdf" -> ".pdf";
+      case "image/png" -> ".png";
+      default -> ".jpg";
+    };
+  }
+
+  /**
+   * Confirm the bytes arrived.
+   *
+   * <p>Checked against the store rather than believed. A client that says it uploaded and did not —
+   * a dropped connection, a cancelled request, a presigned URL that expired mid-transfer — would
+   * otherwise move the claim to assessing with nothing behind the row, and the first person to find
+   * out would be the assessor with an empty document to read.
+   */
+  @Transactional
+  public DocumentResult attachDocument(SessionUser session, String ref, String docKey) {
+
+    var claim = ownClaim(session, ref);
+
+    /*
+     * Coalesced, because `optional()` on a row whose only column is NULL comes
+     * back empty — which would report a document the claim does not ask for
+     * when what happened is that nobody asked for an upload URL yet. Two
+     * different mistakes by the client, and they need two different messages.
+     */
+    var storageKey =
+        db.sql(
+                """
+                SELECT coalesce(storage_key, '') FROM claim_documents
+                 WHERE claim_id = :c AND doc_key = :k
+                """)
+            .param("c", claim[0])
+            .param("k", docKey)
+            .query(String.class)
+            .optional()
+            // The required list is derived server-side, so a client asking to
+            // attach something outside it is out of date rather than right.
+            .orElseThrow(
+                () ->
+                    ApiException.badRequest(
+                        "%s is not a document this claim asks for.".formatted(docKey)));
+
+    if (storageKey.isEmpty()) {
+      throw ApiException.badRequest("Ask for an upload URL for %s first.".formatted(docKey));
+    }
+    if (!evidence.exists(storageKey)) {
+      throw ApiException.badRequest("That file did not arrive. Send it again.");
+    }
+
+    db.sql(
+            """
+            UPDATE claim_documents SET state = 'received', uploaded_at = now()
+             WHERE claim_id = :c AND doc_key = :k
+            """)
+        .param("c", claim[0])
+        .param("k", docKey)
+        .update();
 
     var outstanding =
         db.sql("SELECT count(*)::int FROM claim_documents WHERE claim_id = :c AND state = 'required'")
@@ -236,7 +314,124 @@ public class ClaimService {
           "All required documents received");
     }
 
+    shareWithTheAdvance(session, (UUID) claim[0], docKey, storageKey);
     return new DocumentResult(docKey, outstanding);
+  }
+
+  /**
+   * The funeral advance takes the same papers as the death claim beside it.
+   *
+   * <p>A death claim opens an advance automatically, and both ask for the death
+   * certificate and the claimant's ID. Asking for them twice means a bereaved family
+   * photographing a certificate again for a claim they did not know they had opened — and an
+   * advance that sits at {@code documents_pending} forever, which is the one claim in the scheme
+   * that is supposed to be quick.
+   *
+   * <p>The same object, not a copy: one upload, two claims pointing at it. Nothing is duplicated in
+   * storage and the two records cannot drift apart.
+   */
+  private void shareWithTheAdvance(SessionUser session, UUID parentId, String docKey, String storageKey) {
+    var advance =
+        db.sql("SELECT id FROM claims WHERE parent_claim_id = :p AND type = 'funeral_advance'")
+            .param("p", parentId)
+            .query(UUID.class)
+            .optional();
+    if (advance.isEmpty()) {
+      return;
+    }
+
+    var shared =
+        db.sql(
+                """
+                UPDATE claim_documents child
+                   SET state = 'received', filename = parent.filename,
+                       content_type = parent.content_type, byte_size = parent.byte_size,
+                       storage_key = parent.storage_key, uploaded_at = now()
+                  FROM claim_documents parent
+                 WHERE child.claim_id = :advance AND child.doc_key = :k
+                   AND child.state <> 'received'
+                   AND parent.claim_id = :parent AND parent.doc_key = :k
+                """)
+            .param("advance", advance.get())
+            .param("parent", parentId)
+            .param("k", docKey)
+            .update();
+    if (shared == 0) {
+      return;
+    }
+
+    var outstanding =
+        db.sql("SELECT count(*)::int FROM claim_documents WHERE claim_id = :c AND state = 'required'")
+            .param("c", advance.get())
+            .query(Integer.class)
+            .single();
+    if (outstanding == 0) {
+      db.sql("UPDATE claims SET state = 'assessing' WHERE id = :c").param("c", advance.get()).update();
+      stage(advance.get(), "documents_received", "done", session.userId().toString(),
+          "Taken from the death claim — the same papers, not sent twice");
+    }
+  }
+
+  /** The claim, if it is this member's. Everything a claimant does goes through here. */
+  private Object[] ownClaim(SessionUser session, String ref) {
+    var claim =
+        db.sql("SELECT id, member_id FROM claims WHERE claim_ref = :ref")
+            .param("ref", ref)
+            .query(
+                (rs, n) ->
+                    new Object[] {
+                      rs.getObject("id", UUID.class), rs.getObject("member_id", UUID.class)
+                    })
+            .optional()
+            .orElseThrow(() -> ApiException.notFound("No claim with that reference."));
+
+    if (!claim[1].equals(session.memberId())) {
+      throw ApiException.forbidden("That claim is not yours.");
+    }
+    return claim;
+  }
+
+  /** A stored document, ready to stream. */
+  public record StoredDocument(String filename, String contentType, InputStream body) {}
+
+  /**
+   * Read a document back.
+   *
+   * <p>An assessor may read anybody's, because deciding a claim means looking at the certificate;
+   * everybody else may read only their own, checked against the claim's member rather than against
+   * the reference, which is guessable enough to matter.
+   */
+  public StoredDocument document(SessionUser session, String ref, String docKey) {
+    var assessor = session.role().can(Permission.CLAIM_READ_ANY);
+    var claimId = assessor ? anyClaim(ref) : (UUID) ownClaim(session, ref)[0];
+
+    var row =
+        db.sql(
+                """
+                SELECT storage_key, filename, content_type FROM claim_documents
+                 WHERE claim_id = :c AND doc_key = :k AND state = 'received'
+                """)
+            .param("c", claimId)
+            .param("k", docKey)
+            .query(
+                (rs, n) ->
+                    new String[] {
+                      rs.getString("storage_key"),
+                      rs.getString("filename"),
+                      rs.getString("content_type")
+                    })
+            .optional()
+            .orElseThrow(() -> ApiException.notFound("That document has not been uploaded."));
+
+    return new StoredDocument(row[1], row[2], evidence.read(row[0]));
+  }
+
+  private UUID anyClaim(String ref) {
+    return db.sql("SELECT id FROM claims WHERE claim_ref = :ref")
+        .param("ref", ref)
+        .query(UUID.class)
+        .optional()
+        .orElseThrow(() -> ApiException.notFound("No claim with that reference."));
   }
 
   public record MyClaim(String ref, String type, String state, Long amountMinor, Instant openedAt) {}
