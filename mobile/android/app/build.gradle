@@ -105,17 +105,29 @@ android {
      *
      * That matters more here than it usually does: the people this is for buy
      * data in ₦100 bundles, and an app that costs a morning's airtime to
-     * install is an app they do not install. The universal APK is still built,
-     * because sideloading onto an unknown device is how a pilot gets tested,
-     * and `versionCodes` keeps the Play upload rules satisfied if it ever goes
-     * that way.
+     * install is an app they do not install.
+     *
+     * Measured on the first CI build: 12.3 MB for armeabi-v7a against 16.6 MB
+     * for arm64 and 55.1 MB for a universal APK — so the split is worth having
+     * even though none of these is inside the spec's 8 MB yet. See the plan's
+     * note on that gap.
      */
     splits {
         abi {
             enable true
             reset()
             include "armeabi-v7a", "arm64-v8a", "x86", "x86_64"
-            universalApk true
+            /*
+             * No universal APK. It measured 55.1 MB — every architecture's
+             * native libraries in one file, of which a handset uses one set.
+             * Nobody installs that deliberately, and on a ₦100 data bundle
+             * nobody installs it by accident twice.
+             *
+             * The x86 builds are here so an emulator can run one; they are not
+             * shipped, and CI uploads only the two ARM builds, which are the
+             * only ones a phone in Nigeria can run.
+             */
+            universalApk false
         }
     }
     signingConfigs {
@@ -135,6 +147,10 @@ android {
             // see https://reactnative.dev/docs/signed-apk-android.
             signingConfig signingConfigs.debug
             minifyEnabled enableProguardInReleaseBuilds
+            // Unreferenced drawables, layouts and strings go with the
+            // unreferenced code. Needs minifyEnabled, which is why it is here
+            // rather than beside it.
+            shrinkResources enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
         }
     }
