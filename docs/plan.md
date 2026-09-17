@@ -70,9 +70,10 @@ most misleading to leave, because the product looks complete and is not.
    sign in, home, the protection card, cover, the claim wizard, tracking.
 
    What is not done: only English (the language picker is not built), no
-   navigation library, the card's QR is not drawn, and **nobody has run it on a
-   handset**. It typechecks and Metro bundles it here; the CI `mobile` job is
-   where an APK first exists, because this machine has no Android SDK.
+   navigation library, the card's QR is not drawn, **the APK is over the spec's
+   size budget** (see 2c.21), and **nobody has run it on a handset**. It
+   typechecks and Metro bundles it here; the CI `mobile` job is where an APK
+   first exists, because this machine has no Android SDK.
 5. **Next.js SSR for the member web.** The spec asks for server rendering so it
    works on slow links and old browsers. This is a Vite SPA.
 6. **USSD twin.** A stateless menu service reading the same i18n table. Not
@@ -122,6 +123,26 @@ most misleading to leave, because the product looks complete and is not.
     are untested on low-end Android at small sizes.
 20. **NDPA DPIA, the NITDA data-classification ruling and a pen test** are all
     outstanding, and all three gate a pilot rather than a demo.
+21. **The APK is 12.3 MB against the spec's 8 MB**, measured rather than
+    estimated — that is the armeabi-v7a build, which is what a low-end handset
+    installs; arm64 is 16.6 MB. Dropping the universal APK took 55.1 MB off
+    what gets published and code and resource shrinking are both on. The rest
+    is Hermes and the React Native runtime compiled per architecture, and there
+    is no configuration switch that removes it. Three real options, in order of
+    what they cost:
+
+    - **An app bundle instead of APKs.** Play generates a per-device download,
+      which typically lands a third smaller again — but it means distributing
+      through Play, and a pilot that sideloads cannot use it.
+    - **Accept 12 MB and say so.** It is one download on a scheme somebody
+      keeps for decades, and it is the honest figure for React Native with the
+      new architecture.
+    - **Change the target.** The 8 MB in the spec was written before an
+      implementation existed; whether it was a measured requirement or a wish
+      is a question for whoever wrote it.
+
+    This is a decision rather than a defect, which is why it is here and in §5
+    rather than being worked at until the number moves.
 
 ---
 
@@ -251,3 +272,6 @@ substitutes for that.
    "Open decisions").
 3. **DR in a second Nigerian site, or an exemption for a foreign region.**
 4. **44px hit targets vs the design's density** (2c.18).
+5. **The 8 MB APK budget** (2c.21). The build is 12.3 MB for the architecture
+   most low-end handsets use, and no configuration closes that gap — the
+   options are an app bundle, accepting the figure, or changing the target.

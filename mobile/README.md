@@ -37,11 +37,23 @@ says so on screen, in the same words.
 npm run apk       # mobile/android/app/build/outputs/apk/release/
 ```
 
-Hermes, R8, and one APK per ABI plus a universal one — the spec's budget is
-8 MB, and the largest thing in a React Native APK is the native libraries
-compiled four times over. The CI `mobile` job builds these on every pull request
-and prints the sizes; the machine this was written on has no Android SDK, so
-that job is where an APK first exists.
+Hermes, R8, resource shrinking, one APK per ABI and no universal one. The CI
+`mobile` job builds these on every pull request and prints the sizes as an
+annotation; the machine this was written on has no Android SDK, so that job is
+where an APK first exists.
+
+**It is over the spec's 8 MB budget.** Measured on the first green build:
+
+| | |
+|---|---|
+| armeabi-v7a | 12.3 MB |
+| arm64-v8a | 16.6 MB |
+| universal (no longer built) | 55.1 MB |
+
+The remaining weight is Hermes and the React Native runtime compiled per
+architecture, and no configuration switch removes it. The next real lever is an
+app bundle rather than an APK, which means distributing through Play. See
+`docs/plan.md` §2c.21 — it is a decision, not a build problem.
 
 **Release builds are signed with the debug key.** That is the React Native
 template's default and it is left visible rather than quietly changed: a real
