@@ -419,6 +419,21 @@ export function useDebitRun(sponsorId: string, fixture: DebitRun) {
   })
 }
 
+/**
+ * Take an export.
+ *
+ * <p>A mutation rather than a query, because it is an action somebody takes and
+ * not state a screen holds: nothing should re-fetch a 400-kilobyte CSV because
+ * a window regained focus.
+ */
+export function useReport(sponsorId: string) {
+  const { api } = useApi()
+  return useMutation({
+    mutationFn: (input: { kind: string; period?: string }) =>
+      api!.report(sponsorId, input.kind, input.period),
+  })
+}
+
 /** The money, month by month. */
 export function useRemittances(sponsorId: string, fixture: { remittances: Remittance[] }) {
   const { api } = useApi()

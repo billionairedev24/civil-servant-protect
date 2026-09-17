@@ -1,12 +1,16 @@
+import { useState } from 'react'
 import { Icon } from '../../../components/Icon'
 import { Kicker, Mono } from '../../../components/primitives'
 import { PageSub, PageTitle, Panel } from '../../../components/surface'
 import { C } from '../../../theme/tokens'
-import { PERIODS, RECENT_EXPORTS, REPORTS, tone } from '../data'
+import { RECENT_EXPORTS, REPORTS, tone } from '../data'
 import { useConsole } from '../state'
 import { AUDIT_TRAIL, CONSOLE_USERS_FIXTURE, SPONSOR_DASHBOARD } from '../../../api/fixtures'
-import { useAuditTrail, useConsoleUsers, useSponsorDashboard } from '../../../api/queries'
-import { NotLive, dayFirst, useLive } from '../../../api/live'
+import {
+  useAuditTrail, useConsoleUsers, useReport, useSponsorDashboard,
+} from '../../../api/queries'
+import { useApi } from '../../../api/provider'
+import { LONG_MONTHS, NotLive, dayFirst, useLive } from '../../../api/live'
 import { initialsOf } from '../../../data/member'
 
 /**
@@ -234,8 +238,62 @@ export function ConsoleSettings() {
   )
 }
 
+/**
+ * The last four months, as chips and as the dates the API takes.
+ *
+ * Replaces "August 2026 · Q3 · Year to date · 2025 full year". A quarter and a
+ * year are ranges no export is defined over, and a chip that selects one and
+ * then hands back a single month is a file somebody sends an auditor under the
+ * wrong name.
+ */
+function recentMonths(): { label: string; period: string }[] {
+  const now = new Date()
+  return [0, 1, 2, 3].map((back) => {
+    const month = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - back, 1))
+    return {
+      label: `${LONG_MONTHS[month.getUTCMonth()]} ${month.getUTCFullYear()}`,
+      period: month.toISOString().slice(0, 10),
+    }
+  })
+}
+
 export function ConsoleReports() {
   const { period, set } = useConsole()
+  const { data: dash } = useLive(useSponsorDashboard(SPONSOR_DASHBOARD), SPONSOR_DASHBOARD)
+  const { live } = useApi()
+  const report = useReport(dash.sponsor.id)
+  const [taking, setTaking] = useState<string | null>(null)
+  const [problem, setProblem] = useState<string | null>(null)
+  const months = recentMonths()
+  const chosen = months[period] ?? months[0]
+
+  /*
+   * A download, from a response that needed a bearer token.
+   *
+   * The file cannot be an ordinary link: a URL that works without a header is
+   * an export anybody with the address can take. So it is fetched like every
+   * other call and handed to the browser as a blob.
+   */
+  const take = (kind: string) => {
+    setProblem(null)
+    setTaking(kind)
+    report.mutate(
+      { kind, period: chosen.period },
+      {
+        onSuccess: ({ filename, csv }) => {
+          const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
+          const link = document.createElement('a')
+          link.href = url
+          link.download = filename
+          link.click()
+          URL.revokeObjectURL(url)
+        },
+        onError: (e) =>
+          setProblem(e instanceof Error ? e.message : 'That report could not be produced.'),
+        onSettled: () => setTaking(null),
+      },
+    )
+  }
 
   return (
     <>
@@ -247,11 +305,11 @@ export function ConsoleReports() {
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 20, alignItems: 'center' }}>
         <Kicker size={9.5}>PERIOD</Kicker>
-        {PERIODS.map((name, i) => {
+        {months.map((month, i) => {
           const on = period === i
           return (
             <button
-              key={name}
+              key={month.period}
               type="button"
               className="chip"
               onClick={() => set({ period: i })}
@@ -263,11 +321,31 @@ export function ConsoleReports() {
                 fontSize: 12.5, fontWeight: on ? 600 : 500,
               }}
             >
-              {name}
+              {month.label}
             </button>
           )
         })}
       </div>
+
+      {problem && (
+        <div
+          role="alert"
+          style={{
+            display: 'flex', alignItems: 'flex-start', gap: 9, marginTop: 12, padding: '11px 12px',
+            border: `1px solid ${C.clayBorder2}`, borderRadius: 10, background: C.clayBg,
+          }}
+        >
+          <Icon name="ph-fill ph-warning-circle" size={16} color={C.clay} />
+          <span style={{ fontSize: 12.5, lineHeight: 1.45, color: C.clayInk }}>{problem}</span>
+        </div>
+      )}
+
+      {!live && (
+        <div style={{ fontSize: 12, lineHeight: 1.5, color: C.faint, marginTop: 12 }}>
+          Demonstration data. With an API configured, each of these downloads the real file for this
+          employer.
+        </div>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(268px,1fr))', gap: 10, marginTop: 14 }}>
         {REPORTS.map((rp) => {
@@ -287,16 +365,27 @@ export function ConsoleReports() {
               </div>
               <div style={{ flex: 1, fontSize: 12.5, lineHeight: 1.5, color: C.mut, marginTop: 7 }}>{rp.sub}</div>
               <div style={{ display: 'flex', gap: 7, marginTop: 13, flexWrap: 'wrap' }}>
-                {['CSV', 'PDF'].map((f) => (
-                  <button
-                    key={f}
-                    type="button"
-                    className="btn btn-secondary"
-                    style={{ flex: 1, minWidth: 78, height: 40, padding: '0 13px', fontSize: 13 }}
-                  >
-                    {f}
-                  </button>
-                ))}
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  style={{ flex: 1, minWidth: 78, height: 40, padding: '0 13px', fontSize: 13 }}
+                  disabled={taking !== null}
+                  onClick={() => take(rp.kind)}
+                >
+                  {taking === rp.kind ? 'Taking…' : 'CSV'}
+                </button>
+                {/* Not yet, and said so rather than offered. Every one of these
+                    ends up in a spreadsheet anyway — a PDF of a table is a
+                    table nobody can reconcile against their own figures. */}
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  style={{ flex: 1, minWidth: 78, height: 40, padding: '0 13px', fontSize: 13 }}
+                  disabled
+                  title="Not built yet. The CSV is the one an auditor can work with."
+                >
+                  PDF
+                </button>
               </div>
             </div>
           )

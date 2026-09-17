@@ -136,7 +136,7 @@ const SHORT_MONTHS = [
   'JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC',
 ] as const
 
-const LONG_MONTHS = [
+export const LONG_MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',
 ] as const

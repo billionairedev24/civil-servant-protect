@@ -183,12 +183,13 @@ export const CONSOLE_CLAIMS = [
   },
 ] as const
 
+/** `kind` is the API's own name for the export, so the card and the endpoint cannot drift. */
 export const REPORTS = [
-  { title: 'Deduction schedule', sub: 'What you asked payroll to deduct, per member, for the period.', icon: 'ph ph-list-numbers', tone: 'neutral' },
-  { title: 'Remittance reconciliation', sub: 'Credits received against the file, with every variance and how it was resolved. This is the one auditors ask for.', icon: 'ph ph-git-diff', tone: 'green' },
-  { title: 'Membership movement', sub: 'Starters, leavers, transfers and tier changes, with effective dates.', icon: 'ph ph-users-three', tone: 'neutral' },
-  { title: 'Claims summary', sub: 'Counts, amounts and outcomes. No medical detail, no cause of death.', icon: 'ph ph-first-aid-kit', tone: 'neutral' },
-  { title: 'Lapse risk', sub: 'Members inside the 60-day grace window, ordered by days remaining. Nobody asks for this until a family is refused.', icon: 'ph ph-warning-diamond', tone: 'clay' },
+  { kind: 'schedule', title: 'Deduction schedule', sub: 'What you asked payroll to deduct, per member, for the period.', icon: 'ph ph-list-numbers', tone: 'neutral' },
+  { kind: 'remittances', title: 'Remittance reconciliation', sub: 'Credits received against the file, with every variance and how it was resolved. This is the one auditors ask for.', icon: 'ph ph-git-diff', tone: 'green' },
+  { kind: 'movement', title: 'Membership movement', sub: 'Starters and leavers in the period, with the dates that decide what is owed.', icon: 'ph ph-users-three', tone: 'neutral' },
+  { kind: 'claims', title: 'Claims summary', sub: 'Counts and outcomes. No amount, no cause of death, no medical detail.', icon: 'ph ph-first-aid-kit', tone: 'neutral' },
+  { kind: 'lapse-risk', title: 'Lapse risk', sub: 'Members inside the 60-day grace window, ordered by days remaining. Nobody asks for this until a family is refused.', icon: 'ph ph-warning-diamond', tone: 'clay' },
 ] as const
 
 export const RECENT_EXPORTS = [
@@ -197,8 +198,6 @@ export const RECENT_EXPORTS = [
   { name: 'Lapse risk · Aug 2026', who: 'Amina Bello', when: '28.08', icon: 'ph ph-file-pdf' },
   { name: 'Membership movement · Q2 2026', who: 'Ngozi Eze', when: '12.07', icon: 'ph ph-file-xls' },
 ] as const
-
-export const PERIODS = ['August 2026', 'Q3 2026', 'Year to date', '2025 full year'] as const
 
 /** Shared tone → colour mapping, so a row's semantic is set once. */
 export function tone(t: 'green' | 'ochre' | 'clay' | 'neutral') {

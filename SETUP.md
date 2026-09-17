@@ -322,6 +322,31 @@ The console screen is **Members → Add members**. It parses the staff list in t
 browser and shows what it read — which header each field came from, how many
 rows, which lines it will not send — before anybody is created by it.
 
+### Exports
+
+```bash
+curl -s "localhost:8080/v1/sponsors/$SPONSOR/reports/remittances?period=2026-08-01" \
+  -H "Authorization: Bearer $VIEWER"
+# "period","rail_ref","state","scheduled_count","scheduled","credited","received","variance",…
+# "2026-08-01","CSP-114/08","closed","8412","21030000.00","8412","21030000.00","0.00","0"
+```
+
+Five of them: `schedule`, `remittances`, `movement`, `claims`, `lapse-risk`.
+CSV rather than a formatted document, because every one ends up in a spreadsheet
+— an auditor reconciles it against their own figures, a payroll officer sorts
+it — and a PDF of a table is a table nobody can use.
+
+Each is a query over the same rows the screens count, so an export and the
+console cannot disagree about a number somebody will quote back six months
+later. The claims export reads the sponsor's projection, which has no amount,
+cause or document on it: an export is the likeliest place for a column to appear
+that nobody meant to disclose, because it is written once and read by whoever is
+sent the file.
+
+`lapse-risk` is the one nobody asks for until a family has been refused —
+everybody whose grace period is running and who has not paid this month, with
+the phone number to ring.
+
 ### Somebody leaving
 
 ```bash
@@ -636,8 +661,12 @@ Real, and deliberately not papered over.
    contributions say what arrived, and the difference is the variance somebody
    has to explain.
 
-   Still on fixtures: the console's reports, and the member's cover-detail
-   screen. The second is not only wiring — see gap 8.
+   The console's **reports** take real CSV exports — five of them, each counted
+   from the same rows the screens show. PDF is offered as a disabled button with
+   the reason, rather than a control that does nothing.
+
+   Still on fixtures: the member's cover-detail screen, which is not only wiring
+   — see gap 8.
 
    A screen that has not been wired says the same numbers it always did — the
    fixtures and the seed agree — so the difference is where the figure comes

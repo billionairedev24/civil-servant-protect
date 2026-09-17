@@ -1,6 +1,7 @@
 package ng.csp.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -8,6 +9,7 @@ import java.util.UUID;
 import ng.csp.api.config.RlsScope;
 import ng.csp.api.enrolment.EnrolmentService;
 import ng.csp.api.enrolment.LeaverService;
+import ng.csp.api.sponsor.ReportService;
 import ng.csp.api.sponsor.SponsorService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -31,6 +33,7 @@ import org.springframework.test.context.ActiveProfiles;
 class DebitRunTest {
 
   @Autowired SponsorService sponsors;
+  @Autowired ReportService reports;
   @Autowired EnrolmentService enrolment;
   @Autowired LeaverService leavers;
   @Autowired JdbcClient db;
@@ -215,6 +218,49 @@ class DebitRunTest {
     assertThat(remittance.varianceMinor()).isEqualTo(-250_000L);
     assertThat(remittance.creditedCount()).isEqualTo(2);
     assertThat(remittance.openExceptions()).isEqualTo(1);
+  }
+
+  @Test
+  @DisplayName("the exports count the same rows the screens do")
+  void reportsAgreeWithTheScreens() {
+    db.sql("UPDATE collection_cycles SET scheduled_minor = 500000, scheduled_count = 2 WHERE id = :c")
+        .param("c", cycleId)
+        .update();
+    var paid = member("22233344455", "+2348031111111", "5510001");
+    var didNot = member("22233344466", "+2348031111112", "5510002");
+    contribution(paid, "confirmed");
+    contribution(didNot, "failed");
+
+    var csv = reports.of(sponsorId, "remittances", period).csv();
+    var run = sponsors.debitRun(sponsorId);
+
+    // A number an officer reads on screen and a number they email to an auditor
+    // are the same number, because both are counted from the same rows.
+    assertThat(csv).contains("\"2500.00\"").contains("\"-2500.00\"");
+    assertThat(run.counts().settled()).isEqualTo(1);
+  }
+
+  @Test
+  @DisplayName("the claims export carries no amount and no cause")
+  void theClaimsExportStaysThin() {
+    var report = reports.of(sponsorId, "claims", period);
+
+    /*
+     * Read from the sponsor's projection, which has no amount, cause or
+     * document on it at all. An export is the likeliest place for a column to
+     * appear that nobody meant to disclose — it is written once and read by
+     * whoever is sent the file.
+     */
+    assertThat(report.csv().lines().findFirst().orElseThrow())
+        .isEqualTo("\"type\",\"state\",\"claims\",\"awaiting_this_employer\"");
+    assertThat(report.filename()).startsWith("claims-summary-");
+  }
+
+  @Test
+  @DisplayName("a report nobody defined is refused by name, not answered empty")
+  void anUnknownReportIsRefused() {
+    assertThatThrownBy(() -> reports.of(sponsorId, "everything", period))
+        .hasMessageContaining("No such report");
   }
 
   private UUID member(String nin, String msisdn, String serviceNo) {

@@ -346,6 +346,31 @@ export class CspApi {
     return this.call('GET', '/v1/claims')
   }
 
+  /**
+   * An export, as a file the browser can save.
+   *
+   * <p>Not a link the screen can point at: every request carries a bearer token,
+   * and a URL that works without one is an export anybody can fetch. So it is a
+   * normal authenticated call whose body happens to be CSV, and the caller turns
+   * it into a download.
+   */
+  async report(
+    sponsorId: string,
+    kind: string,
+    period?: string,
+  ): Promise<{ filename: string; csv: string }> {
+    const { text, headers } = await this.call<{ text: string; headers: Headers }>(
+      'GET',
+      `/v1/sponsors/${sponsorId}/reports/${kind}${query({ period })}`,
+      undefined,
+      { raw: true },
+    )
+    // The server names the file. A folder of report.csv, report(1).csv,
+    // report(2).csv is how the wrong month reaches an auditor.
+    const named = /filename="([^"]+)"/.exec(headers.get('content-disposition') ?? '')
+    return { filename: named?.[1] ?? `${kind}.csv`, csv: text }
+  }
+
   /** The money, month by month. Derived from the ledger, not a stored summary. */
   remittances(sponsorId: string): Promise<{ remittances: Remittance[] }> {
     return this.call('GET', `/v1/sponsors/${sponsorId}/remittances`)
@@ -377,7 +402,7 @@ export class CspApi {
     method: string,
     path: string,
     body?: unknown,
-    options: { anonymous?: boolean; retried?: boolean } = {},
+    options: { anonymous?: boolean; retried?: boolean; raw?: boolean } = {},
   ): Promise<T> {
     const headers: Record<string, string> = {}
     if (body !== undefined) headers['Content-Type'] = 'application/json'
@@ -418,6 +443,18 @@ export class CspApi {
 
     const text = await response.text()
     const payload = text ? safeJson(text) : null
+
+    /*
+     * A response that is not JSON — an export, today.
+     *
+     * Through the same method rather than its own fetch, because everything
+     * above this line is the part worth sharing: the bearer token, the one
+     * recoverable 401, the single in-flight refresh. A second fetch elsewhere
+     * would be a second place for a session to go stale differently.
+     */
+    if (response.ok && options.raw) {
+      return { text, headers: response.headers } as T
+    }
 
     if (!response.ok) {
       if (response.status === 401 && !options.anonymous) {

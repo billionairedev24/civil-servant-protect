@@ -165,6 +165,16 @@ public class SecurityConfig {
     config.setAllowedOriginPatterns(props.corsOrigins());
     config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
     config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+    /*
+     * The one response header a browser is allowed to read.
+     *
+     * Without it an export downloads as "remittances.csv" rather than
+     * "remittances-2026-08.csv", because a cross-origin script cannot see
+     * Content-Disposition unless it is exposed — and a folder of files named
+     * after their report and not their month is how the wrong one is sent to an
+     * auditor.
+     */
+    config.setExposedHeaders(List.of("Content-Disposition"));
     config.setAllowCredentials(false);
     config.setMaxAge(3600L);
     var source = new UrlBasedCorsConfigurationSource();
