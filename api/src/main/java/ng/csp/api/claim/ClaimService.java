@@ -314,7 +314,62 @@ public class ClaimService {
           "All required documents received");
     }
 
+    shareWithTheAdvance(session, (UUID) claim[0], docKey, storageKey);
     return new DocumentResult(docKey, outstanding);
+  }
+
+  /**
+   * The funeral advance takes the same papers as the death claim beside it.
+   *
+   * <p>A death claim opens an advance automatically, and both ask for the death
+   * certificate and the claimant's ID. Asking for them twice means a bereaved family
+   * photographing a certificate again for a claim they did not know they had opened — and an
+   * advance that sits at {@code documents_pending} forever, which is the one claim in the scheme
+   * that is supposed to be quick.
+   *
+   * <p>The same object, not a copy: one upload, two claims pointing at it. Nothing is duplicated in
+   * storage and the two records cannot drift apart.
+   */
+  private void shareWithTheAdvance(SessionUser session, UUID parentId, String docKey, String storageKey) {
+    var advance =
+        db.sql("SELECT id FROM claims WHERE parent_claim_id = :p AND type = 'funeral_advance'")
+            .param("p", parentId)
+            .query(UUID.class)
+            .optional();
+    if (advance.isEmpty()) {
+      return;
+    }
+
+    var shared =
+        db.sql(
+                """
+                UPDATE claim_documents child
+                   SET state = 'received', filename = parent.filename,
+                       content_type = parent.content_type, byte_size = parent.byte_size,
+                       storage_key = parent.storage_key, uploaded_at = now()
+                  FROM claim_documents parent
+                 WHERE child.claim_id = :advance AND child.doc_key = :k
+                   AND child.state <> 'received'
+                   AND parent.claim_id = :parent AND parent.doc_key = :k
+                """)
+            .param("advance", advance.get())
+            .param("parent", parentId)
+            .param("k", docKey)
+            .update();
+    if (shared == 0) {
+      return;
+    }
+
+    var outstanding =
+        db.sql("SELECT count(*)::int FROM claim_documents WHERE claim_id = :c AND state = 'required'")
+            .param("c", advance.get())
+            .query(Integer.class)
+            .single();
+    if (outstanding == 0) {
+      db.sql("UPDATE claims SET state = 'assessing' WHERE id = :c").param("c", advance.get()).update();
+      stage(advance.get(), "documents_received", "done", session.userId().toString(),
+          "Taken from the death claim — the same papers, not sent twice");
+    }
   }
 
   /** The claim, if it is this member's. Everything a claimant does goes through here. */

@@ -9,7 +9,8 @@
  */
 import type {
   AddedDependant, AuditEntry, BenefitSchedule, BeneficiarySet, BulkEnrolment, Claim, ClaimQueueItem,
-  ConsoleUser, DebitRun, Dependant, Enrolled, Leaver, Ledger, MemberSummary, MyClaim, NewMember,
+  ClaimUpload, ConsoleUser, DebitRun, Dependant, Enrolled, Leaver, Ledger, MemberSummary, MyClaim,
+  NewMember,
   ProtectionCard,
   Reconciliation, RemovedDependant, Remittance, Roster, ScheduleBatch, ScheduleRow, Session,
   SponsorClaims, SponsorDashboard, Tokens,
@@ -269,6 +270,60 @@ export class CspApi {
     answers?: Record<string, unknown>
   }): Promise<{ claimRef: string; requiredDocs: string[]; funeralAdvanceRef: string | null }> {
     return this.call('POST', '/v1/claims', body)
+  }
+
+  /**
+   * Attach one document to a claim: ask, send, confirm.
+   *
+   * <p>Three steps rather than a multipart POST, because the middle one does not
+   * come here — the file goes straight to object storage on the URL the server
+   * hands back. A ten-megabyte scan of a death certificate through the API is a
+   * request thread spent copying bytes.
+   *
+   * The headers matter. Against a bucket they are part of the presigned
+   * signature, so the browser must send exactly those and nothing else; a
+   * helpfully-added header is a 403 nobody can explain.
+   */
+  async uploadClaimDocument(
+    ref: string,
+    docKey: string,
+    file: File,
+    onProgress?: (fraction: number) => void,
+  ): Promise<{ docKey: string; outstanding: number }> {
+    const where: ClaimUpload = await this.call(
+      'POST',
+      `/v1/claims/${encodeURIComponent(ref)}/documents/upload`,
+      { docKey, filename: file.name, contentType: file.type, byteSize: file.size },
+    )
+
+    onProgress?.(0)
+    const sent = await fetch(where.url, {
+      method: where.method,
+      headers: where.headers,
+      body: file,
+    })
+    if (!sent.ok) {
+      /*
+       * Deliberately not the storage service's own error body. S3 answers in
+       * XML with a code like SignatureDoesNotMatch, which is true, unhelpful,
+       * and not something to put in front of somebody who has just lost a
+       * relative.
+       */
+      throw new ApiError(
+        sent.status,
+        'upload_failed',
+        'That file did not reach us. Check your connection and try again.',
+      )
+    }
+    onProgress?.(1)
+
+    // The server checks the store before it believes this.
+    return this.call('POST', `/v1/claims/${encodeURIComponent(ref)}/documents`, { docKey })
+  }
+
+  /** Where a document can be read back from — the assessor's copy, and the claimant's own. */
+  claimDocumentUrl(ref: string, docKey: string): string {
+    return `${this.baseUrl}/v1/claims/${encodeURIComponent(ref)}/documents/${encodeURIComponent(docKey)}/file`
   }
 
   // ── Sponsor console ────────────────────────────────────────────────────────

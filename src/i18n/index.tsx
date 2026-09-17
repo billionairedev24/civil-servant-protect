@@ -108,6 +108,41 @@ export const EN_ONLY = {
   onboard_join: 'Yes, join this scheme',
   onboard_not_mine: 'This is not my employer',
 
+  /*
+   * What each required document is called, keyed the way the server names it.
+   *
+   * The list a claim asks for comes from the API and changes with the
+   * underwriter's wording version — a client that hard-codes it asks a grieving
+   * family for the wrong papers after a policy change. So the app holds names
+   * for keys it may be sent and nothing about which ones are needed.
+   *
+   * `t.docs_n` is not this: it is four fixed papers from the mockup, in five
+   * languages, that do not correspond to any claim type the API serves. These
+   * are English-only and go into the translation pass with the rest.
+   */
+  doc_death_certificate: 'Death certificate',
+  doc_claimant_id: 'Your ID card',
+  doc_member_id_card: "The member's ID card",
+  doc_burial_permit: 'Burial permit',
+  doc_medical_report: 'Medical report',
+  doc_police_report: 'Police report',
+  doc_specialist_assessment: "Specialist's assessment",
+
+  doc_add: 'Add',
+  doc_replace: 'Replace',
+  doc_sending: 'Sending…',
+  doc_received: 'Received',
+  doc_photograph_note:
+    'Photograph each paper. Blurry is fine — a person reads them, not a machine. PDF, JPEG or PNG, up to 10 MB each.',
+  doc_outstanding_one: 'One more paper to send.',
+  doc_outstanding_many: '{n} more papers to send.',
+  doc_all_in: 'Everything is in. An assessor has it now.',
+  doc_failed: 'That file did not reach us. Try it again.',
+
+  claim_opening: 'Opening your claim…',
+  claim_open_failed: 'We could not open the claim. Try again, or call the claims office.',
+  claim_send_first: 'Send the papers before you finish.',
+
   // Sponsor console (desktop) — English-only in the bundle
   console_needs_you: 'NEEDS YOU THIS WEEK',
   console_exceptions_head: 'EXCEPTIONS · MUST BE CLEARED BEFORE THE NEXT RUN',

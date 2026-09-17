@@ -255,6 +255,60 @@ class EvidenceTest {
   }
 
   @Test
+  @DisplayName("the funeral advance takes the death claim's papers rather than asking twice")
+  void theAdvanceSharesTheEvidence() {
+    // Opened automatically beside the death claim, asking for the death
+    // certificate and the claimant's ID — both of which the member is about to
+    // send to the claim they do know about.
+    var advanceRef =
+        db.sql(
+                """
+                SELECT claim_ref FROM claims
+                 WHERE type = 'funeral_advance'
+                   AND parent_claim_id = (SELECT id FROM claims WHERE claim_ref = :ref)
+                """)
+            .param("ref", ref)
+            .query(String.class)
+            .single();
+
+    for (var docKey : List.of("death_certificate", "claimant_id")) {
+      var upload =
+          asClaimant(
+              () -> claims.beginUpload(claimant, ref, docKey, docKey + ".pdf", "application/pdf", 12));
+      uploadTo(upload, "bytes for " + docKey);
+      asClaimant(() -> claims.attachDocument(claimant, ref, docKey));
+    }
+
+    /*
+     * The advance is complete and moving, on an upload the member made once.
+     * Left alone it sat at documents_pending forever — on the one claim in the
+     * scheme whose whole purpose is to pay for a burial happening this week.
+     */
+    var advance = claims.byRef(assessor, advanceRef);
+    assertThat(advance.state()).isEqualTo("assessing");
+    assertThat(advance.documents()).allMatch(d -> d.state().equals("received"));
+
+    // The same object, not a second copy: one upload, two claims pointing at it.
+    var keys =
+        db.sql(
+                """
+                SELECT count(DISTINCT storage_key)::int FROM claim_documents
+                 WHERE doc_key = 'death_certificate'
+                   AND claim_id IN (SELECT id FROM claims WHERE claim_ref IN (:a, :b))
+                """)
+            .param("a", ref)
+            .param("b", advanceRef)
+            .query(Integer.class)
+            .single();
+    assertThat(keys).isEqualTo(1);
+
+    // And it reads back through the advance, which is the claim an assessor
+    // will actually have open when they are paying for the burial.
+    var doc = claims.document(assessor, advanceRef, "death_certificate");
+    assertThat(doc.filename()).isEqualTo("death_certificate.pdf");
+  }
+
+  @Test
   @DisplayName("an assessor can read the certificate; another member cannot")
   void readingIsScopedToTheClaimantAndTheAssessor() throws Exception {
     var docKey = firstRequiredDoc();

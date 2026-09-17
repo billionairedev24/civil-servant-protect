@@ -3,6 +3,9 @@ import { Mono, RecordRow, StepBars } from '../../../components/primitives'
 import { CLAIM, CLAIM_SUMMARY_VALUES } from '../../../data/member'
 import { CLAIM_FIXTURE, MY_CLAIMS } from '../../../api/fixtures'
 import { useClaim, useMyClaims } from '../../../api/queries'
+import { useClaimWizard } from '../../../api/claim'
+import { DocumentPicker, docName } from '../../../components/DocumentPicker'
+import { EN_ONLY, fill } from '../../../i18n'
 import { NotLive, dayFirst, naira, useLive } from '../../../api/live'
 import { C, MONO } from '../../../theme/tokens'
 import { Screen, BackButton } from '../Screen'
@@ -105,7 +108,32 @@ export function AccidentScreen() {
 /** Five-step claim wizard: what happened → who for → papers → review → done. */
 export function ClaimScreen() {
   const { t, clStep, cl, set, go } = usePhone()
-  const docIcons = ['ph-fill ph-check-circle', 'ph-fill ph-check-circle', 'ph ph-bank', 'ph ph-plus-circle']
+  const claim = useClaimWizard()
+
+  /*
+   * The papers this claim actually needs, from the server.
+   *
+   * `t.docs_n` is four fixed names from the mockup — a death certificate, an ID,
+   * bank details, a police report — which is not what any claim type asks for
+   * and does not change when the underwriter's wording does. On fixtures it is
+   * still what the demo shows, because there is no claim to ask about.
+   */
+  const docs = claim.ref ? claim.requiredDocs : []
+  const busy = claim.opening || Object.values(claim.docState).includes('sending')
+
+  const next = async () => {
+    // Leaving the "who for" step is where the claim comes into existence: the
+    // server decides which papers it wants, and it cannot decide that before
+    // it has been told what happened and who is asking.
+    if (clStep === 1) {
+      const opened = await claim.open(cl[0], cl[1])
+      if (claim.error && !opened) return
+    }
+    if (clStep < 4) return set({ clStep: clStep + 1 })
+    set({ clStep: 0 })
+    claim.reset()
+    go('track')
+  }
 
   return (
     <Screen pad="6px 22px 22px">
@@ -120,7 +148,14 @@ export function ClaimScreen() {
         <div style={{ fontSize: 25, fontWeight: 700, letterSpacing: '-.025em', textWrap: 'balance' }}>
           {t.cl_q[clStep]}
         </div>
-        <div style={{ fontSize: 14, lineHeight: 1.5, color: C.mut, marginTop: 6 }}>{t.cl_h[clStep]}</div>
+        {/* Not on the last step. `cl_h[4]` reads "Reference CLM-2026-0091" —
+            in all five languages — which was the mockup's claim number printed
+            above the member's actual one. A reference that is not theirs is
+            worse than no subtitle at all: it is the string somebody reads down
+            the phone to the claims office. */}
+        {clStep < 4 && (
+          <div style={{ fontSize: 14, lineHeight: 1.5, color: C.mut, marginTop: 6 }}>{t.cl_h[clStep]}</div>
+        )}
 
         {clStep < 2 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 9, marginTop: 18 }}>
@@ -153,36 +188,108 @@ export function ClaimScreen() {
         {clStep === 2 && (
           <>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 9, marginTop: 18 }}>
-              {t.docs_n.map((name, i) => {
-                const done = i < 2
-                return (
-                  <div
-                    key={name}
-                    style={{
-                      display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12,
-                      padding: 15, border: `1px solid ${done ? C.gBorder : C.line}`,
-                      borderRadius: 12, background: C.white,
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
-                      <Icon name={docIcons[i]} size={20} color={done ? C.g : C.faint} />
-                      <div>
-                        <div style={{ fontSize: 15.5, fontWeight: 600 }}>{name}</div>
-                        <div style={{ fontSize: 12.5, color: C.faint, marginTop: 1 }}>{t.docs_s[i]}</div>
+              {docs.length > 0
+                ? docs.map((key) => {
+                    const state = claim.docState[key] ?? 'waiting'
+                    const done = state === 'received'
+                    const failed = state === 'failed'
+                    return (
+                      <div
+                        key={key}
+                        style={{
+                          display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12,
+                          padding: 15,
+                          border: `1px solid ${done ? C.gBorder : failed ? C.clay : C.line}`,
+                          borderRadius: 12, background: C.white,
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 11, minWidth: 0 }}>
+                          <Icon
+                            name={
+                              done
+                                ? 'ph-fill ph-check-circle'
+                                : failed
+                                  ? 'ph-fill ph-warning-circle'
+                                  : state === 'sending'
+                                    ? 'ph ph-circle-notch'
+                                    : 'ph ph-camera'
+                            }
+                            size={20}
+                            color={done ? C.g : failed ? C.clay : C.faint}
+                          />
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontSize: 15.5, fontWeight: 600 }}>{docName(key)}</div>
+                            <div style={{ fontSize: 12.5, color: failed ? C.clayInk : C.faint, marginTop: 1 }}>
+                              {done
+                                ? EN_ONLY.doc_received
+                                : failed
+                                  ? EN_ONLY.doc_failed
+                                  : state === 'sending'
+                                    ? EN_ONLY.doc_sending
+                                    : EN_ONLY.doc_add}
+                            </div>
+                          </div>
+                        </div>
+                        <DocumentPicker
+                          docKey={key}
+                          state={state}
+                          compact
+                          onPick={(file) => void claim.send(key, file)}
+                        />
                       </div>
+                    )
+                  })
+                : /* Fixtures: no claim was opened, so there is no list to ask
+                     for. The mockup's four papers stand in, as they always have. */
+                  t.docs_n.map((name, i) => (
+                    <div
+                      key={name}
+                      style={{
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12,
+                        padding: 15, border: `1px solid ${i < 2 ? C.gBorder : C.line}`,
+                        borderRadius: 12, background: C.white,
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+                        <Icon
+                          name={i < 2 ? 'ph-fill ph-check-circle' : 'ph ph-plus-circle'}
+                          size={20}
+                          color={i < 2 ? C.g : C.faint}
+                        />
+                        <div>
+                          <div style={{ fontSize: 15.5, fontWeight: 600 }}>{name}</div>
+                          <div style={{ fontSize: 12.5, color: C.faint, marginTop: 1 }}>{t.docs_s[i]}</div>
+                        </div>
+                      </div>
+                      <span style={{ fontSize: 13.5, fontWeight: 600, color: i < 2 ? C.g : C.faint }}>
+                        {t.docs_a[i]}
+                      </span>
                     </div>
-                    <span style={{ fontSize: 13.5, fontWeight: 600, color: done ? C.g : C.faint }}>{t.docs_a[i]}</span>
-                  </div>
-                )
-              })}
+                  ))}
             </div>
+
+            {docs.length > 0 && (
+              <div
+                style={{
+                  marginTop: 12, fontSize: 13.5, fontWeight: 600,
+                  color: claim.outstanding === 0 ? C.g : C.ochre,
+                }}
+              >
+                {claim.outstanding === 0
+                  ? EN_ONLY.doc_all_in
+                  : claim.outstanding === 1
+                    ? EN_ONLY.doc_outstanding_one
+                    : fill(EN_ONLY.doc_outstanding_many, { n: String(claim.outstanding) })}
+              </div>
+            )}
+
             <div
               style={{
                 marginTop: 14, padding: 14, border: `1px solid ${C.line}`, borderRadius: 10,
                 background: C.white, fontSize: 13, lineHeight: 1.5, color: C.mut,
               }}
             >
-              {t.docs_note}
+              {docs.length > 0 ? EN_ONLY.doc_photograph_note : t.docs_note}
             </div>
           </>
         )}
@@ -216,10 +323,21 @@ export function ClaimScreen() {
             >
               <Icon name="ph-fill ph-check-circle" size={32} color={C.g} />
             </div>
+            {/* The reference the server issued, which is what an assessor and a
+                call to the claims office both go on. The fixture's is only
+                shown when there is no claim, i.e. on the demo. */}
             <div style={{ fontSize: 15, lineHeight: 1.6, color: C.gInk3 }}>
               {t.claim_ref}{' '}
-              <span style={{ fontFamily: MONO, fontWeight: 500, color: C.ink }}>{CLAIM.newRef}</span>
+              <span style={{ fontFamily: MONO, fontWeight: 500, color: C.ink }}>
+                {claim.ref ?? CLAIM.newRef}
+              </span>
             </div>
+            {claim.funeralAdvanceRef && (
+              <div style={{ fontSize: 13.5, lineHeight: 1.55, color: C.gInk }}>
+                {t.funeral_first}{' '}
+                <span style={{ fontFamily: MONO, color: C.ink }}>{claim.funeralAdvanceRef}</span>
+              </div>
+            )}
             <div
               style={{
                 padding: 15, border: `1px solid ${C.line}`, borderRadius: 12, background: C.white,
@@ -232,18 +350,34 @@ export function ClaimScreen() {
         )}
       </div>
 
+      {claim.error && (
+        <div
+          style={{
+            marginTop: 12, padding: '12px 13px', borderRadius: 10,
+            border: `1px solid ${C.clay}`, background: C.clayBg,
+            fontSize: 13.5, lineHeight: 1.45, color: C.clayInk,
+          }}
+        >
+          {claim.error}
+        </div>
+      )}
+
       <div style={{ display: 'flex', paddingTop: 12 }}>
         <button
           type="button"
           className="btn btn-xl btn-primary"
-          style={{ flex: 1 }}
-          onClick={() => {
-            if (clStep < 4) return set({ clStep: clStep + 1 })
-            set({ clStep: 0 })
-            go('track')
-          }}
+          style={{ flex: 1, opacity: busy ? 0.7 : 1 }}
+          /*
+           * Barred while the claim is being opened or a paper is in flight, and
+           * on the document step until every one has landed. A member who taps
+           * through with papers outstanding has not filed anything an assessor
+           * can act on — the claim sits at documents_pending and nobody tells
+           * them why.
+           */
+          disabled={busy || (clStep === 2 && docs.length > 0 && claim.outstanding > 0)}
+          onClick={() => void next()}
         >
-          {t.cl_cta[clStep]}
+          {claim.opening ? EN_ONLY.claim_opening : t.cl_cta[clStep]}
         </button>
       </div>
     </Screen>

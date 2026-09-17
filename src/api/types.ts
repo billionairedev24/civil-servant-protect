@@ -130,6 +130,21 @@ export interface Claim {
   documents: { key: string; state: string; filename: string | null; uploadedAt: string | null }[]
 }
 
+/**
+ * Where to send one document, and how.
+ *
+ * The client follows this rather than knowing which storage is behind it: a
+ * presigned PUT at a bucket, or the API's own upload endpoint in development.
+ * `headers` is exact — against a bucket they are covered by the signature.
+ */
+export interface ClaimUpload {
+  key: string
+  url: string
+  method: string
+  headers: Record<string, string>
+  expiresAt: string
+}
+
 /** A row in the member's own claim list. The detail comes from `Claim`. */
 export interface MyClaim {
   ref: string
