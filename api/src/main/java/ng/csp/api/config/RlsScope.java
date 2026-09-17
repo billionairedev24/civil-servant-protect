@@ -13,12 +13,13 @@ import java.util.function.Supplier;
  * <p>The default is the empty scope, which sees nothing. That is deliberate: a bug that loses the
  * scope returns no rows rather than everyone's.
  */
-public record RlsScope(UUID memberId, UUID sponsorId, boolean assessor, boolean unscoped) {
+public record RlsScope(
+    UUID memberId, UUID sponsorId, UUID kinMemberId, boolean assessor, boolean unscoped) {
 
-  private static final RlsScope NONE = new RlsScope(null, null, false, false);
+  private static final RlsScope NONE = new RlsScope(null, null, null, false, false);
 
   /** Background work and migrations, which legitimately cross every sponsor. */
-  private static final RlsScope UNSCOPED = new RlsScope(null, null, false, true);
+  private static final RlsScope UNSCOPED = new RlsScope(null, null, null, false, true);
 
   private static final ThreadLocal<RlsScope> CURRENT = ThreadLocal.withInitial(() -> NONE);
 
@@ -50,15 +51,26 @@ public record RlsScope(UUID memberId, UUID sponsorId, boolean assessor, boolean 
   }
 
   public static RlsScope forMember(UUID memberId) {
-    return new RlsScope(memberId, null, false, false);
+    return new RlsScope(memberId, null, null, false, false);
   }
 
   public static RlsScope forSponsor(UUID sponsorId) {
-    return new RlsScope(null, sponsorId, false, false);
+    return new RlsScope(null, sponsorId, null, false, false);
   }
 
   public static RlsScope forAssessor() {
-    return new RlsScope(null, null, true, false);
+    return new RlsScope(null, null, null, true, false);
+  }
+
+  /**
+   * A relative claiming for somebody who has died.
+   *
+   * <p>Deliberately not {@link #forMember}, which is the obvious shortcut and
+   * would hand them the ledger, the cover, the dependants and the other
+   * beneficiaries' shares. This reaches the claim and nothing else — see V13.
+   */
+  public static RlsScope forNextOfKin(UUID memberId) {
+    return new RlsScope(null, null, memberId, false, false);
   }
 
   /**

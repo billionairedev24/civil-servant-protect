@@ -6,6 +6,7 @@ import java.util.UUID;
 import ng.csp.api.config.CspProperties;
 import ng.csp.api.integration.Comms;
 import ng.csp.api.integration.ReplayLog;
+import ng.csp.api.config.RlsScope;
 import ng.csp.api.web.ApiException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -86,9 +87,14 @@ public class AuthService {
         id, OtpStore.CHALLENGE_TTL.toSeconds(), props.otp().echo() ? code : null);
   }
 
-  /** Exchange a code for a session. */
-  @Transactional
-  public SessionUser verify(UUID challengeId, String code) {
+  /**
+   * The code, the attempt count and the lock — shared by both sign-in doors.
+   *
+   * <p>Lifted out of {@code verify} when the next-of-kin flow arrived rather than copied, because
+   * two implementations of "how many wrong codes before we lock" is one implementation and one
+   * bypass.
+   */
+  private OtpStore.Challenge checkCode(UUID challengeId, String code) {
     var challenge =
         otp.find(challengeId)
             .orElseThrow(
@@ -108,7 +114,13 @@ public class AuthService {
 
     // Used, so it is gone rather than flagged — there is nothing left to replay.
     otp.consume(challengeId);
+    return challenge;
+  }
 
+  /** Exchange a code for a session. */
+  @Transactional
+  public SessionUser verify(UUID challengeId, String code) {
+    var challenge = checkCode(challengeId, code);
     var user =
         db.sql(
                 """
@@ -134,6 +146,125 @@ public class AuthService {
 
     touch(user.userId());
     return user;
+  }
+
+  /**
+   * Start a sign-in for somebody claiming on a member who has died.
+   *
+   * <p>Two facts together: the member's CSP-ID, which is printed on their card and is guessable —
+   * they run in sequence — and a phone number that is already on that member's record as a
+   * beneficiary. Neither alone is enough, and that is the whole security of this door. Somebody who
+   * works through CSP-IDs against a number they control finds nothing, because the number has to be
+   * on the record they are guessing at.
+   *
+   * <p>Answers identically whether or not the pair matched, for the same reason the member flow
+   * does: a different answer turns this into a way to ask whether a given person is enrolled, or
+   * who is named on their policy.
+   */
+  public Challenge startKinChallenge(String cspId, String rawMsisdn) {
+    var msisdn = Msisdn.normalise(rawMsisdn);
+
+    if (otp.isLocked(msisdn)) {
+      throw ApiException.tooManyRequests(
+          "Too many wrong codes. Try again in %d minutes.".formatted(OtpStore.LOCK.toMinutes()));
+    }
+
+    /*
+     * Unscoped, because there is no session yet — this is the lookup that
+     * decides whether there may be one. It reads two columns and compares a
+     * phone number; it returns an id or nothing, and nothing is what the caller
+     * is told either way.
+     */
+    var memberId =
+        RlsScope.runUnscoped(
+            () ->
+                db.sql(
+                        """
+                        SELECT m.id
+                          FROM members m
+                          JOIN beneficiaries b ON b.member_id = m.id
+                         WHERE m.csp_id = :csp AND b.msisdn = :m
+                         LIMIT 1
+                        """)
+                    .param("csp", cspId.trim().toUpperCase())
+                    .param("m", msisdn)
+                    .query(UUID.class)
+                    .optional());
+
+    var code = props.otp().fixedCode() != null ? props.otp().fixedCode() : randomCode();
+    var id = otp.create(msisdn, code, memberId.orElse(null));
+
+    if (memberId.isPresent()) {
+      try {
+        comms.sendOtp(msisdn, code, id.toString());
+      } catch (ReplayLog.AlreadyDone e) {
+        log.info("kin otp for challenge {} was already sent", id);
+      } catch (RuntimeException e) {
+        log.warn("could not send the kin sign-in code for challenge {}: {}", id, e.getMessage());
+      }
+    }
+
+    return new Challenge(id, OtpStore.CHALLENGE_TTL.toSeconds(), props.otp().echo() ? code : null);
+  }
+
+  /**
+   * Exchange a code for a next-of-kin session.
+   *
+   * <p>The member was pinned when the challenge was made. Re-deriving it here from the phone number
+   * would pick one of possibly several records, and picking the wrong one means opening a claim
+   * against a living person.
+   */
+  @Transactional
+  public SessionUser verifyKin(UUID challengeId, String code) {
+    var challenge = checkCode(challengeId, code);
+
+    var about = challenge.aboutMemberId();
+    if (about == null) {
+      // The code was right and the pair never matched — the challenge was made
+      // for a CSP-ID and number that do not go together. Same wording as a
+      // member whose number is unknown.
+      throw ApiException.unauthorized("We could not sign you in with those details.");
+    }
+
+    /*
+     * One account per (relative, member), created the first time they claim.
+     *
+     * Not provisioned at enrolment: most beneficiaries never make a claim, and
+     * an account nobody has ever used is a credential sitting in a table.
+     *
+     * The number is deliberately *not* written to `users.msisdn`, which is
+     * UNIQUE. A relative is very often a member themselves — two civil servants
+     * married to each other name each other, which is the common case rather
+     * than the odd one — so their number already has a row. Writing it again
+     * would collide on the first claim of that kind, and if the constraint were
+     * ever relaxed the member sign-in would find two rows for one number and
+     * fail on a number that had worked for years. The identity here is the
+     * subject: this person, claiming on this member.
+     */
+    var user =
+        RlsScope.runUnscoped(
+            () ->
+                db.sql(
+                        """
+                        INSERT INTO users (oidc_subject, full_name, role, member_id)
+                        SELECT :sub, b.full_name, CAST('next_of_kin' AS user_role), :about
+                          FROM beneficiaries b
+                         WHERE b.member_id = :about AND b.msisdn = :m
+                         LIMIT 1
+                        ON CONFLICT (oidc_subject) DO UPDATE SET last_seen_at = now()
+                        RETURNING id
+                        """)
+                    .param("sub", "kin:%s:%s".formatted(about, challenge.msisdn()))
+                    .param("about", about)
+                    .param("m", challenge.msisdn())
+                    .query(UUID.class)
+                    .optional()
+                    .orElseThrow(
+                        () ->
+                            ApiException.unauthorized(
+                                "We could not sign you in with those details.")));
+
+    return new SessionUser(user, Role.NEXT_OF_KIN, about, null, null);
   }
 
   /**
