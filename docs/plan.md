@@ -23,7 +23,8 @@ come from the seeded database, not from fixtures.
 | **Platform** | Helm chart renders for dev and prod, ArgoCD applications, Terraform for Postgres, CI green on three jobs. |
 
 **Proof:** 86 API tests, 22 CSV assertions, 122 rail assertions, 49 routes
-smoke-tested, 120 route-widths, an accessible-name check. All green.
+smoke-tested, 120 route-widths, an accessible-name check, and an Android APK
+that builds in CI. All green.
 
 ---
 
@@ -123,12 +124,13 @@ most misleading to leave, because the product looks complete and is not.
     are untested on low-end Android at small sizes.
 20. **NDPA DPIA, the NITDA data-classification ruling and a pen test** are all
     outstanding, and all three gate a pilot rather than a demo.
-21. **The APK is 12.3 MB against the spec's 8 MB**, measured rather than
+21. **The APK is 12.2 MB against the spec's 8 MB**, measured rather than
     estimated — that is the armeabi-v7a build, which is what a low-end handset
-    installs; arm64 is 16.6 MB. Dropping the universal APK took 55.1 MB off
-    what gets published and code and resource shrinking are both on. The rest
-    is Hermes and the React Native runtime compiled per architecture, and there
-    is no configuration switch that removes it. Three real options, in order of
+    installs; arm64 is 16.5 MB. Dropping the universal APK took 55.1 MB off
+    what gets published, which was worth doing on its own. Code and resource
+    shrinking together took **0.1 MB**: 12.3 → 12.2. That number is the
+    argument — the rest is Hermes and the React Native runtime compiled per
+    architecture, and no configuration switch removes it. Three real options, in order of
     what they cost:
 
     - **An app bundle instead of APKs.** Play generates a per-device download,
@@ -272,6 +274,6 @@ substitutes for that.
    "Open decisions").
 3. **DR in a second Nigerian site, or an exemption for a foreign region.**
 4. **44px hit targets vs the design's density** (2c.18).
-5. **The 8 MB APK budget** (2c.21). The build is 12.3 MB for the architecture
+5. **The 8 MB APK budget** (2c.21). The build is 12.2 MB for the architecture
    most low-end handsets use, and no configuration closes that gap — the
    options are an app bundle, accepting the figure, or changing the target.

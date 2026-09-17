@@ -46,12 +46,13 @@ where an APK first exists.
 
 | | |
 |---|---|
-| armeabi-v7a | 12.3 MB |
-| arm64-v8a | 16.6 MB |
+| armeabi-v7a | 12.2 MB |
+| arm64-v8a | 16.5 MB |
 | universal (no longer built) | 55.1 MB |
 
-The remaining weight is Hermes and the React Native runtime compiled per
-architecture, and no configuration switch removes it. The next real lever is an
+Code and resource shrinking together took 0.1 MB off that — 12.3 to 12.2 — which
+is the whole argument: the remaining weight is Hermes and the React Native
+runtime compiled per architecture, and no configuration switch removes it. The next real lever is an
 app bundle rather than an APK, which means distributing through Play. See
 `docs/plan.md` §2c.21 — it is a decision, not a build problem.
 
