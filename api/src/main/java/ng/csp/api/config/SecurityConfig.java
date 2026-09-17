@@ -77,6 +77,19 @@ public class SecurityConfig {
                     // no service has to be handed one out of band.
                     .requestMatchers(HttpMethod.GET, "/v1/auth/jwks")
                     .permitAll()
+                    /*
+                     * The benefit schedule is a price list.
+                     *
+                     * Every screen that says what a tier pays out reads it, and
+                     * some of them are read before anybody has signed in — the
+                     * enrolment screens an officer works through, the public
+                     * pages. Behind a token it 401s and each screen quietly
+                     * falls back to its own copy of the figures, which is the
+                     * arrangement that let the app and the API disagree about
+                     * what a family is owed in the first place.
+                     */
+                    .requestMatchers(HttpMethod.GET, "/v1/products/schedule")
+                    .permitAll()
                     .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")
                     .permitAll()
                     .anyRequest()

@@ -99,8 +99,8 @@ API docs are at http://localhost:8080/swagger-ui.html.
 
 ```bash
 npm install
-npm run dev                                   # fixtures, no backend needed
-VITE_API_URL=http://localhost:8080 npm run dev  # live, against the API
+npm run dev                  # against the API on localhost:8080
+VITE_API_URL= npm run dev    # fixtures, no backend needed
 
 # The console additionally needs Keycloak, or its sign-in button has nothing
 # to go to:
@@ -109,10 +109,20 @@ VITE_OIDC_ISSUER=http://localhost:8081/realms/csp \
 npm run dev
 ```
 
-`VITE_API_URL` is the only switch for the member apps. Unset, the screens read `src/data` exactly as
-they always have — which is how the design gets reviewed and how the
-rail-branching tests run, neither of which should need Postgres. Set, the same
-screens read the API.
+`VITE_API_URL` is the only switch, and **`.env.development` sets it**, so
+`npm run dev` talks to the API. That default is deliberate: it used to be the
+other way round, and somebody reviewing the product opened it, saw the figures
+the design bundle has always shown, and concluded that nothing was integrated.
+They were right about what they were looking at — with the variable unset, not
+one screen calls the backend.
+
+Fixtures are still one command away and are still how the design gets reviewed
+and how the rail-branching tests run, neither of which should need Postgres.
+When the apps are running on them, **every screen carries a "Demo data · no API
+configured" badge** in the corner, so the two can never be mistaken again.
+
+A production build takes the variable from the environment; `.env.development`
+applies to `npm run dev` only.
 
 Data access is **TanStack Query** (`src/api/`):
 
@@ -665,8 +675,14 @@ Real, and deliberately not papered over.
    from the same rows the screens show. PDF is offered as a disabled button with
    the reason, rather than a control that does nothing.
 
-   Still on fixtures: the member's cover-detail screen, which is not only wiring
-   — see gap 8.
+   The member's **cover detail** reads the benefit schedule now, on both
+   surfaces, so the phone and the web app cannot quote different figures for the
+   same cover — and neither can the plan chooser underneath them, which was
+   still promising ₦3m of death cover two inches below a table saying ₦2m.
+
+   Every member and console screen is wired. What remains fixtures is the
+   illustrative content around them: the leaver examples on the enrolment page,
+   the contacts on the settings page, the recent-exports list.
 
    A screen that has not been wired says the same numbers it always did — the
    fixtures and the seed agree — so the difference is where the figure comes
@@ -728,19 +744,22 @@ Real, and deliberately not papered over.
    of them were drafted in this session rather than carried from the design
    bundle — see the README.
 8. **Benefit figures are illustrative**, pending actuarial, legal and
-   underwriting sign-off — and the design and the API do not currently agree
-   about them, which is a product decision rather than a wiring one.
+   underwriting sign-off. They now come from one place: `Pricing.SCHEDULE`,
+   served at `GET /v1/products/schedule` and read by every screen that shows
+   what a tier pays out.
 
-   `Pricing.SCHEDULE` sells six benefits: death, accident extra, disability, a
-   weekly income, a funeral advance and hospital cash. The screens show seven,
-   named differently — accident medical bills, funeral assistance and children's
-   education — and five of the figures differ from the server's. Basic death
-   cover reads ₦3,000,000 on the web app and ₦2,000,000 in the API; executive
-   reads ₦15,000,000 against ₦20,000,000.
+   The design and the API used to disagree — the web app sold seven benefits
+   where the API sells six, and five figures differed, with basic death cover
+   reading ₦3,000,000 against the API's ₦2,000,000. **The API won**, on the
+   product owner's decision, and the screens read it now.
 
-   So the cover-detail screen is deliberately still on fixtures. Wiring it would
-   mean choosing which of the two is right, and that is a decision for whoever
-   owns the product — with the translated labels behind it, which need a native
-   speaker per language rather than a developer with a dictionary. Everything
-   needed to wire it exists: `GET /v1/products/schedule` serves the schedule
-   with a wording version and an effective date.
+   Two loose ends that decision leaves, both for whoever owns the wording:
+
+   - `hospital_cash` is labelled "Accident medical bills" in English. The other
+     four languages already say "accident hospital money", which is the key's
+     meaning, so no translation was invented — but the English string is worth a
+     second look.
+   - "Children's education" is still in the translation table and no longer
+     appears anywhere, because the API does not sell it. It was left in rather
+     than deleted from five languages: removing a translated string to add it
+     back later is how one gets lost.

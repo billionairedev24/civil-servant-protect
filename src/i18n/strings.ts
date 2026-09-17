@@ -152,7 +152,6 @@ export interface Strings {
   stage_when: string[]
   tabs: string[]
   rec_k: string[]
-  tier_d: string[]
   more_i: string[]
   docs_n: string[]
   docs_s: string[]
@@ -339,7 +338,6 @@ export const STRINGS: Record<Lang, Strings> = {
     stage_when: ["Thu 27 August, 10:14", "Fri 28 August, 15:02", "Started Sat 29 August", "Expected around Wed 2 September", "GTBank ending 4471"],
     tabs: ["Home", "Claims", "Card", "Family", "More"],
     rec_k: ["Name", "Grade", "Ministry", "Date of birth", "Monthly gross"],
-    tier_d: ["₦3m life · ₦3m accident · ₦150k medical", "₦5m life · ₦5m accident · ₦250k medical · funeral + education", "₦10m life · ₦10m accident · ₦500k medical", "₦15m life · ₦15m accident · ₦1m medical"],
     more_i: ["What I have paid", "Who gets paid", "My protection card", "Family cover", "Switch to HR officer view", "Sign out"],
     docs_n: ["Death certificate", "Your ID card", "Your bank details", "Police report"],
     docs_s: ["Photographed", "Photographed", "GTBank ••4471", "Only if it was an accident"],
@@ -520,7 +518,6 @@ export const STRINGS: Record<Lang, Strings> = {
     stage_when: ["Alh 27 Agusta, 10:14", "Jum 28 Agusta, 15:02", "An fara Asa 29 Agusta", "Ana sa ran kusan Lar 2 Satumba", "GTBank mai ƙarewa 4471"],
     tabs: ["Gida", "Buƙatu", "Kati", "Iyali", "Ƙari"],
     rec_k: ["Suna", "Matsayi", "Ma'aikata", "Ranar haihuwa", "Albashin wata"],
-    tier_d: ["₦3m rai · ₦3m haɗari · ₦150k asibiti", "₦5m rai · ₦5m haɗari · ₦250k asibiti · jana'iza + ilimi", "₦10m rai · ₦10m haɗari · ₦500k asibiti", "₦15m rai · ₦15m haɗari · ₦1m asibiti"],
     more_i: ["Abin da na biya", "Wanda za a biya", "Katin kariyata", "Kariyar iyali", "Koma zuwa HR", "Fita"],
     docs_n: ["Takardar mutuwa", "Katin shaidarka", "Bayanin bankinka", "Rahoton 'yan sanda"],
     docs_s: ["An ɗauki hoto", "An ɗauki hoto", "GTBank ••4471", "Sai idan haɗari ne"],
@@ -701,7 +698,6 @@ export const STRINGS: Record<Lang, Strings> = {
     stage_when: ["Ọjọ́bọ̀ 27 Ògùn, 10:14", "Ẹtì 28 Ògùn, 15:02", "Bẹ̀rẹ̀ Àbámẹ́ta 29 Ògùn", "Ní ọ̀sẹ̀ 2 Septẹ́mbà", "GTBank 4471"],
     tabs: ["Ilé", "Ìbéèrè", "Káàdì", "Ẹbí", "Òmíràn"],
     rec_k: ["Orúkọ", "Ìpò", "Iléeṣẹ́", "Ọjọ́ ìbí", "Owó oṣù"],
-    tier_d: ["₦3m ẹ̀mí · ₦3m jàǹbá · ₦150k ìwòsàn", "₦5m ẹ̀mí · ₦5m jàǹbá · ₦250k ìwòsàn · ìsìnkú + ẹ̀kọ́", "₦10m ẹ̀mí · ₦10m jàǹbá · ₦500k ìwòsàn", "₦15m ẹ̀mí · ₦15m jàǹbá · ₦1m ìwòsàn"],
     more_i: ["Ohun tí mo ti san", "Ẹni tí a ó san fún", "Káàdì ààbò mi", "Ààbò ẹbí", "Lọ sí HR", "Jáde"],
     docs_n: ["Ìwé ikú", "Káàdì ìdánimọ̀ rẹ", "Àlàyé báǹkì rẹ", "Ìròyìn ọlọ́pàá"],
     docs_s: ["A ya fọ́tò", "A ya fọ́tò", "GTBank ••4471", "Kìkì tí ó bá jẹ́ jàǹbá"],
@@ -882,7 +878,6 @@ export const STRINGS: Record<Lang, Strings> = {
     stage_when: ["Tọz 27 Ọgọst, 10:14", "Fraị 28 Ọgọst, 15:02", "Malitere Sat 29 Ọgọst", "A tụrụ anya Wen 2 Septemba", "GTBank 4471"],
     tabs: ["Ụlọ", "Arịrịọ", "Kaadị", "Ezinụlọ", "Ọzọ"],
     rec_k: ["Aha", "Ọkwa", "Ministri", "Ụbọchị ọmụmụ", "Ụgwọ ọnwa"],
-    tier_d: ["₦3m ndụ · ₦3m mberede · ₦150k ọgwụ", "₦5m ndụ · ₦5m mberede · ₦250k ọgwụ · olili + agụmakwụkwọ", "₦10m ndụ · ₦10m mberede · ₦500k ọgwụ", "₦15m ndụ · ₦15m mberede · ₦1m ọgwụ"],
     more_i: ["Ihe m kwụrụ", "Onye a ga-akwụ", "Kaadị nchebe m", "Nchebe ezinụlọ", "Gaa na HR", "Pụọ"],
     docs_n: ["Akwụkwọ ọnwụ", "Kaadị njirimara gị", "Nkọwa banki gị", "Akụkọ ndị uwe ojii"],
     docs_s: ["E sepụtara foto", "E sepụtara foto", "GTBank ••4471", "Naanị ma ọ bụrụ mberede"],
@@ -1063,7 +1058,6 @@ export const STRINGS: Record<Lang, Strings> = {
     stage_when: ["Thu 27 August, 10:14", "Fri 28 August, 15:02", "Start Sat 29 August", "Around Wed 2 September", "GTBank end 4471"],
     tabs: ["Home", "Claims", "Card", "Family", "More"],
     rec_k: ["Name", "Grade", "Ministry", "Date of birth", "Monthly gross"],
-    tier_d: ["₦3m life · ₦3m accident · ₦150k medical", "₦5m life · ₦5m accident · ₦250k medical · funeral + school", "₦10m life · ₦10m accident · ₦500k medical", "₦15m life · ₦15m accident · ₦1m medical"],
     more_i: ["Wetin I don pay", "Who dem go pay", "My protection card", "Family cover", "Switch to HR view", "Sign out"],
     docs_n: ["Death certificate", "Your ID card", "Your bank details", "Police report"],
     docs_s: ["We snap am", "We snap am", "GTBank ••4471", "Only if na accident"],

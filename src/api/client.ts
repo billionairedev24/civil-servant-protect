@@ -8,8 +8,9 @@
  * possible rather than aspirational.
  */
 import type {
-  AddedDependant, AuditEntry, BeneficiarySet, BulkEnrolment, Claim, ClaimQueueItem, ConsoleUser,
-  DebitRun, Dependant, Enrolled, Leaver, Ledger, MemberSummary, MyClaim, NewMember, ProtectionCard,
+  AddedDependant, AuditEntry, BenefitSchedule, BeneficiarySet, BulkEnrolment, Claim, ClaimQueueItem,
+  ConsoleUser, DebitRun, Dependant, Enrolled, Leaver, Ledger, MemberSummary, MyClaim, NewMember,
+  ProtectionCard,
   Reconciliation, RemovedDependant, Remittance, Roster, ScheduleBatch, ScheduleRow, Session,
   SponsorClaims, SponsorDashboard, Tokens,
 } from './types'
@@ -215,6 +216,18 @@ export class CspApi {
 
   confirmBeneficiaries(): Promise<{ confirmedAt: string }> {
     return this.call('POST', '/v1/members/me/beneficiaries/confirm', {})
+  }
+
+  /**
+   * The benefit schedule.
+   *
+   * <p>Public: it is a price list. Every screen that shows what a tier pays out
+   * reads it from here, because a figure a client holds is a figure that is
+   * wrong the day the wording changes — and this one is what a family is told
+   * they are owed.
+   */
+  schedule(): Promise<BenefitSchedule> {
+    return this.call('GET', '/v1/products/schedule', undefined, { anonymous: true })
   }
 
   /** Who is on the member's family cover, including anyone taken off. */

@@ -180,6 +180,26 @@ export interface RemovedDependant {
   effectiveFrom: string
 }
 
+/**
+ * The benefit schedule: what each tier is sold as, and for how much.
+ *
+ * Keyed rather than positional, so a locale can order the rows its own way and
+ * a benefit added later does not shift every figure on the screen by one.
+ * `valueMinor` is null for a benefit a tier does not include — which is not the
+ * same as zero, and reads as "—" rather than "₦0".
+ */
+export interface BenefitSchedule {
+  /** The policy wording these figures belong to. It changes when they do. */
+  wordingVersion: string
+  effectiveFrom: string
+  tiers: {
+    code: Tier
+    name: string
+    priceMinor: number
+    benefits: { key: string; valueMinor: number | null; text: string | null }[]
+  }[]
+}
+
 export interface SponsorDashboard {
   sponsor: {
     id: string

@@ -3,6 +3,9 @@ import { Icon } from '../../../components/Icon'
 import { Kicker, Mono } from '../../../components/primitives'
 import { MEMBER, TIER_NAMES, TIER_PRICES, toE164 } from '../../../data/member'
 import { useApi } from '../../../api/provider'
+import { BENEFIT_SCHEDULE } from '../../../api/fixtures'
+import { useSchedule } from '../../../api/queries'
+import { BENEFIT_LABEL_INDEX, naira, useLive } from '../../../api/live'
 import { useAuth } from '../../../api/auth'
 import { C, MONO } from '../../../theme/tokens'
 import { WEB_MEMBER } from '../data'
@@ -232,6 +235,13 @@ export function WebSignIn() {
 export function WebEnrol() {
   const { t, tier, sponsor, set, go } = useWeb()
   const payroll = sponsor.payroll
+  const { data: schedule } = useLive(useSchedule(BENEFIT_SCHEDULE), BENEFIT_SCHEDULE)
+
+  /** The headline benefit for a plan, in the schedule's own figures. */
+  const headline = (i: number) => {
+    const death = schedule.tiers[i]?.benefits.find((b) => b.key === 'death')
+    return death?.valueMinor ? `${naira(death.valueMinor)} · ${t.sched[BENEFIT_LABEL_INDEX.death]}` : ''
+  }
 
   return (
     <div className="rise" style={{ maxWidth: 560 }}>
@@ -269,10 +279,15 @@ export function WebEnrol() {
               <span style={{ flex: 1, minWidth: 0 }}>
                 <span style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'baseline' }}>
                   <span style={{ fontSize: 16.5, fontWeight: 600 }}>{name}</span>
-                  <Mono size={14} weight={500} color={C.g}>{TIER_PRICES[i]}</Mono>
+                  <Mono size={14} weight={500} color={C.g}>
+                    {schedule.tiers[i] ? naira(schedule.tiers[i].priceMinor) : TIER_PRICES[i]}
+                  </Mono>
                 </span>
+                {/* The headline benefit, from the schedule. This line used to be
+                    a translated sentence quoting ₦3m of death cover, which the
+                    API has never sold. */}
                 <span style={{ display: 'block', fontSize: 13.5, lineHeight: 1.5, color: C.mut, marginTop: 4 }}>
-                  {t.tier_d[i]}
+                  {headline(i)}
                 </span>
               </span>
             </button>

@@ -2,7 +2,8 @@ import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tan
 import type { CspApi } from './client'
 import { useApi } from './provider'
 import type {
-  AuditEntry, BeneficiarySet, Claim, ClaimQueueItem, ConsoleUser, DebitRun, Dependant, Leaver,
+  AuditEntry, BenefitSchedule, BeneficiarySet, Claim, ClaimQueueItem, ConsoleUser, DebitRun,
+  Dependant, Leaver,
   Ledger, MemberSummary, MyClaim, NewMember, ProtectionCard, Reconciliation, Remittance, Roster,
   ScheduleBatch, ScheduleRow, SponsorClaims, SponsorDashboard,
 } from './types'
@@ -22,6 +23,7 @@ export const keys = {
   card: () => [...keys.member(), 'card'] as const,
   beneficiaries: () => [...keys.member(), 'beneficiaries'] as const,
   claims: () => [...keys.member(), 'claims'] as const,
+  schedule: () => ['products', 'schedule'] as const,
   dependants: () => [...keys.member(), 'dependants'] as const,
   claim: (ref: string) => ['claim', ref] as const,
   sponsor: () => ['sponsor'] as const,
@@ -176,6 +178,24 @@ export function useConfirmBeneficiaries() {
   return useMutation({
     mutationFn: () => api!.confirmBeneficiaries(),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.member() }),
+  })
+}
+
+/**
+ * The benefit schedule.
+ *
+ * <p>Long stale time and no polling: a price list changes when a policy wording
+ * does, which is not during somebody's session. Shared by every screen that
+ * shows what a tier pays out, so the phone and the web app cannot quote
+ * different figures for the same cover.
+ */
+export function useSchedule(fixture: BenefitSchedule) {
+  const { api } = useApi()
+  return useQuery({
+    queryKey: keys.schedule(),
+    queryFn: () => api!.schedule(),
+    staleTime: 24 * 60 * 60_000,
+    ...shared(api, fixture),
   })
 }
 

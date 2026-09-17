@@ -9,9 +9,9 @@
  */
 import { BENEFICIARIES, CLAIM, CONTRIB_MONTHS, MEMBER } from '../data/member'
 import type {
-  AuditEntry, BeneficiarySet, Claim, ClaimQueueItem, ConsoleUser, DebitRun, Dependant, Leaver,
-  Ledger, LedgerRow, MemberSummary, MyClaim, ProtectionCard, Reconciliation, Remittance, Roster,
-  SponsorClaims, SponsorDashboard,
+  AuditEntry, BenefitSchedule, BeneficiarySet, Claim, ClaimQueueItem, ConsoleUser, DebitRun,
+  Dependant, Leaver, Ledger, LedgerRow, MemberSummary, MyClaim, ProtectionCard, Reconciliation,
+  Remittance, Roster, SponsorClaims, SponsorDashboard,
 } from './types'
 
 const NAIRA = 100
@@ -99,6 +99,67 @@ export const LEDGER_FIXTURE: Ledger = (() => {
     },
   }
 })()
+
+/**
+ * The benefit schedule, exactly as `Pricing.SCHEDULE` serves it.
+ *
+ * These are the figures the product sells. They used to disagree with the
+ * screens — the web app showed ₦3,000,000 of basic death cover against the
+ * API's ₦2,000,000, and sold seven benefits where the API sells six — and the
+ * disagreement was invisible because nothing read the API. The API won that
+ * argument; this fixture is a copy of its answer so the demo shows the same
+ * cover the product would pay.
+ */
+export const BENEFIT_SCHEDULE: BenefitSchedule = {
+  wordingVersion: '2026.1',
+  effectiveFrom: '2026-01-01',
+  tiers: [
+    {
+      code: 'basic', name: 'Basic', priceMinor: 1_500 * NAIRA,
+      benefits: [
+        { key: 'death', valueMinor: 2_000_000 * NAIRA, text: null },
+        { key: 'accident_extra', valueMinor: 2_000_000 * NAIRA, text: null },
+        { key: 'disability', valueMinor: 2_000_000 * NAIRA, text: null },
+        { key: 'weekly_income', valueMinor: 30_000 * NAIRA, text: null },
+        { key: 'funeral_advance', valueMinor: 150_000 * NAIRA, text: null },
+        { key: 'hospital_cash', valueMinor: null, text: 'not_included' },
+      ],
+    },
+    {
+      code: 'standard', name: 'Standard', priceMinor: 2_500 * NAIRA,
+      benefits: [
+        { key: 'death', valueMinor: 5_000_000 * NAIRA, text: null },
+        { key: 'accident_extra', valueMinor: 5_000_000 * NAIRA, text: null },
+        { key: 'disability', valueMinor: 5_000_000 * NAIRA, text: null },
+        { key: 'weekly_income', valueMinor: 50_000 * NAIRA, text: null },
+        { key: 'funeral_advance', valueMinor: 250_000 * NAIRA, text: null },
+        { key: 'hospital_cash', valueMinor: 250_000 * NAIRA, text: null },
+      ],
+    },
+    {
+      code: 'enhanced', name: 'Enhanced', priceMinor: 4_000 * NAIRA,
+      benefits: [
+        { key: 'death', valueMinor: 10_000_000 * NAIRA, text: null },
+        { key: 'accident_extra', valueMinor: 10_000_000 * NAIRA, text: null },
+        { key: 'disability', valueMinor: 10_000_000 * NAIRA, text: null },
+        { key: 'weekly_income', valueMinor: 90_000 * NAIRA, text: null },
+        { key: 'funeral_advance', valueMinor: 500_000 * NAIRA, text: null },
+        { key: 'hospital_cash', valueMinor: 500_000 * NAIRA, text: null },
+      ],
+    },
+    {
+      code: 'executive', name: 'Executive', priceMinor: 6_000 * NAIRA,
+      benefits: [
+        { key: 'death', valueMinor: 20_000_000 * NAIRA, text: null },
+        { key: 'accident_extra', valueMinor: 20_000_000 * NAIRA, text: null },
+        { key: 'disability', valueMinor: 20_000_000 * NAIRA, text: null },
+        { key: 'weekly_income', valueMinor: 120_000 * NAIRA, text: null },
+        { key: 'funeral_advance', valueMinor: 1_000_000 * NAIRA, text: null },
+        { key: 'hospital_cash', valueMinor: 750_000 * NAIRA, text: null },
+      ],
+    },
+  ],
+}
 
 export const PROTECTION_CARD: ProtectionCard = {
   cspId: MEMBER.cspId,

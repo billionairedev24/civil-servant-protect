@@ -23,16 +23,6 @@ export const WEB_MEMBER = {
 
 /** Every tier's benefit, one row per i18n `sched` entry. The phone shows one
     tier at a time; the point of web is all four side by side. */
-export const SCHEDULE_MATRIX: readonly (readonly string[])[] = [
-  ['₦3,000,000', '₦5,000,000', '₦10,000,000', '₦15,000,000'],
-  ['₦3,000,000', '₦5,000,000', '₦10,000,000', '₦15,000,000'],
-  ['up to ₦3m', 'up to ₦5m', 'up to ₦10m', 'up to ₦15m'],
-  ['₦30,000 / wk', '₦50,000 / wk', '₦90,000 / wk', '₦120,000 / wk'],
-  ['₦150,000', '₦250,000', '₦500,000', '₦1,000,000'],
-  ['—', '₦250,000', '₦400,000', '₦600,000'],
-  ['—', '₦250,000', '₦500,000', '₦750,000'],
-]
-
 /** The relationship word is in the i18n `fam_n` list, indexed the same way the
     phone indexes it; web renders English, so it is spelled out for the table. */
 const REL = ['Spouse', 'Daughter, 14', 'Son, 9'] as const
