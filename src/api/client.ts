@@ -16,6 +16,7 @@ import type {
   Reconciliation, RemovedDependant, Remittance, Roster, ScheduleBatch, ScheduleRow, Session,
   SponsorClaims, SponsorDashboard, Tokens,
 } from './types'
+import { UserFacingError } from './problems'
 
 /**
  * Thrown for anything the API refused.
@@ -24,7 +25,7 @@ import type {
  * product: "a preparer cannot close a cycle — ask an approver" is a next step,
  * "Request failed with status 403" is a dead end.
  */
-export class ApiError extends Error {
+export class ApiError extends UserFacingError {
   constructor(
     readonly status: number,
     readonly code: string,

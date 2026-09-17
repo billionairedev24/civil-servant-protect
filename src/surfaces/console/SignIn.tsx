@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Icon } from '../../components/Icon'
 import { Mono } from '../../components/primitives'
 import { useAuth } from '../../api/auth'
+import { friendly } from '../../api/problems'
 import { useApi } from '../../api/provider'
 import { beginSignIn, completeSignIn, configFromEnv } from '../../api/oidc'
 import { C } from '../../theme/tokens'
@@ -49,19 +50,31 @@ export function ConsoleSignIn() {
         // and the address bar names a step rather than a place.
         nav('/console', { replace: true })
       })
-      .catch((e: Error) => setError(e.message))
+      .catch((e: unknown) =>
+        setError(friendly(e, 'We could not complete your sign-in. Please try again.')))
   }, [config, adoptConsoleToken, nav])
 
   const start = async () => {
     if (!config) {
-      setError('Sign-in is not configured. VITE_OIDC_ISSUER is unset — see SETUP.md.')
+      /*
+       * A deployment mistake, not something this officer did.
+       *
+       * This used to read "VITE_OIDC_ISSUER is unset — see SETUP.md", which
+       * names a build variable and a file in a repository, tells somebody in a
+       * secretariat nothing they can act on, and describes our deployment to
+       * whoever is standing behind them. The detail belongs in the console log,
+       * where the person who can fix it will look.
+       */
+      // eslint-disable-next-line no-console
+      console.error('[csp] console sign-in is unconfigured: VITE_OIDC_ISSUER is unset')
+      setError('Sign-in is unavailable at the moment. Please tell your scheme administrator.')
       return
     }
     setBusy(true)
     try {
       await beginSignIn(config)
     } catch (e) {
-      setError((e as Error).message)
+      setError(friendly(e, 'We could not start your sign-in. Please try again.'))
       setBusy(false)
     }
   }
@@ -127,8 +140,12 @@ export function ConsoleSignIn() {
             fontSize: 12.5, lineHeight: 1.6, color: C.faint,
           }}
         >
-          Members do not sign in here — the member app uses a phone number and a
-          code. This door is for preparers, approvers, viewers and administrators.
+          {/* Orientation, not job titles. "Preparers, approvers, viewers and
+              administrators" is how this system names permissions internally;
+              somebody arriving at the wrong door needs to know it is the wrong
+              door and where the right one is. */}
+          This is for staff who run the scheme for an employer. If you are covered by
+          the scheme yourself, sign in at the member app with your phone number.
           <Mono size={10.5} color={C.faint} style={{ display: 'block', marginTop: 8 }}>
             Sessions end after 20 minutes idle.
           </Mono>

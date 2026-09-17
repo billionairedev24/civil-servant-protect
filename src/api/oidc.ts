@@ -10,6 +10,8 @@
  * code being planted by a third party.
  */
 
+import { UserFacingError } from './problems'
+
 const STORAGE_KEY = 'csp.oidc.pending'
 
 export interface OidcConfig {
@@ -67,18 +69,29 @@ export async function completeSignIn(config: OidcConfig): Promise<OidcResult | n
   const code = query.get('code')
   if (!code) {
     const error = query.get('error')
-    if (error) throw new Error(query.get('error_description') ?? error)
+    if (error) {
+      /*
+       * The provider's own wording, which is written for a developer reading a
+       * spec — "invalid_request: PKCE code challenge required". Logged, not
+       * shown; an officer gets a sentence about what to do instead.
+       */
+      // eslint-disable-next-line no-console
+      console.error('[csp] sign-in returned an error', error, query.get('error_description'))
+      throw new UserFacingError('That sign-in did not complete. Try again.')
+    }
     return null
   }
 
   const pending = sessionStorage.getItem(STORAGE_KEY)
   sessionStorage.removeItem(STORAGE_KEY)
-  if (!pending) throw new Error('That sign-in did not start here. Try again.')
+  if (!pending) throw new UserFacingError('That sign-in did not start here. Try again.')
 
   const { verifier, state } = JSON.parse(pending) as { verifier: string; state: string }
   // Without this check, a code planted by a third party would be exchanged as if
   // the officer had asked for it.
-  if (query.get('state') !== state) throw new Error('That sign-in could not be verified. Try again.')
+  if (query.get('state') !== state) {
+    throw new UserFacingError('That sign-in could not be verified. Try again.')
+  }
 
   const response = await fetch(`${config.issuerUri}/protocol/openid-connect/token`, {
     method: 'POST',
@@ -93,7 +106,13 @@ export async function completeSignIn(config: OidcConfig): Promise<OidcResult | n
   })
 
   if (!response.ok) {
-    throw new Error('Keycloak refused that sign-in. Ask an administrator to check your account.')
+    // Named the product a moment ago — "Keycloak refused that sign-in" means
+    // nothing to somebody whose IT department chose it.
+    // eslint-disable-next-line no-console
+    console.error('[csp] token exchange failed', response.status, await response.text())
+    throw new UserFacingError(
+      'Your account could not be signed in. Ask your administrator to check it.',
+    )
   }
 
   const token = (await response.json()) as {

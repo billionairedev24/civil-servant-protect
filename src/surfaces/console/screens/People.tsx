@@ -1,3 +1,4 @@
+import { friendly } from '../../../api/problems'
 import { useRef, useState } from 'react'
 import { Icon } from '../../../components/Icon'
 import { Kicker, Mono } from '../../../components/primitives'
@@ -15,7 +16,7 @@ import {
 import { NotLive, dayFirst, titleCase, useLive } from '../../../api/live'
 import { useApi } from '../../../api/provider'
 import { useAuth } from '../../../api/auth'
-import { CsvError, msisdnOf, parseStaffList, type StaffListResult } from '../../../api/csv'
+import { msisdnOf, parseStaffList, type StaffListResult } from '../../../api/csv'
 import { initialsOf } from '../../../data/member'
 import type { BulkEnrolment, Enrolled, Leaver, RosterMember, SponsorClaim } from '../../../api/types'
 
@@ -343,7 +344,7 @@ export function ConsoleMembers() {
     try {
       setStaff(parseStaffList(await chosen.text(), TIER_CODES[tier]))
     } catch (e) {
-      setProblem(e instanceof CsvError ? e.message : 'That file could not be read.')
+      setProblem(friendly(e, 'That file could not be read.'))
     }
   }
 
@@ -365,7 +366,7 @@ export function ConsoleMembers() {
         // Cleared on success, and the NIN with it: this screen holds L3 data for
         // as long as somebody is typing it and no longer.
         onSuccess: () => setForm(BLANK),
-        onError: (e) => setProblem(e instanceof Error ? e.message : 'That did not work.'),
+        onError: (e) => setProblem(friendly(e, 'That did not work.')),
       },
     )
   }
@@ -374,7 +375,7 @@ export function ConsoleMembers() {
     if (!staff || !mayEnrol || staff.rows.length === 0 || enrolAll.isPending) return
     setProblem(null)
     enrolAll.mutate(staff.rows, {
-      onError: (e) => setProblem(e instanceof Error ? e.message : 'That file could not be sent.'),
+      onError: (e) => setProblem(friendly(e, 'That file could not be sent.')),
     })
   }
 
@@ -390,7 +391,7 @@ export function ConsoleMembers() {
           setSearch('')
         },
         onError: (e) =>
-          setLeaveProblem(e instanceof Error ? e.message : 'That could not be recorded.'),
+          setLeaveProblem(friendly(e, 'That could not be recorded.')),
       },
     )
   }

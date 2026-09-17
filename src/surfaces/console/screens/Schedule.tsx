@@ -1,3 +1,4 @@
+import { friendly } from '../../../api/problems'
 import { useRef, useState } from 'react'
 import { Icon } from '../../../components/Icon'
 import { Kicker, Mono } from '../../../components/primitives'
@@ -9,7 +10,7 @@ import { useAuth } from '../../../api/auth'
 import { SPONSOR_DASHBOARD } from '../../../api/fixtures'
 import { useScheduleBatch, useSponsorDashboard, useUploadSchedule } from '../../../api/queries'
 import { useLive } from '../../../api/live'
-import { CsvError, parseSchedule, type ParseResult } from '../../../api/csv'
+import { parseSchedule, type ParseResult } from '../../../api/csv'
 import type { ScheduleBatch } from '../../../api/types'
 import { useApi } from '../../../api/provider'
 
@@ -48,7 +49,7 @@ export function ConsoleSchedule() {
     try {
       setParsed(parseSchedule(await chosen.text()))
     } catch (e) {
-      setProblem(e instanceof CsvError ? e.message : 'That file could not be read.')
+      setProblem(friendly(e, 'That file could not be read.'))
     }
   }
 
@@ -234,7 +235,7 @@ export function ConsoleSchedule() {
           {upload.isError && (
             <Problem
               message={
-                upload.error instanceof Error ? upload.error.message : 'That schedule was refused.'
+                friendly(upload.error, 'That schedule was refused.')
               }
             />
           )}

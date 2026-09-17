@@ -1,3 +1,4 @@
+import { friendly } from '../../../api/problems'
 import { useState } from 'react'
 import { Icon } from '../../../components/Icon'
 import { Kicker, Mono } from '../../../components/primitives'
@@ -432,7 +433,7 @@ function ClaimDetail({
  * tells them to phone somebody.
  */
 function Refused({ error }: { error: unknown }) {
-  const message = error instanceof Error ? error.message : 'That was refused.'
+  const message = friendly(error, 'That was refused.')
   return (
     <div
       style={{
