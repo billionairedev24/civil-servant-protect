@@ -14,11 +14,12 @@ spring:
   flyway:
     schemas: public
     default-schema: public
-    # Each run starts from nothing, so a migration that only works against an
-    # existing schema fails here rather than in staging — and so a local re-run
-    # is never affected by what the last one left behind.
+    # Each run starts from nothing — see TestSchemaReset, which cleans and then
+    # migrates. This only permits it; the cleaning is a bean, because the
+    # property that used to be here (`clean-on-validation-error`) does not exist
+    # in Spring Boot 4 and was silently ignored, so the comment promising a
+    # fresh schema was the only part that was working.
     clean-disabled: false
-    clean-on-validation-error: true
 
 csp:
   schedule:
