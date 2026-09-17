@@ -3,8 +3,8 @@ import type { CspApi } from './client'
 import { useApi } from './provider'
 import type {
   AuditEntry, BeneficiarySet, Claim, ClaimQueueItem, ConsoleUser, DebitRun, Dependant, Leaver,
-  Ledger, MemberSummary, MyClaim, NewMember, ProtectionCard, Reconciliation, Roster, ScheduleBatch,
-  ScheduleRow, SponsorClaims, SponsorDashboard,
+  Ledger, MemberSummary, MyClaim, NewMember, ProtectionCard, Reconciliation, Remittance, Roster,
+  ScheduleBatch, ScheduleRow, SponsorClaims, SponsorDashboard,
 } from './types'
 
 /**
@@ -32,6 +32,7 @@ export const keys = {
   leavers: (sponsorId: string) => [...keys.sponsor(), 'leavers', sponsorId] as const,
   debitRun: (sponsorId: string) => [...keys.sponsor(), 'debit', sponsorId] as const,
   consoleUsers: (sponsorId: string) => [...keys.sponsor(), 'users', sponsorId] as const,
+  remittances: (sponsorId: string) => [...keys.sponsor(), 'remittances', sponsorId] as const,
   audit: (sponsorId: string) => [...keys.sponsor(), 'audit', sponsorId] as const,
   scheduleBatch: (batchId: string) => [...keys.sponsor(), 'schedule', batchId] as const,
   reconciliation: (sponsorId: string, cycleId: string) =>
@@ -414,6 +415,17 @@ export function useDebitRun(sponsorId: string, fixture: DebitRun) {
     queryFn: () => api!.debitRun(sponsorId),
     staleTime: 30_000,
     refetchInterval: 120_000,
+    ...sharedForSponsor(api, fixture, sponsorId),
+  })
+}
+
+/** The money, month by month. */
+export function useRemittances(sponsorId: string, fixture: { remittances: Remittance[] }) {
+  const { api } = useApi()
+  return useQuery({
+    queryKey: keys.remittances(sponsorId),
+    queryFn: () => api!.remittances(sponsorId),
+    staleTime: 60_000,
     ...sharedForSponsor(api, fixture, sponsorId),
   })
 }

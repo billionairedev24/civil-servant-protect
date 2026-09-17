@@ -89,7 +89,7 @@ export const MOVEMENT = [
 ] as const
 
 export const SEND_LOG = [
-  { period: 'AUG 26', what: 'Schedule sent, file returned, reconciling', amount: '₦21,030,000', state: '57 exceptions', tone: 'ochre' },
+  { period: 'AUG 26', what: 'Schedule sent, file returned, reconciling', amount: '₦21,030,000', state: '31 exceptions', tone: 'ochre' },
   { period: 'JUL 26', what: 'Closed · all members credited', amount: '₦20,880,000', state: 'Reconciled', tone: 'green' },
   { period: 'JUN 26', what: 'Closed · 4 moved to direct debit', amount: '₦20,745,000', state: 'Reconciled', tone: 'green' },
   { period: 'MAY 26', what: 'File arrived 19 days late', amount: '₦20,700,000', state: 'Closed late', tone: 'ochre' },
@@ -151,14 +151,6 @@ export const LEAVERS = [
     name: 'Sadiq Aliyu', ref: 'CSP 1182-6640', reason: 'Dismissed', tone: 'clay', icon: 'ph ph-sign-out',
     outcome: 'Sixty days of grace, then cover lapses unless he sets up a direct debit himself. Contributions already made are not refundable.',
   },
-] as const
-
-export const REMIT_ROWS = [
-  { period: 'JUL 26', amount: '₦20,880,000', ref: 'NIBSS/8712004', state: 'Fully allocated', icon: 'ph-fill ph-check-circle', tone: 'green' },
-  { period: 'JUN 26', amount: '₦20,745,000', ref: 'NIBSS/8590117', state: 'Fully allocated', icon: 'ph-fill ph-check-circle', tone: 'green' },
-  { period: 'MAY 26', amount: '₦20,700,000', ref: 'NIBSS/8471882', state: 'Paid 19 days late', icon: 'ph ph-clock-countdown', tone: 'ochre' },
-  { period: 'APR 26', amount: '₦20,610,000', ref: 'NIBSS/8330441', state: 'Fully allocated', icon: 'ph-fill ph-check-circle', tone: 'green' },
-  { period: 'MAR 26', amount: '₦20,412,000', ref: 'NIBSS/8214773', state: '₦12,500 written off', icon: 'ph ph-scales', tone: 'ochre' },
 ] as const
 
 /**

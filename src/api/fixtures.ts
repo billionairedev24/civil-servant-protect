@@ -10,8 +10,8 @@
 import { BENEFICIARIES, CLAIM, CONTRIB_MONTHS, MEMBER } from '../data/member'
 import type {
   AuditEntry, BeneficiarySet, Claim, ClaimQueueItem, ConsoleUser, DebitRun, Dependant, Leaver,
-  Ledger, LedgerRow, MemberSummary, MyClaim, ProtectionCard, Reconciliation, Roster, SponsorClaims,
-  SponsorDashboard,
+  Ledger, LedgerRow, MemberSummary, MyClaim, ProtectionCard, Reconciliation, Remittance, Roster,
+  SponsorClaims, SponsorDashboard,
 } from './types'
 
 const NAIRA = 100
@@ -207,11 +207,64 @@ export const SPONSOR_DASHBOARD: SponsorDashboard = {
     returnedAt: '2026-09-14T09:00:00Z',
   },
   roster: { members: 8_440, withoutBeneficiary: 203 },
+  /*
+   * 8,412 on the file and 8,381 credited is 31 rows needing a decision, and
+   * ₦77,500 unallocated until they get one. These are the seed's own numbers:
+   * the demo and the API count the same rows now, which is what SETUP.md has
+   * always claimed and was not true while this said 57 over a ledger holding 3.
+   */
   exceptions: {
-    total: 57,
-    open: 57,
-    byKind: { unmatched: 31, no_deduction: 12, wrong_amount: 5, left_service: 9 },
+    total: 31,
+    open: 31,
+    byKind: { unmatched: 29, no_deduction: 1, wrong_amount: 1 },
   },
+}
+
+/**
+ * Five months of money.
+ *
+ * The one with a variance is the point of the screen: ₦21,030,000 was asked for
+ * and ₦20,952,500 arrived, and the ₦77,500 between them is somebody's cover
+ * until it is explained.
+ */
+export const REMITTANCES: { remittances: Remittance[] } = {
+  remittances: [
+    {
+      cycleId: 'fixture-cycle', period: '2026-09-01', state: 'reconciling',
+      railRef: 'CSP-114/09', valueDate: '2026-09-14T09:00:00Z',
+      scheduledMinor: 21_030_000 * NAIRA, receivedMinor: 20_952_500 * NAIRA,
+      scheduledCount: 8_412, creditedCount: 8_381, varianceMinor: -77_500 * NAIRA,
+      openExceptions: 31,
+    },
+    {
+      cycleId: 'fixture-cycle-08', period: '2026-08-01', state: 'closed',
+      railRef: 'CSP-114/08', valueDate: '2026-08-29T10:00:00Z',
+      scheduledMinor: 21_030_000 * NAIRA, receivedMinor: 21_030_000 * NAIRA,
+      scheduledCount: 8_412, creditedCount: 8_412, varianceMinor: 0, openExceptions: 0,
+    },
+    {
+      cycleId: 'fixture-cycle-07', period: '2026-07-01', state: 'closed',
+      railRef: 'CSP-114/07', valueDate: '2026-07-31T10:00:00Z',
+      scheduledMinor: 21_030_000 * NAIRA, receivedMinor: 21_030_000 * NAIRA,
+      scheduledCount: 8_412, creditedCount: 8_412, varianceMinor: 0, openExceptions: 0,
+    },
+    {
+      cycleId: 'fixture-cycle-06', period: '2026-06-01', state: 'closed',
+      railRef: 'CSP-114/06', valueDate: '2026-07-19T10:00:00Z',
+      scheduledMinor: 21_030_000 * NAIRA, receivedMinor: 21_030_000 * NAIRA,
+      scheduledCount: 8_412, creditedCount: 8_412, varianceMinor: 0, openExceptions: 0,
+    },
+    {
+      // Five people short, nine months ago. A history that reconciles to the
+      // penny every month teaches an officer that this column is always zero,
+      // and the month it is not is the month they skim past.
+      cycleId: 'fixture-cycle-05', period: '2026-05-01', state: 'closed',
+      railRef: 'CSP-114/05', valueDate: '2026-05-30T10:00:00Z',
+      scheduledMinor: 21_030_000 * NAIRA, receivedMinor: 21_017_500 * NAIRA,
+      scheduledCount: 8_412, creditedCount: 8_407, varianceMinor: -12_500 * NAIRA,
+      openExceptions: 0,
+    },
+  ],
 }
 
 /**
@@ -279,9 +332,9 @@ export const RECONCILIATION: Reconciliation = {
   method: 'payroll',
   matched: 8_324,
   summary: {
-    total: 57,
-    open: 57,
-    byKind: { unmatched: 31, no_deduction: 12, wrong_amount: 5, left_service: 9 },
+    total: 31,
+    open: 31,
+    byKind: { unmatched: 29, no_deduction: 1, wrong_amount: 1 },
   },
   exceptions: [
     {

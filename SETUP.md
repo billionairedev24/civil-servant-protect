@@ -64,6 +64,13 @@ Flyway migrates on start. The `seed` profile then writes the demo data — the
 same figures the UI fixtures use, so the apps look identical whether they are
 reading fixtures or the API.
 
+That claim is now backed by rows: the seed creates **16,272 members** across the
+four rails with fourteen months of contributions, beneficiaries for all but the
+few hundred the chase list is about, and this month's collection part-paid. It
+takes about eight seconds. Before that it asserted 8,412 members on a cycle and
+created four, which nothing noticed until a screen counted the money from the
+ledger and read "₦0 received of ₦21,030,000".
+
 Check it:
 
 ```bash
@@ -624,8 +631,13 @@ Real, and deliberately not papered over.
    each role may actually do, when each last signed in, and the sponsor's own
    audit trail.
 
-   Still on fixtures: the console's remittances and reports, and the member's
-   cover-detail screen. The last of those is not only wiring — see gap 8.
+   The console's **remittances** screen is live too, derived from the ledger
+   rather than a table of its own: the cycle says what was asked for, the
+   contributions say what arrived, and the difference is the variance somebody
+   has to explain.
+
+   Still on fixtures: the console's reports, and the member's cover-detail
+   screen. The second is not only wiring — see gap 8.
 
    A screen that has not been wired says the same numbers it always did — the
    fixtures and the seed agree — so the difference is where the figure comes

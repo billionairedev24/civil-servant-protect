@@ -187,6 +187,36 @@ class DebitRunTest {
     assertThat(run.timeline()).containsKey("presented");
   }
 
+  @Test
+  @DisplayName("a remittance says what arrived, not what a bank statement claimed")
+  void remittancesCountWhatWasCredited() {
+    db.sql("UPDATE collection_cycles SET scheduled_minor = 750000, scheduled_count = 3 WHERE id = :c")
+        .param("c", cycleId)
+        .update();
+
+    var paid = member("22233344455", "+2348031111111", "5510001");
+    var alsoPaid = member("22233344466", "+2348031111112", "5510002");
+    var didNot = member("22233344477", "+2348031111113", "5510003");
+    contribution(paid, "confirmed");
+    contribution(alsoPaid, "confirmed");
+    contribution(didNot, "failed");
+    exception(didNot, "no_funds");
+
+    var remittance = sponsors.remittances(sponsorId, 12).getFirst();
+
+    /*
+     * Three were asked for, two arrived. The variance is what somebody has to
+     * explain, and it is negative in the direction that costs a member their
+     * cover — which is why it is a number on the screen rather than a
+     * percentage that rounds to "fine".
+     */
+    assertThat(remittance.scheduledMinor()).isEqualTo(750_000L);
+    assertThat(remittance.receivedMinor()).isEqualTo(500_000L);
+    assertThat(remittance.varianceMinor()).isEqualTo(-250_000L);
+    assertThat(remittance.creditedCount()).isEqualTo(2);
+    assertThat(remittance.openExceptions()).isEqualTo(1);
+  }
+
   private UUID member(String nin, String msisdn, String serviceNo) {
     return enrolment
         .enrol(nin, "Member " + serviceNo, LocalDate.of(1990, 4, 12), msisdn, sponsorId,

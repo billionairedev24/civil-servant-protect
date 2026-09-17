@@ -10,8 +10,8 @@
 import type {
   AddedDependant, AuditEntry, BeneficiarySet, BulkEnrolment, Claim, ClaimQueueItem, ConsoleUser,
   DebitRun, Dependant, Enrolled, Leaver, Ledger, MemberSummary, MyClaim, NewMember, ProtectionCard,
-  Reconciliation, RemovedDependant, Roster, ScheduleBatch, ScheduleRow, Session, SponsorClaims,
-  SponsorDashboard, Tokens,
+  Reconciliation, RemovedDependant, Remittance, Roster, ScheduleBatch, ScheduleRow, Session,
+  SponsorClaims, SponsorDashboard, Tokens,
 } from './types'
 
 /**
@@ -344,6 +344,11 @@ export class CspApi {
   /** The assessor's queue — every member's claims, not one sponsor's. */
   claimQueue(): Promise<{ claims: ClaimQueueItem[] }> {
     return this.call('GET', '/v1/claims')
+  }
+
+  /** The money, month by month. Derived from the ledger, not a stored summary. */
+  remittances(sponsorId: string): Promise<{ remittances: Remittance[] }> {
+    return this.call('GET', `/v1/sponsors/${sponsorId}/remittances`)
   }
 
   /** Who can act for this sponsor, and what each role may do. Admin only. */

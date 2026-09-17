@@ -303,6 +303,29 @@ export interface Roster {
   counts: { all: number; paid: number; notDeducted: number; noBeneficiary: number }
 }
 
+/**
+ * One month's money.
+ *
+ * A credit arriving is not cover. On a payroll rail a single transfer covers
+ * thousands of members and only becomes cover once it is matched to the return
+ * file, member by member — so `receivedMinor` is what was credited to members,
+ * not what a bank statement said. `varianceMinor` is negative when less arrived
+ * than was asked for, which is the direction that costs somebody their cover.
+ */
+export interface Remittance {
+  cycleId: string
+  period: string
+  state: string
+  railRef: string | null
+  valueDate: string | null
+  scheduledMinor: number
+  receivedMinor: number
+  scheduledCount: number
+  creditedCount: number
+  varianceMinor: number
+  openExceptions: number
+}
+
 export interface ClaimQueueItem {
   ref: string
   type: string

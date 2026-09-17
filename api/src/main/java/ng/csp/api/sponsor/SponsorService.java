@@ -233,6 +233,78 @@ public class SponsorService {
   public record Reconciliation(
       String method, int matched, List<ExceptionRow> exceptions, ExceptionSummary summary) {}
 
+  // ── Remittances ─────────────────────────────────────────────────────────────
+
+  /**
+   * One month's money, as the ledger has it.
+   *
+   * <p>A credit arriving is not cover. On a payroll rail one transfer covers thousands of members,
+   * and it only becomes cover when it is matched to the return file member by member — so
+   * {@code receivedMinor} is the sum of what was actually credited to members, not a number a bank
+   * statement quoted. The difference between that and {@code scheduledMinor} is the variance
+   * somebody has to explain.
+   */
+  public record Remittance(
+      UUID cycleId,
+      LocalDate period,
+      String state,
+      String railRef,
+      Instant valueDate,
+      long scheduledMinor,
+      long receivedMinor,
+      int scheduledCount,
+      int creditedCount,
+      long varianceMinor,
+      int openExceptions) {}
+
+  /**
+   * The last year of them, newest first.
+   *
+   * <p>Derived rather than stored. A remittances table would be a second place for the same facts
+   * and a second thing to keep true: the cycle already says what was asked for, the contributions
+   * say what arrived, and the exceptions say what is still unexplained. A figure that disagrees with
+   * the ledger is worse than no figure, because it will be believed.
+   */
+  public List<Remittance> remittances(UUID sponsorId, int limit) {
+    return db.sql(
+            """
+            SELECT c.id, c.period, c.state::text AS state, c.rail_ref, c.returned_at,
+                   c.scheduled_count, c.scheduled_minor,
+                   COALESCE((SELECT SUM(k.amount_minor) FROM contributions k
+                              WHERE k.cycle_id = c.id AND k.status = 'confirmed'), 0) AS received,
+                   COALESCE((SELECT count(*) FROM contributions k
+                              WHERE k.cycle_id = c.id AND k.status = 'confirmed'), 0) AS credited,
+                   COALESCE((SELECT count(*) FROM reconciliation_exceptions e
+                              WHERE e.cycle_id = c.id AND e.resolved_at IS NULL), 0) AS open_exceptions
+              FROM collection_cycles c
+             WHERE c.sponsor_id = :s
+             ORDER BY c.period DESC
+             LIMIT :limit
+            """)
+        .param("s", sponsorId)
+        .param("limit", limit)
+        .query(
+            (rs, n) -> {
+              var scheduled = rs.getLong("scheduled_minor");
+              var received = rs.getLong("received");
+              return new Remittance(
+                  rs.getObject("id", UUID.class),
+                  rs.getObject("period", LocalDate.class),
+                  rs.getString("state"),
+                  rs.getString("rail_ref"),
+                  Rows.instant(rs, "returned_at"),
+                  scheduled,
+                  received,
+                  rs.getInt("scheduled_count"),
+                  rs.getInt("credited"),
+                  // Negative when less arrived than was asked for, which is the
+                  // direction that costs somebody their cover.
+                  received - scheduled,
+                  rs.getInt("open_exceptions"));
+            })
+        .list();
+  }
+
   // ── The direct-debit run ────────────────────────────────────────────────────
 
   public record DebitCounts(int presented, int settled, int awaiting, int failed) {}

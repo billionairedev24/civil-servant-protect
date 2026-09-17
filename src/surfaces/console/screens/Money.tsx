@@ -2,11 +2,11 @@ import { Icon } from '../../../components/Icon'
 import { Kicker, Mono } from '../../../components/primitives'
 import { PageSub, PageTitle, Panel } from '../../../components/surface'
 import { C } from '../../../theme/tokens'
-import { REMIT_ROWS, tone } from '../data'
+import { tone } from '../data'
 import { useConsole } from '../state'
-import { DEBIT_RUN, SPONSOR_DASHBOARD } from '../../../api/fixtures'
-import { useDebitRun, useSponsorDashboard } from '../../../api/queries'
-import { NotLive, dayFirst, periodLabel, titleCase, useLive } from '../../../api/live'
+import { DEBIT_RUN, REMITTANCES, SPONSOR_DASHBOARD } from '../../../api/fixtures'
+import { useDebitRun, useRemittances, useSponsorDashboard } from '../../../api/queries'
+import { NotLive, dayFirst, naira, periodLabel, titleCase, useLive } from '../../../api/live'
 
 /**
  * The direct-debit run. On a payroll rail this only covers the people the file
@@ -276,21 +276,40 @@ export function ConsoleDebit() {
  */
 export function ConsoleRemit() {
   const { payroll, profile } = useConsole()
+  const { data: dash } = useLive(useSponsorDashboard(SPONSOR_DASHBOARD), SPONSOR_DASHBOARD)
+  const { data: paid, failed } = useLive(useRemittances(dash.sponsor.id, REMITTANCES), REMITTANCES)
 
-  const stats = [
-    { v: payroll ? '₦20.95m' : '₦2.98m', k: 'Received in August', green: false },
-    { v: payroll ? '99.6%' : '96.0%', k: 'Allocated to members', green: true },
-    { v: payroll ? '₦77,500' : '₦124,000', k: 'Still unallocated', alert: true },
-  ]
+  const [latest, ...earlier] = paid.remittances
+  const allocated =
+    latest && latest.scheduledMinor > 0
+      ? (latest.receivedMinor / latest.scheduledMinor) * 100
+      : 100
 
-  const detail = [
-    { k: 'Value date', v: '29.08.2026' },
-    { k: 'Bank reference', v: 'NIBSS/8842119' },
-    { k: 'From', v: payroll ? profile.dest : '1,189 member banks' },
-    { k: 'Scheduled', v: '₦21,030,000' },
-    { k: 'Variance', v: '−₦77,500' },
-    { k: 'Members credited', v: '8,324' },
-  ]
+  const stats = latest
+    ? [
+        { v: naira(latest.receivedMinor), k: `Received for ${periodLabel(latest.period)}`, green: false },
+        { v: `${allocated.toFixed(1)}%`, k: 'Allocated to members', green: true },
+        {
+          v: naira(Math.abs(latest.varianceMinor)),
+          k: latest.varianceMinor === 0 ? 'Nothing unallocated' : 'Still unallocated',
+          alert: latest.varianceMinor !== 0,
+        },
+      ]
+    : []
+
+  const detail = latest
+    ? [
+        { k: 'Value date', v: latest.valueDate ? dayFirst(latest.valueDate) : 'Not yet' },
+        { k: 'Bank reference', v: latest.railRef ?? '—' },
+        { k: 'From', v: payroll ? profile.dest : `${latest.creditedCount.toLocaleString('en-NG')} member banks` },
+        { k: 'Scheduled', v: naira(latest.scheduledMinor) },
+        {
+          k: 'Variance',
+          v: latest.varianceMinor === 0 ? '—' : `−${naira(Math.abs(latest.varianceMinor))}`,
+        },
+        { k: 'Members credited', v: latest.creditedCount.toLocaleString('en-NG') },
+      ]
+    : []
 
   return (
     <>
@@ -317,15 +336,37 @@ export function ConsoleRemit() {
         ))}
       </div>
 
+      {failed && <NotLive what="These payments" />}
+
+      {latest && (
       <div style={{ marginTop: 22, padding: 18, border: `1.5px solid ${C.gBorder}`, borderRadius: 12, background: C.white }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 14, flexWrap: 'wrap' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-              <Icon name="ph-fill ph-check-circle" size={16} color={C.g} />
-              <Mono size={9.5} color={C.g} style={{ letterSpacing: '.12em' }}>FULLY ALLOCATED · AUGUST 2026</Mono>
+              <Icon
+                name={latest.varianceMinor === 0 ? 'ph-fill ph-check-circle' : 'ph ph-scales'}
+                size={16}
+                color={latest.varianceMinor === 0 ? C.g : C.ochre}
+              />
+              {/* "Fully allocated" only when it is. The variance is the reason
+                  somebody opens this screen, and a green tick over a shortfall
+                  is the screen lying to the person who has to explain it. */}
+              <Mono
+                size={9.5}
+                color={latest.varianceMinor === 0 ? C.g : C.ochre}
+                style={{ letterSpacing: '.12em' }}
+              >
+                {latest.varianceMinor === 0 ? 'FULLY ALLOCATED' : 'VARIANCE OPEN'} ·{' '}
+                {periodLabel(latest.period)}
+              </Mono>
             </div>
-            <div style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-.03em', marginTop: 7 }}>₦20,952,500</div>
-            <div style={{ fontSize: 13, color: C.mut, marginTop: 2 }}>Credited 29.08 · allocated to 8,324 members</div>
+            <div style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-.03em', marginTop: 7 }}>
+              {naira(latest.receivedMinor)}
+            </div>
+            <div style={{ fontSize: 13, color: C.mut, marginTop: 2 }}>
+              {latest.valueDate ? `Credited ${dayFirst(latest.valueDate)}` : 'Not yet credited'} ·
+              allocated to {latest.creditedCount.toLocaleString('en-NG')} members
+            </div>
           </div>
           <button type="button" className="btn btn-sm btn-outline" style={{ height: 44, padding: '0 18px', gap: 7 }}>
             <Icon name="ph ph-file-pdf" size={16} />
@@ -347,33 +388,39 @@ export function ConsoleRemit() {
           ))}
         </div>
         <div style={{ fontSize: 12, lineHeight: 1.5, color: C.faint, marginTop: 12 }}>
-          The credit and the return file are reconciled separately. ₦77,500 of this payment stayed unallocated until the
-          31 unmatched rows were cleared.
+          The credit and the return file are reconciled separately.{' '}
+          {latest.openExceptions > 0
+            ? `${naira(Math.abs(latest.varianceMinor))} stays unallocated until the ${latest.openExceptions} open row(s) are cleared.`
+            : 'Every row on this file has been accounted for.'}
         </div>
       </div>
+      )}
 
       <Kicker size={9.5} style={{ marginTop: 24 }}>EARLIER PAYMENTS</Kicker>
       <div style={{ marginTop: 9, display: 'flex', flexDirection: 'column', gap: 7 }}>
-        {REMIT_ROWS.map((r) => {
-          const skin = tone(r.tone)
+        {earlier.map((r) => {
+          const short = r.varianceMinor !== 0
+          const skin = tone(short ? 'ochre' : 'green')
           return (
             <div
-              key={r.period}
+              key={r.cycleId}
               style={{
                 display: 'flex', alignItems: 'center', gap: 13, padding: '13px 15px',
                 border: `1px solid ${C.line}`, borderRadius: 11, background: C.white, flexWrap: 'wrap',
               }}
             >
-              <Mono size={12} color={C.faint} style={{ minWidth: 62 }}>{r.period}</Mono>
-              <Mono size={14} weight={500} style={{ minWidth: 104 }}>{r.amount}</Mono>
-              <Mono size={11.5} color={C.faint} style={{ flex: 1, minWidth: 130 }}>{r.ref}</Mono>
+              <Mono size={12} color={C.faint} style={{ minWidth: 62 }}>{periodLabel(r.period)}</Mono>
+              <Mono size={14} weight={500} style={{ minWidth: 104 }}>{naira(r.receivedMinor)}</Mono>
+              <Mono size={11.5} color={C.faint} style={{ flex: 1, minWidth: 130 }}>{r.railRef ?? '—'}</Mono>
               <span style={{ flex: 'none', display: 'flex', alignItems: 'center', gap: 6, minWidth: 126 }}>
-                <Icon name={r.icon} size={14} color={skin.ic} />
-                <span style={{ fontSize: 12.5, fontWeight: 500, color: skin.ic }}>{r.state}</span>
+                <Icon name={short ? 'ph ph-scales' : 'ph-fill ph-check-circle'} size={14} color={skin.ic} />
+                <span style={{ fontSize: 12.5, fontWeight: 500, color: skin.ic }}>
+                  {short ? `${naira(Math.abs(r.varianceMinor))} short` : 'Fully allocated'}
+                </span>
               </span>
               <button
                 type="button"
-                aria-label={`Download ${r.period} receipt`}
+                aria-label={`Download ${periodLabel(r.period)} receipt`}
                 style={{
                   flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center',
                   width: 32, height: 32, border: `1px solid ${C.line}`, borderRadius: '50%',

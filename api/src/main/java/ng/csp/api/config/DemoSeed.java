@@ -48,20 +48,39 @@ public class DemoSeed implements CommandLineRunner {
 
   private static final long PREMIUM = Money.PREMIUM_STANDARD;
 
+  /**
+   * A sponsor, and the size of the ministry behind it.
+   *
+   * <p>The four counts are why this record grew. The screens tell a story — 8,440 members, 8,412 on
+   * the September file, ₦20,952,500 received against ₦21,030,000 scheduled — and the seed used to
+   * assert those figures on the cycle while creating four members. Nothing showed it until a screen
+   * counted the money from the ledger instead of printing the story, and then the console read
+   * "₦0 received of ₦21,030,000" on a fresh demo.
+   *
+   * <p>So the rows exist now. {@code roster} people, {@code scheduled} of them on the file — the
+   * difference being starters enrolled after the cut-off — {@code credited} of those paid, and the
+   * gap between the last two is the variance somebody has to explain. Every screen that counts gets
+   * the same answer because it is counting the same rows.
+   */
   private record SponsorSeed(
       String key, String type, String name, String shortName, String tag,
-      String method, String code, String label, int day) {}
+      String method, String code, String label, int day,
+      int roster, int scheduled, int credited, int withoutBeneficiary) {}
 
   private static final List<SponsorSeed> SPONSORS =
       List.of(
           new SponsorSeed("federal", "federal", "Fed. Min. of Education", "IPPIS", "FEDERAL",
-              "payroll", "CSP-114", "IPPIS deduction code CSP-114 · OAGF approved", 28),
+              "payroll", "CSP-114", "IPPIS deduction code CSP-114 · OAGF approved", 28,
+              8_440, 8_412, 8_381, 203),
           new SponsorSeed("state", "state", "Lagos State Head of Service", "Lagos State payroll", "STATE",
-              "payroll", "CSP-LA-07", "Schedule CSP-LA-07 · Lagos State Treasury", 26),
+              "payroll", "CSP-LA-07", "Schedule CSP-LA-07 · Lagos State Treasury", 26,
+              6_180, 6_154, 6_129, 147),
           new SponsorSeed("employer", "employer", "Nightingale Hospital, Ikeja", "Employer payroll", "EMPLOYER",
-              "payroll", "CSP-EM-2214", "Schedule CSP-EM-2214 · monthly CSV", 25),
+              "payroll", "CSP-EM-2214", "Schedule CSP-EM-2214 · monthly CSV", 25,
+              412, 410, 408, 9),
           new SponsorSeed("self", "self", "Self-paying members", "Direct debit", "SELF",
-              "direct_debit", "MND-88214", "NIBSS e-mandate MND-88214 · card on file", 28));
+              "direct_debit", "MND-88214", "NIBSS e-mandate MND-88214 · card on file", 28,
+              1_240, 1_240, 1_189, 31));
 
   private record MemberSeed(String key, String csp, String svc, String name, String full, String msisdn) {}
 
@@ -284,13 +303,14 @@ public class DemoSeed implements CommandLineRunner {
                     INSERT INTO collection_cycles
                       (sponsor_id, period, state, rail_ref, scheduled_count, scheduled_minor,
                        sent_at, returned_at, closed_at)
-                    VALUES (:s, :p, 'closed', :ref, 1, :minor, now(), now(), now())
+                    VALUES (:s, :p, 'closed', :ref, :count, :minor, now(), now(), now())
                     ON CONFLICT (sponsor_id, period) DO UPDATE SET state = 'closed'
                     RETURNING id
                     """)
                 .param("s", sponsorId).param("p", period)
                 .param("ref", "%s/%02d".formatted(sponsor.code(), period.getMonthValue()))
-                .param("minor", PREMIUM)
+                .param("count", sponsor.scheduled())
+                .param("minor", PREMIUM * sponsor.scheduled())
                 .query(UUID.class)
                 .single();
         db.sql(
@@ -332,12 +352,176 @@ public class DemoSeed implements CommandLineRunner {
           .param("amt", PREMIUM).param("src", source).param("ref", sponsor.code())
           .update();
 
-      seedExceptions(openCycle, memberId, "payroll".equals(sponsor.method()));
+      // The cohort first: the exceptions below are raised against its members,
+      // and a query for "the people who did not pay" run before they exist
+      // finds the one named member and stops there.
+      seedCohort(sponsor, sponsorId, openCycle, current, closed, source);
+      seedExceptions(sponsor, sponsorId, openCycle, memberId, "payroll".equals(sponsor.method()));
     }
   }
 
+  /**
+   * The rest of the ministry: everyone who is not one of the four named demo members.
+   *
+   * <p>Generated in SQL rather than row by row from Java, because sixteen thousand members is four
+   * statements there and sixteen thousand round trips here — and a seed that takes a minute is a
+   * seed people stop running.
+   *
+   * <p>These people have no {@code users} row: they are on the payroll and have never opened the
+   * app, which is realistic and is also the state the roster's "no beneficiary" chase list is about.
+   * They have no NIN either — {@code nin_hmac} is nullable and its unique index ignores nulls — so
+   * the seed never writes a fake national identity number, not even a harmless-looking one.
+   */
+  private void seedCohort(
+      SponsorSeed sponsor, UUID sponsorId, UUID cycleId, LocalDate current,
+      List<LocalDate> closed, String source) {
+    var extra = sponsor.roster() - 1; // The named demo member is already there.
+    if (extra <= 0) {
+      return;
+    }
+
+    /*
+     * The csp_id pattern is CSP-nnn-nnnnn, so a rail's own code cannot always be
+     * the middle group — CSP-LA-07 is not three digits. A per-sponsor number
+     * keeps them unique and the shape legal.
+     */
+    var prefix = 100 + SPONSORS.indexOf(sponsor);
+
+    db.sql(
+            """
+            INSERT INTO members
+              (csp_id, sponsor_id, service_no, full_name, display_name, date_of_birth,
+               grade, msisdn, tier, in_force_since)
+            SELECT format('CSP-%s-%s', :prefix, lpad(i::text, 5, '0')),
+                   :s,
+                   format('%s%s', :prefix, lpad(i::text, 6, '0')),
+                   format('Member %s %s', :prefix, i),
+                   format('Member %s', i),
+                   DATE '1985-01-01' + ((i * 37) % 5000),
+                   'GL ' || (6 + (i % 9)),
+                   format('+234700%s', lpad(((:prefix * 100000) + i)::text, 7, '0')),
+                   'standard',
+                   :since
+              FROM generate_series(1, :n) AS i
+            """)
+        .param("prefix", prefix)
+        .param("s", sponsorId)
+        .param("n", extra)
+        .param("since", current.minusMonths(13))
+        .update();
+
+    /*
+     * Who has named somebody, and who has not.
+     *
+     * The ones without are the point. "203 with no beneficiary named" is a
+     * number an officer works through, so it has to be rows they could open
+     * rather than a figure printed on a dashboard.
+     */
+    db.sql(
+            """
+            INSERT INTO beneficiaries (member_id, full_name, relation, share_pct, position)
+            SELECT m.id, 'Next of kin for ' || m.display_name, 'Spouse', 100, 1
+              FROM members m
+             WHERE m.sponsor_id = :s
+               AND m.csp_id LIKE format('CSP-%s-%%', :prefix)
+               AND m.csp_id > format('CSP-%s-%s', :prefix, lpad(:without::text, 5, '0'))
+            """)
+        .param("s", sponsorId)
+        .param("prefix", prefix)
+        .param("without", sponsor.withoutBeneficiary())
+        .update();
+
+    /*
+     * The months already closed.
+     *
+     * Everybody on the file paid, which is what "closed" means — a cycle is
+     * only closed once its exceptions are resolved. Without these rows the
+     * remittance history read ₦2,500 a month for a ministry of eight thousand,
+     * because the screen counts what was credited and the seed had credited one
+     * person.
+     */
+    /*
+     * One month five people short, four months back.
+     *
+     * Not decoration. A history where every month reconciles to the penny
+     * teaches an officer that the variance column is always zero, and the one
+     * month it is not is the month they will skim past. The screen's job is to
+     * make ₦12,500 missing visible a year later.
+     */
+    // Counted back from the current month, because `closed` runs oldest first
+    // and an index from the front lands somewhere nobody chose.
+    var shortMonth = closed.size() > 4 ? closed.get(closed.size() - 4) : null;
+
+    for (var period : closed) {
+      var missing = period.equals(shortMonth) ? 5 : 0;
+      db.sql(
+              """
+              INSERT INTO contributions
+                (member_id, cycle_id, period, amount_minor, source, status, rail_ref, received_at)
+              SELECT seated.id, c.id, :p, :amt, CAST(:src AS contribution_source), 'confirmed',
+                     :ref, c.closed_at
+                FROM collection_cycles c
+                CROSS JOIN LATERAL (
+                  SELECT m.id
+                    FROM members m
+                   WHERE m.sponsor_id = :s
+                     AND m.csp_id LIKE format('CSP-%s-%%', :prefix)
+                   ORDER BY m.csp_id
+                   LIMIT :scheduled
+                ) seated
+               WHERE c.sponsor_id = :s AND c.period = :p
+              """)
+          .param("p", period)
+          .param("amt", PREMIUM)
+          .param("src", source)
+          .param("ref", sponsor.code())
+          .param("s", sponsorId)
+          .param("prefix", prefix)
+          .param("scheduled", sponsor.scheduled() - 1 - missing)
+          .update();
+    }
+
+    /*
+     * This month's collection, for everybody on the file.
+     *
+     * Confirmed for those who paid, expected for the rest, so "8,381 credited of
+     * 8,412 scheduled" is arithmetic over rows rather than a sentence. The few
+     * beyond `scheduled` are starters enrolled after the cut-off: on the roster,
+     * not on this file, which is exactly the case an officer asks about.
+     */
+    db.sql(
+            """
+            INSERT INTO contributions
+              (member_id, cycle_id, period, amount_minor, source, status, rail_ref, received_at)
+            SELECT id, :c, :p, :amt, CAST(:src AS contribution_source),
+                   CASE WHEN seat <= :credited THEN 'confirmed'::contribution_status
+                        ELSE 'expected'::contribution_status END,
+                   :ref,
+                   CASE WHEN seat <= :credited THEN now() - interval '2 days' END
+              FROM (
+                SELECT m.id, row_number() OVER (ORDER BY m.csp_id) AS seat
+                  FROM members m
+                 WHERE m.sponsor_id = :s
+                   AND m.csp_id LIKE format('CSP-%s-%%', :prefix)
+                 ORDER BY m.csp_id
+                 LIMIT :scheduled
+              ) seated
+            """)
+        .param("c", cycleId)
+        .param("p", current)
+        .param("amt", PREMIUM)
+        .param("src", source)
+        .param("ref", sponsor.code())
+        .param("s", sponsorId)
+        .param("prefix", prefix)
+        .param("credited", sponsor.credited())
+        .param("scheduled", sponsor.scheduled() - 1)
+        .update();
+  }
+
   /** Exception kinds are rail-specific: a file mismatches, a bank refuses. */
-  private void seedExceptions(UUID cycleId, UUID memberId, boolean payroll) {
+  private void seedExceptions(
+      SponsorSeed sponsor, UUID sponsorId, UUID cycleId, UUID memberId, boolean payroll) {
     record Exc(String kind, String name, String svc, String resp, long expected, long received, boolean linked) {}
     var rows =
         payroll
@@ -360,6 +544,37 @@ public class DemoSeed implements CommandLineRunner {
           .param("c", cycleId).param("m", e.linked() ? memberId : null).param("k", e.kind())
           .param("n", e.name()).param("svc", e.svc()).param("resp", e.resp())
           .param("exp", e.expected()).param("rec", e.received())
+          .update();
+    }
+
+    /*
+     * The rest of them, so the count on the dashboard is a set of rows.
+     *
+     * As many as did not pay: 8,412 on the file and 8,381 credited is 31 rows
+     * needing a decision, and ₦77,500 unallocated until they get one. The three
+     * above carry the detail a reviewer reads — a name spelled differently, a
+     * deduction that never happened, an amount short — and these carry the
+     * arithmetic. A dashboard counting 57 over a ledger holding 3 is a number
+     * somebody would act on and could not work through.
+     */
+    var unpaid = sponsor.scheduled() - sponsor.credited() - rows.size();
+    if (unpaid > 0) {
+      db.sql(
+              """
+              INSERT INTO reconciliation_exceptions
+                (cycle_id, member_id, kind, name_as_written, service_no_as_written,
+                 expected_minor, received_minor)
+              SELECT :c, m.id, CAST(:k AS exception_kind), NULL, m.service_no, :exp, 0
+                FROM members m
+               WHERE m.sponsor_id = :s
+               ORDER BY m.csp_id DESC
+               LIMIT :n
+              """)
+          .param("c", cycleId)
+          .param("k", payroll ? "unmatched" : "no_funds")
+          .param("exp", PREMIUM)
+          .param("s", sponsorId)
+          .param("n", unpaid)
           .update();
     }
   }
