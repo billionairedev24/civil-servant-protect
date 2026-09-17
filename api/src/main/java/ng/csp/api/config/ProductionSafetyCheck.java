@@ -45,6 +45,16 @@ public class ProductionSafetyCheck implements InitializingBean {
           INTEGRATIONS_MODE=http and configure the endpoints.""");
     }
 
+    if (props.evidence().isLocal()) {
+      throw new IllegalStateException(
+          """
+          Refusing to start: csp.evidence.mode is 'local' under the prod profile.
+          Claim evidence would be written to a directory on one pod — no encryption at rest, no \
+          object lock, no retention, and gone when the pod is replaced. A death certificate is the \
+          document a payout is justified by, and losing it means asking a bereaved family for it \
+          again. Set EVIDENCE_MODE=s3 with the bucket and credentials.""");
+    }
+
     if (!(keys instanceof Pkcs11KeyVault)) {
       throw new IllegalStateException(
           """

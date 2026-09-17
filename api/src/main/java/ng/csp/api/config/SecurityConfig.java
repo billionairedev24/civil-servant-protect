@@ -92,6 +92,20 @@ public class SecurityConfig {
                     .permitAll()
                     .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")
                     .permitAll()
+                    /*
+                     * The development stand-in for a presigned upload URL.
+                     *
+                     * Open for the same reason a presigned URL is: the thing
+                     * being presented is the URL itself, which this service
+                     * issued a moment earlier to an authenticated claimant and
+                     * which contains an unguessable key. LocalEvidenceController
+                     * exists only when csp.evidence.mode is 'local', and the
+                     * prod profile refuses to start on that mode — so in a real
+                     * deployment this matcher has no handler behind it and
+                     * uploads never touch this service at all.
+                     */
+                    .requestMatchers(HttpMethod.PUT, "/v1/evidence/**")
+                    .permitAll()
                     .anyRequest()
                     .authenticated())
         .oauth2ResourceServer(

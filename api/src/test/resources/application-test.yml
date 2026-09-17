@@ -25,6 +25,10 @@ csp:
     # Tiny, so a handful of rows crosses several chunk boundaries. The bug this
     # guards against is invisible on any file smaller than one chunk.
     chunk-size: 2
+  evidence:
+    # Under target/, so `mvn clean` takes the test's evidence with it and a run
+    # never reads a file an earlier run left behind.
+    root: target/evidence
   jwt-secret: test-secret-that-is-at-least-32-characters-long
   token-issuer: https://member-auth.csp.test
   otp:

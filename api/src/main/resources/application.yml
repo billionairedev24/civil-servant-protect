@@ -91,6 +91,22 @@ csp:
     comms-url: ${COMMS_URL:}
     comms-sender: ${COMMS_SENDER:CSProtect}
     payout-url: ${PAYOUT_URL:}
+  evidence:
+    # Where claim documents are kept. `local` writes under `root` and hands the
+    # browser this service's own upload endpoint, so the claim path works on a
+    # checkout with nothing else running; it is refused under the prod profile.
+    # `s3` is any S3-compatible store — `docker compose up minio` gives you one
+    # locally. See SETUP.md.
+    mode: ${EVIDENCE_MODE:local}
+    root: ${EVIDENCE_ROOT:./var/evidence}
+    # The address the *browser* uses to reach this service, which behind an
+    # ingress is not the address the container knows itself by.
+    base-url: ${EVIDENCE_BASE_URL:http://localhost:8080}
+    endpoint: ${EVIDENCE_ENDPOINT:}
+    region: ${EVIDENCE_REGION:us-east-1}
+    bucket: ${EVIDENCE_BUCKET:}
+    access-key: ${EVIDENCE_ACCESS_KEY:}
+    secret-key: ${EVIDENCE_SECRET_KEY:}
   otp:
     echo: ${OTP_ECHO:false}
     fixed-code: ${OTP_FIXED_CODE:#{null}}

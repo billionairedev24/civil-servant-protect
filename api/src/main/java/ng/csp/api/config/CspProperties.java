@@ -34,6 +34,7 @@ public record CspProperties(
      */
     String tokenIssuer,
     Integrations integrations,
+    Evidence evidence,
     Otp otp) {
 
   public CspProperties {
@@ -45,6 +46,10 @@ public record CspProperties(
             : corsOrigins;
     tokenIssuer = tokenIssuer == null || tokenIssuer.isBlank() ? "https://member-auth.csp.local" : tokenIssuer;
     integrations = integrations == null ? new Integrations("stub", null, null, null, null) : integrations;
+    evidence =
+        evidence == null
+            ? new Evidence("local", null, null, null, null, null, null, null)
+            : evidence;
     otp = otp == null ? new Otp(false, null) : otp;
   }
 
@@ -66,6 +71,39 @@ public record CspProperties(
       String payoutUrl) {
     public boolean isStubbed() {
       return !"http".equals(mode);
+    }
+  }
+
+  /**
+   * Where a death certificate is kept.
+   *
+   * <p>{@code local} writes to a directory so the claim path works on a laptop with nothing
+   * installed; {@code s3} is any S3-compatible store — MinIO in Abuja, Ceph, a provider's own —
+   * because the spec's hosting argument is that this can move, and code written against one vendor's
+   * API cannot. {@code local} is refused under the prod profile: see {@link ProductionSafetyCheck}.
+   *
+   * @param baseUrl this service's own address, which {@code local} hands back as the upload URL. It
+   *     has to be the address the browser can reach, not the one the container knows itself by.
+   */
+  public record Evidence(
+      @Pattern(regexp = "local|s3", message = "csp.evidence.mode is 'local' or 's3'") String mode,
+      String root,
+      String baseUrl,
+      String endpoint,
+      String region,
+      String bucket,
+      String accessKey,
+      String secretKey) {
+
+    public Evidence {
+      mode = mode == null || mode.isBlank() ? "local" : mode;
+      root = root == null || root.isBlank() ? "./var/evidence" : root;
+      baseUrl = baseUrl == null || baseUrl.isBlank() ? "http://localhost:8080" : baseUrl;
+      region = region == null || region.isBlank() ? "us-east-1" : region;
+    }
+
+    public boolean isLocal() {
+      return !"s3".equals(mode);
     }
   }
 

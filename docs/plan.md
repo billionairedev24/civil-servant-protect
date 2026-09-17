@@ -42,10 +42,15 @@ most misleading to leave, because the product looks complete and is not.
 2. **An assessor cannot assess or pay.** `POST /claims/{ref}/assess` and
    `/pay` exist, with the maker–checker and idempotency rules tested. There is
    no client method and no screen; the console's claim queue is read-only.
-3. **Claim documents are recorded but never stored.** The API takes a
-   `storageKey` from the caller and writes metadata. Nothing uploads bytes,
-   there is no object store, and no presigned-URL flow. A claim cannot carry
-   its evidence.
+3. ~~**Claim documents are recorded but never stored.**~~ **Done.** The API
+   issues the storage key itself, hands back an upload URL — presigned PUT at an
+   S3-compatible bucket, or its own endpoint in development — and confirms
+   against the store rather than the client's word. Walking it over HTTP found
+   that **a member could not open a claim at all**: the sponsor's projection is
+   written by a trigger whose only policy is keyed on a sponsor, so under a
+   member's scope every claim rolled back. Every existing claim test ran as the
+   system scope, where that is invisible. Fixed in `V11`, with the test now
+   opening claims as the member does.
 
 ### 2b. In the spec, not built at all
 
@@ -62,9 +67,10 @@ most misleading to leave, because the product looks complete and is not.
    Published in one process. The stage boundaries are in the right places, so
    this is a deployment change rather than a rewrite — but there is no topic,
    no retry policy and no dead-letter queue.
-8. **Object storage.** S3/MinIO for roll files, PGP signatures and claim
-   evidence, with server-side encryption and object lock for retention. None of
-   it exists.
+8. **Object storage, for everything else.** Claim evidence is done (see 2a.3) —
+   MinIO in compose, presigned PUT, SSE-S3. Roll files and their PGP signatures
+   still live on disk, and object lock is configured on the bucket rather than
+   asserted by the application.
 9. **The integration adapters over the wire.** NIMC (JAX-WS SOAP over IPsec),
    comms (SMS/USSD REST), payout (NIBSS REST), the SFTP poller (Apache MINA).
    Each has an interface, a circuit breaker with settings chosen for that
@@ -187,7 +193,7 @@ promise.
 
 | # | Work | Build days | Blocked on |
 |---|---|---|---|
-| **1** | **Object storage** for claim evidence — MinIO locally, presigned upload, encryption, object lock | 0.5 | — |
+| ~~**1**~~ | ~~**Object storage** for claim evidence~~ — **done**: MinIO in compose, presigned PUT, SSE-S3, server-chosen keys, confirmation checked against the store | 0.5 | — |
 | **2** | **Member claim wizard** wired, both surfaces, with evidence attached | 0.5 | 1 |
 | **3** | **Assessor queue** wired — assess, pay, maker–checker in the UI | 0.5 | — |
 | | **→ Console and member web are finished here** | **1.5** | |

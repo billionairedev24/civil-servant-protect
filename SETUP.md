@@ -236,6 +236,80 @@ L3 data never reaches this table: a phone number is stored as `+234803•••�
 an account as `••••6789`, and a NIN or a one-time code as `«withheld»`. It is
 the table somebody exports to a spreadsheet at 2am, which is exactly why.
 
+### A claim's evidence
+
+Documents do not come through the API. The client asks where to put a file, PUTs
+it there itself, and then confirms — the same three steps whether the store is a
+bucket in Abuja or a directory on your laptop, because the client follows the URL
+it is handed and never learns which one it got.
+
+```bash
+# 1. Where does this go?
+curl -s -XPOST localhost:8080/v1/claims/CLM-2026-0092/documents/upload \
+  -H "Authorization: Bearer $MEMBER" -H 'Content-Type: application/json' \
+  -d '{"docKey":"death_certificate","filename":"cert.pdf",
+       "contentType":"application/pdf","byteSize":24}'
+# {"key":"claims/22c87e01-…/death_certificate/fc366227-….pdf",
+#  "url":"http://localhost:8080/v1/evidence/claims/22c87e01-…",
+#  "method":"PUT","headers":{"Content-Type":"application/pdf"},
+#  "expiresAt":"2026-09-17T04:14:09Z"}
+
+# 2. Send the bytes to that URL, with exactly the headers it returned. Against a
+#    bucket they are part of the signature, and a fifth header is a 403.
+curl -s -XPUT "$URL" -H 'Content-Type: application/pdf' --data-binary @cert.pdf
+
+# 3. Confirm. The server looks in the store rather than taking your word for it.
+curl -s -XPOST localhost:8080/v1/claims/CLM-2026-0092/documents \
+  -H "Authorization: Bearer $MEMBER" -H 'Content-Type: application/json' \
+  -d '{"docKey":"death_certificate"}'
+# {"docKey":"death_certificate","outstanding":3}
+```
+
+When the last one lands, `outstanding` reaches 0 and the claim moves to
+`assessing` by itself. Step 3 against a file that never arrived is a 400 and the
+claim stays where it was — a claim reaching an assessor with nothing behind it
+means a bereaved family being asked for the certificate a second time.
+
+The storage key is the server's. It is never accepted from the caller, and a
+second upload of the same document gets a new key rather than overwriting the
+first — which is what retention needs, and what stops different bytes appearing
+behind a key an assessor has already read.
+
+Reading one back, as the assessor does:
+
+```bash
+curl -s localhost:8080/v1/claims/CLM-2026-0092/documents/death_certificate/file \
+  -H "Authorization: Bearer $ASSESSOR" -o cert.pdf
+```
+
+That stream goes through the API rather than out as a presigned GET: a signed
+link to a death certificate works for whoever ends up holding it, and these are
+the reads that belong in an audit trail.
+
+**Locally this writes to a directory** (`csp.evidence.root`, default
+`./var/evidence`) and the upload URL is this service's own — no encryption at
+rest, no object lock, one machine. Enough to work the claim path with nothing
+installed; refused outright under the `prod` profile.
+
+**For the real thing**, any S3-compatible store:
+
+```bash
+docker compose --profile s3 up -d           # MinIO, plus a bucket with CORS set
+EVIDENCE_MODE=s3 EVIDENCE_ENDPOINT=http://localhost:9000 \
+EVIDENCE_BUCKET=csp-evidence EVIDENCE_ACCESS_KEY=csp EVIDENCE_SECRET_KEY=csp-secret \
+  mvn spring-boot:run
+```
+
+Uploads then go straight to the bucket on a presigned PUT with SSE-S3, and the
+API never sees the bytes. Worth switching to before anything ships: presigned
+URLs, bucket CORS and server-side encryption all work on a directory and then do
+not work on a bucket. The startup log says which one you are on:
+
+```
+Claim evidence: local directory /home/you/repo/api/var/evidence
+Claim evidence: s3 http://localhost:9000/csp-evidence
+```
+
 ### Paying a claim
 
 The money path is two decisions by two people, like everything else here:
