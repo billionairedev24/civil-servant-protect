@@ -189,3 +189,87 @@ jobs:
           detail=$(grep -E '^\s*(✗|console:|uncaught:)' smoke.log | head -5 | tr '\n' ' ' | cut -c1-900)
           [ -n "$detail" ] || detail=$(tail -5 smoke.log | tr '\n' ' ' | cut -c1-900)
           echo "::error title=Smoke test::${detail}"
+
+  # The phone app.
+  #
+  # This job exists because nowhere else can build it: an APK needs the Android
+  # SDK, and the machine this was written on has Gradle and no SDK at all. So
+  # "it compiles" is proved here rather than claimed, and the sizes below are
+  # measured rather than estimated.
+  #
+  # It does not prove the app runs. Nothing short of a handset does that, and
+  # the artefact is uploaded so somebody can install it and find out.
+  mobile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: android-actions/setup-android@v3
+
+      # The root's too: Metro compiles `src/` from the repository, which is the
+      # point of the whole arrangement — the phone and the browser run the same
+      # API client, the same i18n table and the same claim wizard.
+      - name: Install
+        run: |
+          npm ci
+          npm ci --prefix mobile
+
+      # Against the shared code, with `.native.ts` resolution on — so the
+      # typecheck sees the modules Metro will actually bundle.
+      - name: Typecheck
+        run: npm run typecheck --prefix mobile
+
+      # Bundling is where a shared module that cannot cross to React Native
+      # shows up: a DOM type is a compile error, but a `document` reference or a
+      # Vite-only import is not, and it fails here instead.
+      - name: Bundle
+        working-directory: mobile
+        run: |
+          npx react-native bundle --platform android --dev false \
+            --entry-file index.js \
+            --bundle-output /tmp/index.android.bundle --assets-dest /tmp/assets
+
+      - name: Build the APKs
+        working-directory: mobile/android
+        run: ./gradlew assembleRelease --no-daemon
+
+      # The spec's budget is 8 MB per ABI. Reported rather than enforced: this
+      # is the first build, the number is what it is, and a job that failed on
+      # it before anyone has seen it would just get the check deleted.
+      - name: Sizes
+        shell: bash
+        run: |
+          {
+            echo '### APK sizes'
+            echo ''
+            echo '| Build | Size | Against the 8 MB budget |'
+            echo '|---|---|---|'
+            for apk in mobile/android/app/build/outputs/apk/release/*.apk; do
+              bytes=$(stat -c%s "$apk")
+              mb=$(awk "BEGIN{printf \"%.1f\", $bytes/1048576}")
+              verdict=$(awk "BEGIN{print ($bytes <= 8388608) ? \"within\" : \"over\"}")
+              echo "| $(basename "$apk") | ${mb} MB | ${verdict} |"
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: csp-mobile-apks
+          path: mobile/android/app/build/outputs/apk/release/*.apk
+          retention-days: 14
+
+      - name: Report failure
+        if: failure()
+        shell: bash
+        run: echo "::error title=Mobile::The phone app did not build — see this job's log."

@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { ApiError } from './client'
+import { ApiError, type UploadFile } from './client'
 import { keys } from './queries'
 import { useApi } from './provider'
 
@@ -40,7 +40,7 @@ export interface ClaimWizard {
   /** A message fit to read on the worst day of somebody's life, or null. */
   error: string | null
   open: (typeIndex: number, relationIndex: number) => Promise<string | null>
-  send: (docKey: string, file: File) => Promise<void>
+  send: (docKey: string, file: UploadFile) => Promise<void>
   reset: () => void
 }
 
@@ -96,7 +96,7 @@ export function useClaimWizard(): ClaimWizard {
   )
 
   const send = useCallback(
-    async (docKey: string, file: File) => {
+    async (docKey: string, file: UploadFile) => {
       if (!live || !api || !ref) return
 
       setDocState((s) => ({ ...s, [docKey]: 'sending' }))

@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createContext, useContext, useMemo, useState } from 'react'
-import { ApiError, CspApi, deviceTokenStore, memoryTokenStore } from './client'
+import { ApiError, CspApi, deviceTokenStore, memoryTokenStore, type TokenStore } from './client'
+import { configuredApiUrl } from './env'
 
 /**
  * Where the data comes from.
@@ -14,7 +15,7 @@ import { ApiError, CspApi, deviceTokenStore, memoryTokenStore } from './client'
  * reviewed and how the rail-branching tests run, and neither should need
  * Postgres.
  */
-const API_URL = (import.meta.env?.VITE_API_URL as string | undefined)?.trim() ?? ''
+const API_URL = configuredApiUrl()
 
 export const LIVE = API_URL !== ''
 
@@ -34,8 +35,10 @@ export const LIVE = API_URL !== ''
  * load, because a session should not change how it is stored halfway through.
  */
 function tokenStoreForSurface() {
+  // Optional all the way down: React Native has a `window` global with no
+  // `location` on it, and this module is shared with the phone app.
   const onConsole =
-    typeof window !== 'undefined' && window.location.pathname.startsWith('/console')
+    typeof window !== 'undefined' && (window.location?.pathname ?? '').startsWith('/console')
   return onConsole ? memoryTokenStore() : deviceTokenStore()
 }
 
@@ -108,15 +111,34 @@ function makeQueryClient(): QueryClient {
   })
 }
 
-export function ApiProvider({ children }: { children: React.ReactNode }) {
+/**
+ * @param baseUrl where the API is, when the host is not a Vite build. React
+ *     Native has no `import.meta.env`, and a phone cannot reach `localhost`
+ *     anyway — it needs the machine's address on the wifi.
+ * @param tokens where that host keeps a session. The browser has two answers
+ *     already (see {@link tokenStoreForSurface}); the phone's is MMKV, which is
+ *     a native module this bundle must not import.
+ */
+export function ApiProvider({
+  children,
+  baseUrl,
+  tokens,
+}: {
+  children: React.ReactNode
+  baseUrl?: string
+  tokens?: TokenStore
+}) {
   const [expiries, setExpiries] = useState(0)
   const [queryClient] = useState(makeQueryClient)
 
+  const url = baseUrl?.trim() || API_URL
+  const live = url !== ''
+
   const api = useMemo(() => {
-    if (!LIVE) return null
+    if (!live) return null
     return new CspApi({
-      baseUrl: API_URL,
-      tokens: tokenStoreForSurface(),
+      baseUrl: url,
+      tokens: tokens ?? tokenStoreForSurface(),
       onSignedOut: () => {
         setExpiries((n) => n + 1)
         // Nothing cached survives a sign-out. On a shared office machine the
@@ -124,9 +146,9 @@ export function ApiProvider({ children }: { children: React.ReactNode }) {
         queryClient.clear()
       },
     })
-  }, [queryClient])
+  }, [queryClient, live, url, tokens])
 
-  const value = useMemo(() => ({ api, live: LIVE, expiries }), [api, expiries])
+  const value = useMemo(() => ({ api, live, expiries }), [api, live, expiries])
 
   return (
     <Ctx.Provider value={value}>

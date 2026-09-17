@@ -45,6 +45,27 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * One document, on its way to storage.
+ *
+ * A shape rather than `File`, because the two surfaces have different things in
+ * hand: a browser has a `File` from an input, and a handset has a `file://` URI
+ * from the camera that has to be read into a blob first. The three fields the
+ * server is told about — name, type and size — are the same either way, and
+ * `body` is whatever that platform can actually PUT.
+ */
+export interface UploadFile {
+  name: string
+  type: string
+  size: number
+  body: BodyInit
+}
+
+/** A browser's `File` already is one of these; this says so without a cast. */
+export function webFile(file: File): UploadFile {
+  return { name: file.name, type: file.type, size: file.size, body: file }
+}
+
 export interface TokenStore {
   read(): { accessToken: string; refreshToken: string } | null
   write(tokens: { accessToken: string; refreshToken: string }): void
@@ -288,7 +309,7 @@ export class CspApi {
   async uploadClaimDocument(
     ref: string,
     docKey: string,
-    file: File,
+    file: UploadFile,
     onProgress?: (fraction: number) => void,
   ): Promise<{ docKey: string; outstanding: number }> {
     const where: ClaimUpload = await this.call(
@@ -301,7 +322,7 @@ export class CspApi {
     const sent = await fetch(where.url, {
       method: where.method,
       headers: where.headers,
-      body: file,
+      body: file.body,
     })
     if (!sent.ok) {
       /*

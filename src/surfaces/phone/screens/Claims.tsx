@@ -4,6 +4,7 @@ import { CLAIM, CLAIM_SUMMARY_VALUES } from '../../../data/member'
 import { CLAIM_FIXTURE, MY_CLAIMS } from '../../../api/fixtures'
 import { useClaim, useMyClaims } from '../../../api/queries'
 import { useClaimWizard } from '../../../api/claim'
+import { webFile } from '../../../api/client'
 import { DocumentPicker, docName } from '../../../components/DocumentPicker'
 import { EN_ONLY, fill } from '../../../i18n'
 import { NotLive, dayFirst, naira, useLive } from '../../../api/live'
@@ -234,7 +235,7 @@ export function ClaimScreen() {
                           docKey={key}
                           state={state}
                           compact
-                          onPick={(file) => void claim.send(key, file)}
+                          onPick={(file) => void claim.send(key, webFile(file))}
                         />
                       </div>
                     )

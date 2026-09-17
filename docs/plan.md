@@ -62,11 +62,17 @@ most misleading to leave, because the product looks complete and is not.
 
 ### 2b. In the spec, not built at all
 
-4. **React Native phone app.** The spec asks for RN + Hermes, an ABI-split APK
-   ≤8 MB, MMKV for the offline card, `react-native-biometrics`. What exists is
-   a mobile-first React web app at `/m` sharing the i18n table, the design
-   tokens and the API client — most of the shared code the spec describes, and
-   no APK.
+4. **React Native phone app — started.** `mobile/` is a real RN 0.87 app:
+   Hermes, R8, ABI-split APKs, MMKV for the session and the offline card,
+   `react-native-biometrics` on the front door, the camera for claim documents.
+   Metro compiles `../src` rather than a copy, so the phone runs the same API
+   client, i18n table, design tokens and claim wizard as the web. Six screens —
+   sign in, home, the protection card, cover, the claim wizard, tracking.
+
+   What is not done: only English (the language picker is not built), no
+   navigation library, the card's QR is not drawn, and **nobody has run it on a
+   handset**. It typechecks and Metro bundles it here; the CI `mobile` job is
+   where an APK first exists, because this machine has no Android SDK.
 5. **Next.js SSR for the member web.** The spec asks for server rendering so it
    works on slow links and old browsers. This is a Vite SPA.
 6. **USSD twin.** A stateless menu service reading the same i18n table. Not
@@ -141,7 +147,7 @@ this order, because each was worth having on its own:
 reads the certificate and approves, and operations pays — walked end to end
 against a running API, in a browser and over HTTP.*
 
-### Now — the phone app (2b.4)
+### Now — finish the phone app (2b.4)
 
 Only after the claim path, because building it first would mean building the
 claim screens twice. By then the API client, the i18n table and the design
@@ -189,7 +195,7 @@ against a running backend rather than asserted.
 |---|---|---|
 | **Console** | Every screen live, including an assessor who can assess and pay | **Done** — verified against a running API |
 | **Member web** | Every screen live, including filing a claim with evidence | **Done** — verified in a browser against a running API |
-| **Member mobile** | An installable Android build doing the member journey offline-capable, with biometrics | Not started; the web app at `/m` is the stand-in |
+| **Member mobile** | An installable Android build doing the member journey offline-capable, with biometrics | Built and bundling; an APK exists only in CI, and no handset has run it |
 | **USSD** | The same journeys reachable with no smartphone | Not started |
 
 ### The estimate
@@ -206,7 +212,7 @@ promise.
 | ~~**2**~~ | ~~**Member claim wizard** wired, both surfaces~~ — **done** | 0.5 | 1 |
 | ~~**3**~~ | ~~**Assessor queue** wired — assess, pay~~ — **done** | 0.5 | — |
 | | **→ Console and member web are finished: a member can report a death, attach a certificate, and be paid** | **done** | |
-| **4** | **React Native app**: shell, navigation, the member journey in RN primitives, MMKV offline card, biometrics, Hermes, ABI-split release config, CI that builds the APK | 5 | — |
+| **4** | ~~**React Native app**: shell, the member journey in RN primitives, MMKV offline card, biometrics, Hermes, ABI-split release config, CI that builds the APK~~ — **done bar a device** | 5 | Somebody with an Android handset |
 | **5** | Remaining `/m` screens ported to reach parity | 3 | 4 |
 | | **→ Mobile is finished here** | **8** | |
 | **6** | The four adapters over the wire — NIMC SOAP/IPsec, comms REST, NIBSS REST, SFTP poller | 3 | **Credentials, endpoints and sandbox access** for each |

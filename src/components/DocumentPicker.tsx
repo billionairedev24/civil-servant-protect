@@ -1,24 +1,11 @@
 import { useRef } from 'react'
 import { Icon } from './Icon'
 import { EN_ONLY } from '../i18n'
+import { ACCEPTED, docName } from './docs'
 import { C } from '../theme/tokens'
 import type { DocState } from '../api/claim'
 
-/** What the API accepts. Stated here too, so the file dialogue offers only those. */
-export const ACCEPTED = 'application/pdf,image/jpeg,image/png'
-
-/**
- * The name of one required document.
- *
- * Falls back to the key with the underscores taken out. That is deliberate: the
- * server's list changes with the underwriter's wording version, and a document
- * this build has never heard of should read "coroner report" rather than vanish
- * from a list somebody has to complete.
- */
-export function docName(key: string): string {
-  const named = (EN_ONLY as Record<string, string>)[`doc_${key}`]
-  return named ?? key.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase())
-}
+export { ACCEPTED, docName }
 
 /**
  * Pick a file for one document, and say where it got to.
