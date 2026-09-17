@@ -7,7 +7,7 @@ import { LangProvider, type Lang } from '../../src/i18n'
 import { C } from '../../src/theme/tokens'
 import { API_URL } from './env'
 import { deviceTokenStore, forgetEverything } from './storage'
-import { unlock } from './biometrics'
+import { availableLock, lockName, unlock, type Lock } from './biometrics'
 import { Button, FixtureBadge, Screen, Sub, Title } from './ui'
 import { SignInScreen } from './screens/SignIn'
 import { HomeScreen } from './screens/Home'
@@ -58,6 +58,13 @@ function Shell() {
   const [lang, setLang] = useState<Lang>('en')
   const [screen, setScreen] = useState<Screen>('home')
   const [locked, setLocked] = useState(true)
+  // What this handset actually offers, so the copy names it rather than
+  // assuming a reader that half these phones do not have.
+  const [lock, setLock] = useState<Lock>('none')
+
+  useEffect(() => {
+    void availableLock().then(setLock)
+  }, [])
 
   /*
    * The lock is asked for once, when the app opens with a session already on
@@ -91,7 +98,7 @@ function Shell() {
           <Screen>
             <Title style={{ marginTop: 80 }}>Locked</Title>
             <Sub>
-              This phone asked for your fingerprint and did not get it. Your session is still here.
+              This phone asked for {lockName(lock)} and did not get it. Your session is still here.
             </Sub>
             <Button label="Try again" onPress={() => void ask()} style={{ marginTop: 20 }} />
             <Button label="Sign out instead" kind="quiet" onPress={leave} style={{ marginTop: 6 }} />

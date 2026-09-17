@@ -1,7 +1,7 @@
 import ReactNativeBiometrics, { BiometryTypes } from 'react-native-biometrics'
 
 /**
- * The fingerprint on the front door, and what it is actually for.
+ * The lock on the front door, and what it is actually for.
  *
  * It does not authenticate anybody to the server — the session already did
  * that, and the refresh token in MMKV is what keeps it. This is a lock on the
@@ -16,6 +16,26 @@ import ReactNativeBiometrics, { BiometryTypes } from 'react-native-biometrics'
 const biometrics = new ReactNativeBiometrics({ allowDeviceCredentials: true })
 
 export type Lock = 'fingerprint' | 'face' | 'passcode' | 'none'
+
+/**
+ * What to call it in front of somebody.
+ *
+ * A screen that says "fingerprint" on a Face ID iPhone is telling a person to
+ * do something their phone cannot do, and this app runs on both. The device
+ * decides the word.
+ */
+export function lockName(lock: Lock): string {
+  switch (lock) {
+    case 'face':
+      return 'Face ID'
+    case 'fingerprint':
+      return 'your fingerprint'
+    case 'passcode':
+      return 'your passcode'
+    default:
+      return 'a screen lock'
+  }
+}
 
 export async function availableLock(): Promise<Lock> {
   try {

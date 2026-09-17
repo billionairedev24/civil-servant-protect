@@ -1,7 +1,7 @@
 # The phone app
 
-React Native, Android-first, sharing its API client, its i18n table, its design
-tokens and its claim wizard with the web app — not copies of them, the same
+React Native, Android and iOS, sharing its API client, its i18n table, its
+design tokens and its claim wizard with the web app — not copies of them, the same
 files. Metro is pointed at `../src` for exactly that reason: the moment the two
 have separate copies of "what does a claim need", they will disagree, and the
 first person to find out is a family.
@@ -10,9 +10,17 @@ first person to find out is a family.
 
 ```bash
 npm install
-CSP_API_URL=http://10.0.2.2:8080 npm run android    # Android emulator
+
+CSP_API_URL=http://10.0.2.2:8080 npm run android      # Android emulator
 CSP_API_URL=http://192.168.1.42:8080 npm run android  # a handset on your wifi
+
+npm run pods                                          # once, and after adding a native module
+CSP_API_URL=http://localhost:8080 npm run ios         # iOS simulator
+CSP_API_URL=http://192.168.1.42:8080 npm run ios      # an iPhone on your wifi
 ```
+
+The iOS simulator shares the host's network, so `localhost` is the machine —
+unlike the Android emulator, which needs `10.0.2.2`.
 
 `10.0.2.2` is the emulator's name for the host machine. A real handset needs
 your machine's address on the network it is on — `localhost` is the phone
@@ -61,6 +69,21 @@ template's default and it is left visible rather than quietly changed: a real
 release needs a keystore that is not in this repository, and the decision about
 who holds it has not been made. See `android/app/build.gradle`.
 
+## iOS
+
+Same source, same screens. What differs is underneath:
+
+| | |
+|---|---|
+| **The lock** | Face ID or Touch ID rather than a fingerprint reader. The screen names whichever the device has — telling somebody to use their fingerprint on a Face ID iPhone is telling them to do something their phone cannot do. |
+| **Permissions** | Three `Info.plist` strings the native modules require: camera, photo library, Face ID. Without them iOS does not warn — it crashes the moment the camera is opened, which here is the moment somebody is photographing a death certificate. |
+| **Local HTTP** | `NSAllowsLocalNetworking`, which covers a development API on the LAN without turning off App Transport Security. Android needs a debug-only manifest for the same thing. |
+
+The CI `ios` job runs on a macOS runner and builds the simulator target. It does
+not build a signed archive: that needs a team, a provisioning profile and an
+Apple account, none of which are this repository's to decide. `Pods/` is not
+committed — `npm run pods` after a fresh clone or a new native module.
+
 ## The screens
 
 Sign in · home · the protection card · what the cover pays · the claim wizard ·
@@ -86,6 +109,11 @@ that creates a member.
 - **The QR on the protection card** is not drawn. The API issues a signed
   offline payload for it; rendering it needs a QR library and a decision about
   what a gate scans it with.
-- **Nobody has run it on a handset.** It compiles, Metro bundles it, and CI
-  builds the APK. Whether it is usable on a Tecno in sunlight is a question this
-  repository cannot answer.
+- **Nobody has run it on a handset, on either platform.** It compiles, Metro
+  bundles it, CI builds the APK and compiles the iOS target. Whether it is
+  usable on a Tecno in sunlight is a question this repository cannot answer.
+- **iOS has never been built here at all.** Xcode does not run on Linux, so
+  unlike the Android side — where the bundle and the autolinking were checked
+  locally — the iOS project is the React Native template with this app's
+  identity, permissions and entry point. The CI job is the first thing that
+  compiles it.
