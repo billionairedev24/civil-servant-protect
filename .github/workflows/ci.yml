@@ -215,7 +215,21 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - uses: android-actions/setup-android@v3
+      # No setup-android action. The GitHub Ubuntu image ships the SDK with its
+      # licences already accepted, and the action that installs one on top of it
+      # is a third-party dependency that failed on the first run for reasons
+      # nobody here can read — this repository cannot fetch Actions log blobs.
+      # Checked explicitly instead, so a missing SDK says so in one line.
+      - name: Android SDK
+        shell: bash
+        run: |
+          sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          if [ -z "$sdk" ] || [ ! -d "$sdk" ]; then
+            echo "::error title=Mobile::No Android SDK on this runner (ANDROID_HOME unset)."
+            exit 1
+          fi
+          echo "sdk.dir=$sdk" > mobile/android/local.properties
+          echo "Using $sdk"
 
       # The root's too: Metro compiles `src/` from the repository, which is the
       # point of the whole arrangement — the phone and the browser run the same
@@ -242,7 +256,8 @@ jobs:
 
       - name: Build the APKs
         working-directory: mobile/android
-        run: ./gradlew assembleRelease --no-daemon
+        shell: bash
+        run: ./gradlew assembleRelease --no-daemon 2>&1 | tee ../../gradle.log
 
       # The spec's budget is 8 MB per ABI. Reported rather than enforced: this
       # is the first build, the number is what it is, and a job that failed on
@@ -269,7 +284,22 @@ jobs:
           path: mobile/android/app/build/outputs/apk/release/*.apk
           retention-days: 14
 
+      # The same reasoning as the smoke test's reporter: a failure has to arrive
+      # where the change is reviewed. Actions log blobs are not fetchable from
+      # every environment this is worked on from, and "see the log" is useless
+      # advice when the log is what cannot be reached.
       - name: Report failure
         if: failure()
         shell: bash
-        run: echo "::error title=Mobile::The phone app did not build — see this job's log."
+        run: |
+          {
+            echo '### The phone app did not build'
+            echo ''
+            echo '```'
+            tail -60 gradle.log 2>/dev/null || echo 'Failed before Gradle ran — see the step above.'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          detail=$(grep -E '^(e:|error:|FAILURE|\* What went wrong|Caused by)' gradle.log 2>/dev/null | head -4 | tr '\n' ' ' | cut -c1-900)
+          [ -n "$detail" ] || detail='Failed before Gradle ran.'
+          echo "::error title=Mobile::${detail}"
