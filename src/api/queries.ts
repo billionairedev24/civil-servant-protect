@@ -304,6 +304,46 @@ export function useClaimQueue(
   })
 }
 
+/**
+ * The assessor's decision on one claim.
+ *
+ * No optimistic state. A claim that shows "approved" for a moment and then goes
+ * back to being assessed — on the screen where somebody is deciding whether a
+ * family is paid — is worse than a second's wait.
+ */
+export function useAssessClaim(ref: string) {
+  const { api } = useApi()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (body: { decision: 'approve' | 'decline' | 'request_more'; note: string; amountMinor?: number }) =>
+      api!.assessClaim(ref, body),
+    onSuccess: () => {
+      // The queue's counts and this claim's own record both moved.
+      queryClient.invalidateQueries({ queryKey: keys.claimQueue() })
+      queryClient.invalidateQueries({ queryKey: keys.claim(ref) })
+    },
+  })
+}
+
+/**
+ * Sending the money. Held by operations, never by the assessor who approved it.
+ *
+ * The claim reference is the idempotency key server-side, so a double-click
+ * cannot pay twice — which is the one mistake here that cannot be undone by
+ * editing a row.
+ */
+export function usePayClaim(ref: string) {
+  const { api } = useApi()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (body: { bankCode: string; accountNumber: string }) => api!.payClaim(ref, body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: keys.claimQueue() })
+      queryClient.invalidateQueries({ queryKey: keys.claim(ref) })
+    },
+  })
+}
+
 /** Claims on this sponsor's members. Thin, by design — see SponsorClaim. */
 export function useSponsorClaims(sponsorId: string, fixture: SponsorClaims): UseQueryResult<SponsorClaims> {
   const { api } = useApi()

@@ -11,6 +11,7 @@ import type {
   AddedDependant, AuditEntry, BenefitSchedule, BeneficiarySet, BulkEnrolment, Claim, ClaimQueueItem,
   ClaimUpload, ConsoleUser, DebitRun, Dependant, Enrolled, Leaver, Ledger, MemberSummary, MyClaim,
   NewMember,
+  Paid,
   ProtectionCard,
   Reconciliation, RemovedDependant, Remittance, Roster, ScheduleBatch, ScheduleRow, Session,
   SponsorClaims, SponsorDashboard, Tokens,
@@ -321,9 +322,22 @@ export class CspApi {
     return this.call('POST', `/v1/claims/${encodeURIComponent(ref)}/documents`, { docKey })
   }
 
-  /** Where a document can be read back from — the assessor's copy, and the claimant's own. */
-  claimDocumentUrl(ref: string, docKey: string): string {
-    return `${this.baseUrl}/v1/claims/${encodeURIComponent(ref)}/documents/${encodeURIComponent(docKey)}/file`
+  /**
+   * A document back — the assessor's copy, and the claimant's own.
+   *
+   * Fetched with the session's token rather than linked to. A URL that opens a
+   * death certificate without one works for whoever ends up holding it, and
+   * these are exactly the reads that belong in an audit trail.
+   */
+  async claimDocument(ref: string, docKey: string): Promise<{ blob: Blob; filename: string }> {
+    const { blob, headers } = await this.call<{ blob: Blob; headers: Headers }>(
+      'GET',
+      `/v1/claims/${encodeURIComponent(ref)}/documents/${encodeURIComponent(docKey)}/file`,
+      undefined,
+      { binary: true },
+    )
+    const named = /filename="([^"]+)"/.exec(headers.get('content-disposition') ?? '')
+    return { blob, filename: named?.[1] ?? `${docKey}.pdf` }
   }
 
   // ── Sponsor console ────────────────────────────────────────────────────────
@@ -415,6 +429,29 @@ export class CspApi {
   }
 
   /**
+   * The assessor's decision.
+   *
+   * `amountMinor` is theirs to set on an approval and is ignored otherwise. The
+   * note is required by the server and is kept on the claim trail — a decline
+   * with no reason on the record is the thing an ombudsman asks about.
+   */
+  assessClaim(
+    ref: string,
+    body: { decision: 'approve' | 'decline' | 'request_more'; note: string; amountMinor?: number },
+  ): Promise<{ ref: string; state: string }> {
+    return this.call('POST', `/v1/claims/${encodeURIComponent(ref)}/assess`, body)
+  }
+
+  /**
+   * Send an approved claim's money. A different permission, held by a different
+   * person — the server refuses the assessor who approved it, and so does the
+   * database.
+   */
+  payClaim(ref: string, body: { bankCode: string; accountNumber: string }): Promise<Paid> {
+    return this.call('POST', `/v1/claims/${encodeURIComponent(ref)}/pay`, body)
+  }
+
+  /**
    * An export, as a file the browser can save.
    *
    * <p>Not a link the screen can point at: every request carries a bearer token,
@@ -470,7 +507,7 @@ export class CspApi {
     method: string,
     path: string,
     body?: unknown,
-    options: { anonymous?: boolean; retried?: boolean; raw?: boolean } = {},
+    options: { anonymous?: boolean; retried?: boolean; raw?: boolean; binary?: boolean } = {},
   ): Promise<T> {
     const headers: Record<string, string> = {}
     if (body !== undefined) headers['Content-Type'] = 'application/json'
@@ -508,6 +545,17 @@ export class CspApi {
     }
 
     if (response.status === 204) return undefined as T
+
+    /*
+     * A body that is not text at all — a scanned certificate.
+     *
+     * Read before `text()` gets to it: decoding a PDF or a JPEG as UTF-8 and
+     * re-encoding it produces a file that opens as garbage, and the failure
+     * looks like a storage problem rather than a client one.
+     */
+    if (response.ok && options.binary) {
+      return { blob: await response.blob(), headers: response.headers } as T
+    }
 
     const text = await response.text()
     const payload = text ? safeJson(text) : null

@@ -1,6 +1,6 @@
 export type ConsoleScreen =
   | 'dash' | 'upload' | 'recon' | 'exception' | 'debit' | 'remit'
-  | 'roster' | 'members' | 'claims'
+  | 'roster' | 'members' | 'claims' | 'assessing'
   | 'settings' | 'reports'
 
 export interface ConsoleNavItem {
@@ -10,6 +10,8 @@ export interface ConsoleNavItem {
   icon: string
   /** Which live count, if any, rides on this item. */
   badge?: 'recon' | 'claims'
+  /** A permission the session must hold for this item to appear at all. */
+  needs?: string
 }
 
 export const CONSOLE_NAV: readonly ConsoleNavItem[] = [
@@ -22,6 +24,15 @@ export const CONSOLE_NAV: readonly ConsoleNavItem[] = [
   { id: 'roster', label: 'Members', group: 'PEOPLE', icon: 'ph ph-users-three' },
   { id: 'members', label: 'Add / remove', group: 'PEOPLE', icon: 'ph ph-user-plus' },
   { id: 'claims', label: 'Claims', group: 'PEOPLE', icon: 'ph ph-first-aid-kit', badge: 'claims' },
+  /*
+   * The insurer's side of the same word.
+   *
+   * `claims` is an employer looking at their own staff with the amount, the
+   * cause and the documents all withheld; this is an assessor reading every
+   * sponsor's claims and deciding them. Two roles, two tables — the nav only
+   * offers this one to an account that holds CLAIM_READ_ANY.
+   */
+  { id: 'assessing', label: 'Assess claims', group: 'PEOPLE', icon: 'ph ph-gavel', needs: 'CLAIM_READ_ANY' },
   { id: 'settings', label: 'Settings and roles', group: 'ADMIN', icon: 'ph ph-sliders-horizontal' },
   { id: 'reports', label: 'Reports', group: 'ADMIN', icon: 'ph ph-chart-bar' },
 ]
@@ -49,6 +60,7 @@ export const CONSOLE_URLS: Record<ConsoleScreen, string> = {
   roster: '/console/members',
   members: '/console/members/add',
   claims: '/console/claims',
+  assessing: '/console/assessing',
   settings: '/console/settings',
   reports: '/console/reports',
 }

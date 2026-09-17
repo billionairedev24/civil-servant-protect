@@ -52,6 +52,7 @@ export const CONSOLE_ROUTES = [
   { id: 'roster', url: '/console/members' },
   { id: 'members', url: '/console/members/add' },
   { id: 'claims', url: '/console/claims' },
+  { id: 'assessing', url: '/console/assessing' },
   { id: 'settings', url: '/console/settings' },
   { id: 'reports', url: '/console/reports' },
 ]

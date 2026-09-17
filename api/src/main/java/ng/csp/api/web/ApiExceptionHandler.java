@@ -57,9 +57,18 @@ public class ApiExceptionHandler {
       return ResponseEntity.status(HttpStatus.CONFLICT)
           .body(new ErrorBody("rule_violation", clean(root), null));
     }
-    log.warn("data integrity violation", ex);
+    /*
+     * Anything else is a constraint we did not write for a reader: a foreign
+     * key, a unique index. Postgres names the table, the column and the
+     * constraint in those, and a caller was being handed
+     * `violates foreign key constraint "claims_assessor_user_id_fkey"` — which
+     * describes the schema to anyone with a token and describes nothing to the
+     * person reading it. The detail goes to the log, where somebody can act on
+     * it.
+     */
+    log.warn("data integrity violation: {}", root, ex);
     return ResponseEntity.status(HttpStatus.CONFLICT)
-        .body(new ErrorBody("conflict", clean(root), null));
+        .body(new ErrorBody("conflict", "That conflicts with something already recorded.", null));
   }
 
   /** check_violation, restrict_violation, and our raised exceptions. */

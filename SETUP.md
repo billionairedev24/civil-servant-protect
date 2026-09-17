@@ -323,7 +323,20 @@ Neither role holds the other's permission, and the database says the same thing
 again with `payer_is_not_assessor` — so an account that could approve a payout
 and then make it does not exist, whatever the service layer is asked to do.
 
+In the console this is **Assess claims**, which only appears for an account
+holding `CLAIM_READ_ANY` — an employer's finance officer has no business knowing
+the queue exists. It is not the **Claims** screen beside it: that one is a
+sponsor looking at their own staff with the amount, the cause and the documents
+all withheld.
+
 ```bash
+# What is waiting, oldest first — every sponsor's claims, not one rail's.
+curl -s localhost:8080/v1/claims -H "Authorization: Bearer $ASSESSOR" | jq
+
+# The evidence itself, streamed under the assessor's own token.
+curl -s localhost:8080/v1/claims/CLM-2026-0091/documents/death_certificate/file \
+  -H "Authorization: Bearer $ASSESSOR" -o certificate.pdf
+
 # The assessor decides.
 curl -s -XPOST localhost:8080/v1/claims/CLM-2026-0091/assess \
   -H "Authorization: Bearer $ASSESSOR" -H 'Content-Type: application/json' \

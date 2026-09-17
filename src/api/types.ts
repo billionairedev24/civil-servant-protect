@@ -361,6 +361,21 @@ export interface Remittance {
   openExceptions: number
 }
 
+/**
+ * What came back from sending a claim's money.
+ *
+ * `accountName` is the name the bank returned for that account, not the one
+ * anybody typed. It is the check that catches a transposed digit, so the screen
+ * shows it rather than the name it already had.
+ */
+export interface Paid {
+  ref: string
+  state: string
+  sessionId: string
+  amountMinor: number
+  accountName: string
+}
+
 export interface ClaimQueueItem {
   ref: string
   type: string

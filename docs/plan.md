@@ -14,15 +14,16 @@ come from the seeded database, not from fixtures.
 | | What a person can actually do |
 |---|---|
 | **Member sign-in** | Phone number → SMS code → session. Device-bound refresh token, so a reload does not cost another SMS. |
-| **Member app** (`/m`, `/`) | See cover and who it pays, read the contribution ledger, open the protection card, edit and confirm beneficiaries, see and change family cover at the server's quoted price, track a claim. |
+| **Member app** (`/m`, `/`) | See cover and who it pays, read the contribution ledger, open the protection card, edit and confirm beneficiaries, see and change family cover at the server's quoted price, **file a claim with its papers**, and track it. |
 | **Console sign-in** | Keycloak, OIDC + PKCE, eight realm roles carried into every request. |
 | **Console — collection** | Upload a monthly schedule (chunked, restartable, 50,000 rows in ~7s), watch the load, work the reconciliation queue under maker–checker, close a cycle, read the direct-debit run and the remittance history. |
 | **Console — people** | Enrol one member or a staff list against NIMC, take somebody off the schedule with their cover intact, search the roster, read claims as an employer may see them. |
+| **Console — claims** | An assessor works the queue: read each claim's trail, open the evidence itself, approve, decline or ask for more — and operations pays it, which the assessor who approved it cannot. |
 | **Console — admin** | Who holds which authority and what it permits, the sponsor's audit trail, five CSV exports. |
 | **Platform** | Helm chart renders for dev and prod, ArgoCD applications, Terraform for Postgres, CI green on three jobs. |
 
-**Proof:** 72 API tests, 22 CSV assertions, 122 rail assertions, 48 routes
-smoke-tested, 115 route-widths, an accessible-name check. All green.
+**Proof:** 86 API tests, 22 CSV assertions, 122 rail assertions, 49 routes
+smoke-tested, 120 route-widths, an accessible-name check. All green.
 
 ---
 
@@ -35,13 +36,20 @@ Three kinds, and the difference matters when sequencing.
 The endpoint exists, is tested, and no UI calls it. Cheapest to close and the
 most misleading to leave, because the product looks complete and is not.
 
-1. **A member cannot file a claim.** `POST /v1/claims` exists and is tested.
-   The claim wizard on both surfaces is still fixtures, and `openClaim` in the
-   API client is called by nothing. For a death-benefit scheme this is the
-   single most important missing path.
-2. **An assessor cannot assess or pay.** `POST /claims/{ref}/assess` and
-   `/pay` exist, with the maker–checker and idempotency rules tested. There is
-   no client method and no screen; the console's claim queue is read-only.
+1. ~~**A member cannot file a claim.**~~ **Done.** Both surfaces open the
+   claim, take the server's list of required papers, and upload each one to
+   object storage. Two things the browser walk-through turned up: the done
+   screen printed the mockup's claim reference above the member's real one, in
+   all five languages, and the funeral advance asked for the same certificate a
+   second time.
+2. ~~**An assessor cannot assess or pay.**~~ **Done.** The console has an
+   *Assess claims* screen — the queue, each claim's trail, its evidence opened
+   under the assessor's own token, approve/decline/ask-for-more, and the
+   payment, which only an account holding `CLAIM_PAY` is shown. Driving it
+   found that **the queue returned an empty list to every assessor**: it joins
+   `members` for the name, and that policy had no assessor clause, so every
+   claim in the scheme fell out of the join. A 200, an empty queue, nothing in
+   any log. Fixed in `V12`.
 3. ~~**Claim documents are recorded but never stored.**~~ **Done.** The API
    issues the storage key itself, hands back an upload URL — presigned PUT at an
    S3-compatible bucket, or its own endpoint in development — and confirms
@@ -115,10 +123,10 @@ most misleading to leave, because the product looks complete and is not.
 
 Sequenced by what blocks what, and by what a reviewer would find missing first.
 
-### Now — finish the claim path (2a)
+### Done — the claim path (2a)
 
-The scheme exists to pay claims and no screen can start one. Three pieces, in
-this order, because each is worth having on its own:
+The scheme exists to pay claims and no screen could start one. Three pieces, in
+this order, because each was worth having on its own:
 
 1. **Object storage behind claim documents.** A presigned upload to an
    S3-compatible bucket, the key recorded where the metadata already is. Do it
@@ -129,10 +137,11 @@ this order, because each is worth having on its own:
 3. **The assessor's queue**, wired to assess and pay. The rules are already
    tested server-side; this is a client method and two screens.
 
-*Result: a member can report a death, attach evidence, and an assessor can pay
-it — the product's whole reason for existing, demonstrable end to end.*
+*Result, now true: a member reports a death, attaches four papers, an assessor
+reads the certificate and approves, and operations pays — walked end to end
+against a running API, in a browser and over HTTP.*
 
-### Next — the phone app (2b.4)
+### Now — the phone app (2b.4)
 
 Only after the claim path, because building it first would mean building the
 claim screens twice. By then the API client, the i18n table and the design
@@ -178,8 +187,8 @@ against a running backend rather than asserted.
 
 | Surface | Finished when | Where it is now |
 |---|---|---|
-| **Console** | Every screen live, including an assessor who can assess and pay | One gap: the claim queue is read-only |
-| **Member web** | Every screen live, including filing a claim with evidence | One gap: the claim wizard files nothing |
+| **Console** | Every screen live, including an assessor who can assess and pay | **Done** — verified against a running API |
+| **Member web** | Every screen live, including filing a claim with evidence | **Done** — verified in a browser against a running API |
 | **Member mobile** | An installable Android build doing the member journey offline-capable, with biometrics | Not started; the web app at `/m` is the stand-in |
 | **USSD** | The same journeys reachable with no smartphone | Not started |
 
@@ -194,9 +203,9 @@ promise.
 | # | Work | Build days | Blocked on |
 |---|---|---|---|
 | ~~**1**~~ | ~~**Object storage** for claim evidence~~ — **done**: MinIO in compose, presigned PUT, SSE-S3, server-chosen keys, confirmation checked against the store | 0.5 | — |
-| **2** | **Member claim wizard** wired, both surfaces, with evidence attached | 0.5 | 1 |
-| **3** | **Assessor queue** wired — assess, pay, maker–checker in the UI | 0.5 | — |
-| | **→ Console and member web are finished here** | **1.5** | |
+| ~~**2**~~ | ~~**Member claim wizard** wired, both surfaces~~ — **done** | 0.5 | 1 |
+| ~~**3**~~ | ~~**Assessor queue** wired — assess, pay~~ — **done** | 0.5 | — |
+| | **→ Console and member web are finished: a member can report a death, attach a certificate, and be paid** | **done** | |
 | **4** | **React Native app**: shell, navigation, the member journey in RN primitives, MMKV offline card, biometrics, Hermes, ABI-split release config, CI that builds the APK | 5 | — |
 | **5** | Remaining `/m` screens ported to reach parity | 3 | 4 |
 | | **→ Mobile is finished here** | **8** | |
@@ -215,8 +224,10 @@ substitutes for that.
 
 ### So, in order
 
-- **Console and member web: finished in the next session and a half.** Claims is
-  the only thing between here and "every screen live".
+- **Console and member web: finished.** A member reports a death, attaches four
+  papers, an assessor reads the certificate and approves, operations pays, and
+  the claim leaves the queue — walked end to end against the API rather than
+  asserted.
 - **Mobile: about eight build days after that**, of which five get to an
   installable app doing the core journey and three reach parity with every
   screen `/m` has.
