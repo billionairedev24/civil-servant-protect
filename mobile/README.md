@@ -53,8 +53,11 @@ who holds it has not been made. See `android/app/build.gradle`.
 - **Only English.** The i18n table is wired and every string comes from it; the
   language picker the web has on its splash screen is not built here.
 - **No navigation library.** Six screens and one back button, held in component
-  state. `@react-navigation` is installed and is the right answer at the point
-  there is a deep link or a stack worth having.
+  state. `@react-navigation` was installed and has been taken out again: every
+  autolinked native module is compiled for four ABIs, and an 8 MB budget is not
+  the place to carry one that nothing imports. It is the right answer at the
+  point there is a deep link or a stack worth having, and installing it then is
+  one command.
 - **The QR on the protection card** is not drawn. The API issues a signed
   offline payload for it; rendering it needs a QR library and a decision about
   what a gate scans it with.
