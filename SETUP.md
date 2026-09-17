@@ -637,7 +637,8 @@ than assumption:
 
 ## Known gaps
 
-Real, and deliberately not papered over.
+Real, and deliberately not papered over. [docs/plan.md](docs/plan.md) carries the
+same list sequenced — what blocks what, and what needs somebody else's decision.
 
 1. **The phone app is React Native in the spec and a web app here.** `/m` is
    mobile-first React that shares the i18n table and design tokens, which is most
