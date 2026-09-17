@@ -28,14 +28,14 @@ export function WebProfile() {
     state === 'REVOKED' ? C.clay : state === 'THIS SESSION' ? C.gd : C.g
 
   return (
-    <div className="rise" style={{ maxWidth: 830 }}>
+    <div className="rise page">
       <PageTitle>Profile and settings</PageTitle>
       <PageSub>
         Your record comes from {payroll ? `${sponsor.org}'s payroll file` : 'what you gave us at sign-up'}. Some
         fields only they can change.
       </PageSub>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginTop: 18, alignItems: 'start' }}>
+      <div className="cards" style={{ marginTop: 18 }}>
         <Panel>
           <Kicker size={9.5}>PAYROLL RECORD</Kicker>
           <div style={{ marginTop: 9 }}>
@@ -115,7 +115,7 @@ export function WebProfile() {
       </div>
 
       {/* Neither surface replaces the other, and both say so in place. */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginTop: 14, alignItems: 'start' }}>
+      <div className="cards" style={{ marginTop: 14 }}>
         <Panel>
           <Kicker size={9.5} color={C.g}>ONLY ON WEB</Kicker>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 9, marginTop: 10 }}>

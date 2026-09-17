@@ -45,7 +45,7 @@ docker compose ps
 
 | | Port | Notes |
 |---|---|---|
-| Postgres | 5432 | user `csp`, password `csp`, databases `csp` and `csp_test` |
+| Postgres | 5432 | app role `csp` / `csp`, databases `csp` and `csp_test`; bootstrap superuser is `postgres` |
 | Redis | 6379 | no persistence — OTP challenges are worthless after five minutes |
 | Keycloak | 8081 | admin `admin` / `admin` at http://localhost:8081 |
 
@@ -64,6 +64,13 @@ Flyway migrates on start. The `seed` profile then writes the demo data — the
 same figures the UI fixtures use, so the apps look identical whether they are
 reading fixtures or the API.
 
+That claim is now backed by rows: the seed creates **16,272 members** across the
+four rails with fourteen months of contributions, beneficiaries for all but the
+few hundred the chase list is about, and this month's collection part-paid. It
+takes about eight seconds. Before that it asserted 8,412 members on a cycle and
+created four, which nothing noticed until a screen counted the money from the
+ledger and read "₦0 received of ₦21,030,000".
+
 Check it:
 
 ```bash
@@ -73,6 +80,18 @@ curl -s localhost:8080/actuator/health
 
 **Drop `seed` after the first run** unless you want the database rewritten. It
 truncates and re-inserts every time.
+
+**The application must not connect as a superuser.** Postgres does not apply
+row-level security to a superuser or to a role with `BYPASSRLS` — the policies
+are not consulted at all, so every protection in this schema stops applying
+without an error anywhere. `postgres` bootstraps the cluster and `csp` is an
+ordinary role that owns its databases (`deploy/local/init-db.sql`, which compose
+mounts and CI runs). `SeparationOfDutiesTest` asserts it, first, because a suite
+connected as a superuser proves nothing while reporting that it proved
+something — which is how five of its tests came to fail only on CI.
+
+If you brought the stack up before this change, the init script will not re-run
+against an existing volume: `docker compose down -v && docker compose up -d`.
 
 API docs are at http://localhost:8080/swagger-ui.html.
 
@@ -303,6 +322,118 @@ The console screen is **Members → Add members**. It parses the staff list in t
 browser and shows what it read — which header each field came from, how many
 rows, which lines it will not send — before anybody is created by it.
 
+### Exports
+
+```bash
+curl -s "localhost:8080/v1/sponsors/$SPONSOR/reports/remittances?period=2026-08-01" \
+  -H "Authorization: Bearer $VIEWER"
+# "period","rail_ref","state","scheduled_count","scheduled","credited","received","variance",…
+# "2026-08-01","CSP-114/08","closed","8412","21030000.00","8412","21030000.00","0.00","0"
+```
+
+Five of them: `schedule`, `remittances`, `movement`, `claims`, `lapse-risk`.
+CSV rather than a formatted document, because every one ends up in a spreadsheet
+— an auditor reconciles it against their own figures, a payroll officer sorts
+it — and a PDF of a table is a table nobody can use.
+
+Each is a query over the same rows the screens count, so an export and the
+console cannot disagree about a number somebody will quote back six months
+later. The claims export reads the sponsor's projection, which has no amount,
+cause or document on it: an export is the likeliest place for a column to appear
+that nobody meant to disclose, because it is written once and read by whoever is
+sent the file.
+
+`lapse-risk` is the one nobody asks for until a family has been refused —
+everybody whose grace period is running and who has not paid this month, with
+the phone number to ring.
+
+### Somebody leaving
+
+```bash
+# Comes off the payroll. Nothing is deleted.
+curl -s -XPOST localhost:8080/v1/sponsors/$SPONSOR/members/$MEMBER/leave \
+  -H "Authorization: Bearer $ADMIN" -H 'Content-Type: application/json' \
+  -d '{"reason":"retired","lastDay":"2026-09-30"}'
+# {"cspId":"CSP-114-88224","leftOn":"2026-09-30","graceUntil":"2026-11-29",
+#  "outcome":"Cover continues to 2026-11-29. A retiree keeps their CSP-ID, …"}
+
+curl -s localhost:8080/v1/sponsors/$SPONSOR/leavers -H "Authorization: Bearer $VIEWER"
+```
+
+A `POST` to `.../leave` rather than a `DELETE` of the member, and the verb is
+the argument. **Coming off the schedule stops the deduction. It does not cancel
+the cover.** A member who retires on the 30th is covered on the 1st, and their
+family is owed the same money they were owed a week earlier. What changes is who
+collects the contribution — sixty days of grace from the last payday, which is
+time to set up a direct debit and time for somebody to deal with it if the first
+attempt fails.
+
+Three consequences worth knowing:
+
+- **A death is not a reason.** It is a claim, and `deceased` is refused with a
+  message saying so. An officer closing a payroll record is the wrong person, in
+  the wrong screen, with no assessor anywhere near it.
+- **Leaving twice is refused.** The second call would move the grace date, which
+  is how cover ends earlier than the member was told it would.
+- **A leaver stops counting as a failed collection.** They stay on the roster,
+  marked, with the date their cover runs to — but out of the "not deducted"
+  number, which is a to-do list an officer works through.
+
+### Family cover
+
+```bash
+curl -s localhost:8080/v1/members/me/dependants -H "Authorization: Bearer $MEMBER"
+
+curl -s -XPOST localhost:8080/v1/members/me/dependants \
+  -H "Authorization: Bearer $MEMBER" -H 'Content-Type: application/json' \
+  -d '{"name":"Uche Okafor","relation":"Mother","dob":"1958-02-11"}'
+# {"band":"senior","sumAssuredMinor":100000000,"premiumMinor":240000,
+#  "newPremiumMinor":420000,"effectiveFrom":"2026-10-01"}
+
+curl -s -XDELETE localhost:8080/v1/members/me/dependants/$ID -H "Authorization: Bearer $MEMBER"
+# {"name":"Uche Okafor","newPremiumMinor":180000,"coveredUntil":"2026-09-30", …}
+```
+
+**The server quotes the price.** Banded by age — child, adult, senior — so a
+member can check it against a printed table; a rate that moves with a birthday
+is impossible to argue with at a service desk, which makes it impossible to
+trust. No screen multiplies anything: the response carries the band, the cover,
+the premium and the whole new family total.
+
+**Removing somebody deactivates their row.** It is not deleted, because the row
+is what says this person was covered from March to September and a claim in that
+window is assessed against it. Cover runs to the end of the month that has been
+paid for, and the premium drops from the next one.
+
+### The direct-debit run
+
+```bash
+curl -s localhost:8080/v1/sponsors/$SPONSOR/collection/direct-debit \
+  -H "Authorization: Bearer $VIEWER"
+# {"period":"2026-09-01","counts":{"presented":1240,"settled":1189,…},
+#  "failures":[{"kind":"no_funds","count":41,"memberMustAct":false},…],
+#  "timeline":{"presented":"2026-09-28","retried":"2026-10-05",…},
+#  "grace":[{"cspId":"CSP-114-88220","daysLeft":44,…}]}
+```
+
+Every number is counted from the ledger rather than reported by the rail: a
+presentment is a contribution row, a settlement is that row confirmed, a failure
+is an exception raised against the cycle. A screen fed by NIBSS's own summary
+would agree with NIBSS and disagree with the ledger — and the ledger is what
+pays a claim, so that disagreement surfaces at the worst possible moment.
+
+`memberMustAct` is the distinction that makes the screen worth opening. An empty
+account on the 28th is often a full one on the 4th, so `no_funds` is retried and
+needs nobody. A revoked mandate is the bank being told to stop, and only the
+member can tell it otherwise — a console offering "retry" there teaches an
+officer to press a button for a fortnight.
+
+**It answers for payroll sponsors too, and should.** They still run debits, for
+the people the file missed and the ones who left service with cover in force.
+`grace` is that list: leavers whose sixty days are running and who have not paid
+this month. Nobody is watching them, precisely because the main collection looks
+fine.
+
 ### Loading a schedule
 
 ```bash
@@ -336,8 +467,9 @@ and none of them is visible on a file that fits in one chunk.
 cd api && mvn verify
 
 # Frontends
-npm test            # smoke, rail branching, accessibility
-npm run test:rails  # the four collection rails
+npm test             # CSV, smoke, rails, layout, accessibility
+npm run test:rails   # the four collection rails
+npm run test:layout  # every route at five widths
 npm run a11y
 
 # Helm chart, without installing Helm
@@ -347,6 +479,13 @@ python3 deploy/helm/check-templates.py
 The API tests use `csp_test`, which compose creates alongside `csp`. They wipe
 their schema on every run, so they will not touch the database you are
 developing against.
+
+`test:layout` opens every route at 390, 768, 1024, 1440 and 2000 pixels and
+fails on two things: anything that makes the page scroll sideways, and a page
+that uses less than two thirds of the window it was given. Both have happened —
+two pills in a row that could not wrap pushed a button 68px off a handset, and
+the member web app was capped at 830px, so on a secretariat monitor the content
+sat in a third of the screen with the rest empty.
 
 **Why the tests need a real database.** Every rule worth testing here lives in
 Postgres: the ledger's append-only triggers, row-level security by rail, the
@@ -504,10 +643,30 @@ Real, and deliberately not papered over.
    upload, and the console's **Add and remove members** screen, which enrols
    people for real — one at a time or from a staff list.
 
-   Still on fixtures: the console's direct-debit run, remittances, reports and
-   settings; the member's family cover and cover-detail screens; and the
-   *removal* half of the members screen — taking somebody off the schedule is
-   not an endpoint yet, and the leaver cards there are still illustrative.
+   Both halves of that screen are live now: adding people, and taking them off
+   the schedule when they retire or transfer.
+
+   The console's direct-debit run is live too — including the list of leavers
+   whose grace is running and who have not set up a mandate.
+
+   The member's family cover is live on both surfaces — the web app adds and
+   removes people at the server's quoted price; the phone lists them.
+
+   The console's **settings** screen is live: who can act for this sponsor, what
+   each role may actually do, when each last signed in, and the sponsor's own
+   audit trail.
+
+   The console's **remittances** screen is live too, derived from the ledger
+   rather than a table of its own: the cycle says what was asked for, the
+   contributions say what arrived, and the difference is the variance somebody
+   has to explain.
+
+   The console's **reports** take real CSV exports — five of them, each counted
+   from the same rows the screens show. PDF is offered as a disabled button with
+   the reason, rather than a control that does nothing.
+
+   Still on fixtures: the member's cover-detail screen, which is not only wiring
+   — see gap 8.
 
    A screen that has not been wired says the same numbers it always did — the
    fixtures and the seed agree — so the difference is where the figure comes
@@ -569,4 +728,19 @@ Real, and deliberately not papered over.
    of them were drafted in this session rather than carried from the design
    bundle — see the README.
 8. **Benefit figures are illustrative**, pending actuarial, legal and
-   underwriting sign-off.
+   underwriting sign-off — and the design and the API do not currently agree
+   about them, which is a product decision rather than a wiring one.
+
+   `Pricing.SCHEDULE` sells six benefits: death, accident extra, disability, a
+   weekly income, a funeral advance and hospital cash. The screens show seven,
+   named differently — accident medical bills, funeral assistance and children's
+   education — and five of the figures differ from the server's. Basic death
+   cover reads ₦3,000,000 on the web app and ₦2,000,000 in the API; executive
+   reads ₦15,000,000 against ₦20,000,000.
+
+   So the cover-detail screen is deliberately still on fixtures. Wiring it would
+   mean choosing which of the two is right, and that is a decision for whoever
+   owns the product — with the translated labels behind it, which need a native
+   speaker per language rather than a developer with a dictionary. Everything
+   needed to wire it exists: `GET /v1/products/schedule` serves the schedule
+   with a wording version and an effective date.

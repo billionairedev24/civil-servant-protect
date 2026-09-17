@@ -23,7 +23,7 @@ export function WebClaim() {
   const { t, clStep, cl, set, go } = useWeb()
 
   return (
-    <div className="rise" style={{ maxWidth: 830 }}>
+    <div className="rise page">
       <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
         {t.cl_q.map((_, i) => (
           <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 5 }}>
@@ -76,7 +76,7 @@ export function WebClaim() {
 
       {clStep === 2 && (
         <>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 18 }}>
+          <div className="cards" style={{ marginTop: 18 }}>
             {t.docs_n.map((name, i) => {
               const done = i < 2
               return (
@@ -163,7 +163,7 @@ export function WebClaim() {
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+      <div style={{ display: 'flex', gap: 10, marginTop: 20, flexWrap: 'wrap' }}>
         {clStep > 0 && clStep < 4 && (
           <button
             type="button"
@@ -210,7 +210,7 @@ export function WebTrack() {
   ]
 
   return (
-    <div className="rise" style={{ maxWidth: 830 }}>
+    <div className="rise page">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 20 }}>
         <div>
           <Kicker>
@@ -228,7 +228,7 @@ export function WebTrack() {
         </button>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1.25fr 1fr', gap: 16, marginTop: 18, alignItems: 'start' }}>
+      <div className="lead" style={{ marginTop: 18 }}>
         <Panel pad={20}>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             {t.stages.map((title, i) => {

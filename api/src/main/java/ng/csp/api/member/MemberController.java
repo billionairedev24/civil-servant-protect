@@ -10,12 +10,15 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import ng.csp.api.auth.SessionUser;
 import ng.csp.api.domain.Pricing;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -116,6 +119,20 @@ public class MemberController {
   public MemberService.AddedDependant addDependant(
       SessionUser session, @Valid @RequestBody AddDependant body) {
     return members.addDependant(session.requireMemberId(), body.name(), body.relation(), body.dob());
+  }
+
+  /**
+   * Take somebody off the family cover.
+   *
+   * <p>Their row stays — it is what says they were covered from March to September, and a claim in
+   * that window is assessed against it. What ends is the premium, from the first of next month,
+   * because cover to the end of the month has already been paid for.
+   */
+  @DeleteMapping("/members/me/dependants/{dependantId}")
+  @PreAuthorize("hasAuthority('PERM_MEMBER_WRITE_DEPENDANTS')")
+  public MemberService.RemovedDependant removeDependant(
+      SessionUser session, @PathVariable UUID dependantId) {
+    return members.removeDependant(session.requireMemberId(), dependantId);
   }
 
   /** The benefit schedule. Keyed, not positional, so a locale can reorder it. */

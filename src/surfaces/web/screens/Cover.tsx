@@ -1,11 +1,17 @@
+import { useState } from 'react'
 import { Icon } from '../../../components/Icon'
 import { Kicker, Mono } from '../../../components/primitives'
 import { TIER_NAMES, TIER_PRICES, payeeNames } from '../../../data/member'
 import { C, MONO } from '../../../theme/tokens'
-import { SCHEDULE_MATRIX, WEB_FAMILY, WEB_ONLY_COVER } from '../data'
+import { SCHEDULE_MATRIX, WEB_ONLY_COVER } from '../data'
 import { FeatureRow, PageSub, PageTitle, Panel, StatusPill, Table, TableHead } from '../../../components/surface'
-import { BENEFICIARY_SET, LEDGER_FIXTURE, MEMBER_SUMMARY, PROTECTION_CARD } from '../../../api/fixtures'
-import { useBeneficiaries, useCard, useContributions, useSummary } from '../../../api/queries'
+import {
+  BENEFICIARY_SET, DEPENDANTS, LEDGER_FIXTURE, MEMBER_SUMMARY, PROTECTION_CARD,
+} from '../../../api/fixtures'
+import {
+  useAddDependant, useBeneficiaries, useCard, useContributions, useDependants,
+  useRemoveDependant, useSummary,
+} from '../../../api/queries'
 import { NotLive, dayFirst, naira, periodLabel, titleCase, useLive } from '../../../api/live'
 import { useWeb } from '../state'
 
@@ -56,7 +62,7 @@ export function WebDashboard() {
   const stageState = ['done', 'done', 'now'] as const
 
   return (
-    <div className="rise" style={{ maxWidth: 830 }}>
+    <div className="rise page">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 20 }}>
         <div>
           <PageTitle>
@@ -103,7 +109,7 @@ export function WebDashboard() {
         </button>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1.35fr 1fr', gap: 14, marginTop: 16 }}>
+      <div className="lead" style={{ marginTop: 16 }}>
         <div style={{ padding: 22, borderRadius: 13, background: C.g, color: C.gTint }}>
           <Kicker size={9.5} color="rgba(241,246,243,.85)">{t.if_you_die}</Kicker>
           <div style={{ fontSize: 40, fontWeight: 700, letterSpacing: '-.03em', marginTop: 8 }}>₦5,000,000</div>
@@ -144,7 +150,7 @@ export function WebDashboard() {
         </Panel>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginTop: 14 }}>
+      <div className="cards" style={{ marginTop: 14 }}>
         <Panel>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
             <div style={{ fontSize: 15.5, fontWeight: 600 }}>{t.paid_title}</div>
@@ -218,7 +224,7 @@ export function WebDashboard() {
         </Panel>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginTop: 14 }}>
+      <div className="cards-sm" style={{ marginTop: 14 }}>
         {quick.map((q) => (
           <button
             key={q.label}
@@ -247,7 +253,7 @@ export function WebBenefits() {
   const template = '1.6fr repeat(4,1fr)'
 
   return (
-    <div className="rise" style={{ maxWidth: 830 }}>
+    <div className="rise page">
       <PageTitle>{t.cover_title}</PageTitle>
       <PageSub>{t.cover_sub} · every tier side by side, which the phone shows one at a time</PageSub>
 
@@ -289,7 +295,7 @@ export function WebBenefits() {
         </Table>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginTop: 14 }}>
+      <div className="cards" style={{ marginTop: 14 }}>
         <Panel pad={18}>
           <Kicker size={9.5}>{t.change_plan}</Kicker>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 11 }}>
@@ -351,12 +357,12 @@ export function WebCard() {
   ]
 
   return (
-    <div className="rise" style={{ maxWidth: 830 }}>
+    <div className="rise page">
       <PageTitle>{t.card_title}</PageTitle>
       <PageSub>Held on your account and printable here. {t.card_sub}</PageSub>
       {failed && <NotLive what="Your card" />}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1.15fr 1fr', gap: 16, marginTop: 18, alignItems: 'start' }}>
+      <div className="lead" style={{ marginTop: 18 }}>
         <div style={{ padding: 24, borderRadius: 14, background: C.ink, color: C.surface }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 14 }}>
             <div>
@@ -430,15 +436,38 @@ export function WebCard() {
   )
 }
 
+/** The one input style this screen uses, so three fields cannot drift apart. */
+const FIELD: React.CSSProperties = {
+  width: '100%', boxSizing: 'border-box', padding: '11px 12px',
+  border: `1px solid ${C.line3}`, borderRadius: 9, background: '#FDFDFB',
+  fontSize: 14, color: C.ink, outline: 'none', fontFamily: 'inherit',
+}
+
 export function WebFamily() {
   const { t, sponsor } = useWeb()
   const payroll = sponsor.payroll
   const template = '1.5fr 1fr 1fr 1fr 96px'
 
+  const { data: family, failed } = useLive(useDependants(DEPENDANTS), DEPENDANTS)
+  const { data: summary } = useLive(useSummary(MEMBER_SUMMARY), MEMBER_SUMMARY)
+  const remove = useRemoveDependant()
+  const add = useAddDependant()
+  const [adding, setAdding] = useState(false)
+  const [person, setPerson] = useState({ name: '', relation: '', dob: '' })
+
+  /*
+   * Everyone, and whether they are still covered. A removed dependant is not
+   * deleted — the row is what says they were covered from March to September —
+   * so the screen shows them greyed rather than pretending they never were.
+   */
+  const covered = family.dependants.filter((d) => d.active)
+  const topUpMinor = covered.reduce((sum, d) => sum + d.premiumMinor, 0)
+
   return (
-    <div className="rise" style={{ maxWidth: 830 }}>
+    <div className="rise page">
       <PageTitle>{t.fam_title}</PageTitle>
       <PageSub>{t.fam_sub}</PageSub>
+      {failed && <NotLive what="Your family cover" />}
 
       <div style={{ marginTop: 18 }}>
         <Table>
@@ -452,26 +481,37 @@ export function WebFamily() {
               { label: '', align: 'right' },
             ]}
           />
-          {WEB_FAMILY.map((f) => (
+          {family.dependants.map((d) => (
             <div
-              key={f.name}
-              style={{ display: 'grid', gridTemplateColumns: template, borderTop: '1px solid #EFEEE8', alignItems: 'center' }}
+              key={d.id}
+              style={{
+                display: 'grid', gridTemplateColumns: template, borderTop: '1px solid #EFEEE8',
+                alignItems: 'center', opacity: d.active ? 1 : 0.55,
+              }}
             >
               <div style={{ padding: '13px 16px' }}>
-                <span style={{ display: 'block', fontSize: 14.5, fontWeight: 600 }}>{f.name}</span>
-                <span style={{ display: 'block', fontSize: 12, color: C.faint }}>{f.dob}</span>
+                <span style={{ display: 'block', fontSize: 14.5, fontWeight: 600 }}>{d.name}</span>
+                <span style={{ display: 'block', fontSize: 12, color: C.faint }}>{dayFirst(d.dob)}</span>
               </div>
-              <div style={{ padding: '13px 16px', fontSize: 13.5, color: C.mut }}>{f.rel}</div>
-              <div style={{ padding: '13px 16px', fontSize: 13.5, textAlign: 'right', fontFamily: MONO }}>{f.sum}</div>
-              <div style={{ padding: '13px 16px', fontSize: 13.5, textAlign: 'right', fontFamily: MONO }}>{f.price}</div>
+              <div style={{ padding: '13px 16px', fontSize: 13.5, color: C.mut }}>{d.relation}</div>
+              <div style={{ padding: '13px 16px', fontSize: 13.5, textAlign: 'right', fontFamily: MONO }}>
+                {d.active ? naira(d.sumAssuredMinor) : 'Removed'}
+              </div>
+              <div style={{ padding: '13px 16px', fontSize: 13.5, textAlign: 'right', fontFamily: MONO }}>
+                {d.active ? `${naira(d.premiumMinor)}/mo` : '—'}
+              </div>
               <div style={{ padding: '13px 16px', textAlign: 'right' }}>
-                <button
-                  type="button"
-                  className="btn-inline"
-                  style={{ fontSize: 13 }}
-                >
-                  Remove
-                </button>
+                {d.active && (
+                  <button
+                    type="button"
+                    className="btn-inline"
+                    style={{ fontSize: 13 }}
+                    disabled={remove.isPending}
+                    onClick={() => remove.mutate(d.id)}
+                  >
+                    Remove
+                  </button>
+                )}
               </div>
             </div>
           ))}
@@ -487,14 +527,39 @@ export function WebFamily() {
         <div>
           <div style={{ fontSize: 15.5, fontWeight: 600 }}>{t.new_total}</div>
           <div style={{ fontSize: 13, lineHeight: 1.5, color: C.mut, marginTop: 3 }}>
-            {payroll ? t.new_total_sub : '₦2,500 own cover + ₦1,800 family top-up, on the same mandate from October.'}
+            {payroll
+              ? t.new_total_sub
+              : `${naira(summary.cover.premiumMinor)} own cover + ${naira(topUpMinor)} family top-up, on the same mandate.`}
           </div>
         </div>
-        <Mono size={26} weight={500}>₦4,300</Mono>
+        {/* One figure, and the server's arithmetic: the member's own premium
+            plus what the top-up costs. A screen that adds prices up itself is a
+            screen that can be confidently wrong about money. */}
+        <Mono size={26} weight={500}>{naira(summary.cover.premiumMinor + topUpMinor)}</Mono>
       </div>
 
-      <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
-        <button type="button" className="btn btn-sm btn-primary" style={{ height: 44, padding: '0 20px', fontSize: 15, gap: 8 }}>
+      {remove.data && (
+        <div
+          role="status"
+          style={{
+            marginTop: 12, padding: '12px 14px', borderRadius: 10,
+            border: `1px solid ${C.gBorder}`, background: C.gTint,
+            fontSize: 13, lineHeight: 1.5, color: C.mut,
+          }}
+        >
+          {remove.data.name} is covered to {dayFirst(remove.data.coveredUntil)} — the month is paid
+          for. From {dayFirst(remove.data.effectiveFrom)} the family top-up is{' '}
+          {naira(remove.data.newPremiumMinor)} a month.
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: 10, marginTop: 14, flexWrap: 'wrap' }}>
+        <button
+          type="button"
+          className="btn btn-sm btn-primary"
+          style={{ height: 44, padding: '0 20px', fontSize: 15, gap: 8 }}
+          onClick={() => setAdding((open) => !open)}
+        >
           <Icon name="ph ph-user-plus" size={17} />
           {t.add_family}
         </button>
@@ -502,6 +567,85 @@ export function WebFamily() {
           Upload birth certificates
         </button>
       </div>
+
+      {adding && (
+        <div
+          style={{
+            marginTop: 12, padding: 17, borderRadius: 12, background: C.white,
+            border: `1px solid ${C.line}`,
+          }}
+        >
+          <div className="cards" style={{ gap: 11 }}>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+              <Kicker size={9.5}>FULL NAME</Kicker>
+              <input
+                type="text"
+                value={person.name}
+                onChange={(e) => setPerson({ ...person, name: e.target.value })}
+                placeholder="Chinedu Okafor"
+                style={FIELD}
+              />
+            </label>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+              <Kicker size={9.5}>RELATION</Kicker>
+              <input
+                type="text"
+                value={person.relation}
+                onChange={(e) => setPerson({ ...person, relation: e.target.value })}
+                placeholder="Spouse"
+                style={FIELD}
+              />
+            </label>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+              <Kicker size={9.5}>DATE OF BIRTH</Kicker>
+              <input
+                type="date"
+                value={person.dob}
+                onChange={(e) => setPerson({ ...person, dob: e.target.value })}
+                style={FIELD}
+              />
+            </label>
+          </div>
+
+          {/* What it costs is the server's answer, not this screen's. The age
+              band decides it, and a price a client works out is a price an old
+              app gets wrong. */}
+          <div style={{ fontSize: 12.5, lineHeight: 1.5, color: C.faint, marginTop: 10 }}>
+            The price depends on their age band. We quote it when you add them — nothing is charged
+            until the first of next month.
+          </div>
+
+          <button
+            type="button"
+            className="btn btn-sm btn-primary"
+            style={{ height: 44, padding: '0 20px', marginTop: 12 }}
+            disabled={!person.name.trim() || !person.relation.trim() || !person.dob || add.isPending}
+            onClick={() =>
+              add.mutate(
+                { name: person.name.trim(), relation: person.relation.trim(), dob: person.dob },
+                { onSuccess: () => setPerson({ name: '', relation: '', dob: '' }) },
+              )
+            }
+          >
+            {add.isPending ? 'Getting the price…' : 'Add to my cover'}
+          </button>
+
+          {add.data && (
+            <div
+              role="status"
+              style={{
+                marginTop: 12, padding: '12px 14px', borderRadius: 10,
+                border: `1px solid ${C.gBorder}`, background: C.gTint,
+                fontSize: 13, lineHeight: 1.5, color: C.mut,
+              }}
+            >
+              Added at the {add.data.band} rate: {naira(add.data.sumAssuredMinor)} of cover for{' '}
+              {naira(add.data.premiumMinor)} a month. From {dayFirst(add.data.effectiveFrom)} the
+              family top-up is {naira(add.data.newPremiumMinor)}.
+            </div>
+          )}
+        </div>
+      )}
 
       {/* The employer pays for the member's own cover, never the family top-up —
           and must never learn who the top-up covers. */}

@@ -16,13 +16,18 @@ jobs:
     services:
       postgres:
         image: postgres:16-alpine
+        # `postgres` bootstraps, and the step below creates `csp` as an ordinary
+        # role. POSTGRES_USER: csp made it the superuser, and a superuser
+        # bypasses row-level security entirely — which is why the five tests
+        # asserting that one employer cannot see another's members failed here
+        # and passed everywhere else. See deploy/local/init-db.sql.
         env:
-          POSTGRES_USER: csp
-          POSTGRES_PASSWORD: csp
-          POSTGRES_DB: csp_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
         ports: ['5432:5432']
         options: >-
-          --health-cmd "pg_isready -U csp -d csp_test"
+          --health-cmd "pg_isready -U postgres -d postgres"
           --health-interval 5s --health-timeout 5s --health-retries 10
       redis:
         image: redis:7-alpine
@@ -34,9 +39,18 @@ jobs:
       TEST_DATABASE_URL: jdbc:postgresql://127.0.0.1:5432/csp_test
       TEST_REDIS_HOST: 127.0.0.1
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-java@v4
+      # The same script the local compose file mounts, so CI and a laptop get
+      # the same role with the same attributes.
+      - name: Create the application role and databases
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 \
+            -f deploy/local/init-db.sql
+
+      - uses: actions/setup-java@v5
         with:
           # The build spec says Java 25 and the pom sets --release 25, so an
           # older JDK does not compile this at all.
@@ -46,7 +60,10 @@ jobs:
 
       - name: Verify
         working-directory: api
-        run: mvn -B -ntp verify
+        shell: bash
+        run: |
+          set -o pipefail
+          mvn -B -ntp verify 2>&1 | tee verify.log
 
       - name: Test report
         if: always()
@@ -57,13 +74,36 @@ jobs:
               >> "$GITHUB_STEP_SUMMARY" || true
           fi
 
+      # The same treatment the smoke test gets, and for the same reason: a
+      # failure whose only copy is in the log archive is a failure somebody has
+      # to go and find. Worse here, because this job can fail *before* any test
+      # runs — a dependency that will not resolve, a compile error, a Postgres
+      # that never came up — and then the test report above has nothing to say
+      # and the check goes red with no text at all.
+      - name: Report verify failure
+        if: failure()
+        shell: bash
+        run: |
+          {
+            echo '### API verify failed'
+            echo ''
+            echo '```'
+            tail -120 api/verify.log 2>/dev/null || echo 'no verify.log — the job failed before Maven started'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          detail=$(grep -E '^\[ERROR\]' api/verify.log 2>/dev/null | head -5 | tr '\n' ' ' | cut -c1-900)
+          [ -n "$detail" ] || detail=$(tail -5 api/verify.log 2>/dev/null | tr '\n' ' ' | cut -c1-900)
+          [ -n "$detail" ] || detail='failed before Maven produced any output'
+          echo "::error title=API verify::${detail}"
+
   # The Helm chart, without needing a cluster. `helm template` across every
   # environment, because a chart that only renders for dev breaks on the Friday
   # someone promotes to prod.
   charts:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Structure check
         run: |
@@ -89,9 +129,9 @@ jobs:
   web:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm

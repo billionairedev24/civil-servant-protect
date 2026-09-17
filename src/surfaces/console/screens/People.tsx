@@ -4,18 +4,20 @@ import { Kicker, Mono } from '../../../components/primitives'
 import { PageSub, PageTitle, Panel } from '../../../components/surface'
 import { TIER_CODES, TIER_NAMES, TIER_PRICES } from '../../../data/member'
 import { C } from '../../../theme/tokens'
-import { LEAVERS, tone } from '../data'
+import { tone } from '../data'
 import { useConsole } from '../state'
-import { ROSTER_FIXTURE, SPONSOR_CLAIMS, SPONSOR_DASHBOARD } from '../../../api/fixtures'
 import {
-  useEnrol, useEnrolAll, useRoster, useSponsorClaims, useSponsorDashboard,
+  LEAVERS_FIXTURE, ROSTER_FIXTURE, SPONSOR_CLAIMS, SPONSOR_DASHBOARD,
+} from '../../../api/fixtures'
+import {
+  useEnrol, useEnrolAll, useLeave, useLeavers, useRoster, useSponsorClaims, useSponsorDashboard,
 } from '../../../api/queries'
 import { NotLive, dayFirst, titleCase, useLive } from '../../../api/live'
 import { useApi } from '../../../api/provider'
 import { useAuth } from '../../../api/auth'
 import { CsvError, msisdnOf, parseStaffList, type StaffListResult } from '../../../api/csv'
 import { initialsOf } from '../../../data/member'
-import type { BulkEnrolment, Enrolled, RosterMember, SponsorClaim } from '../../../api/types'
+import type { BulkEnrolment, Enrolled, Leaver, RosterMember, SponsorClaim } from '../../../api/types'
 
 /**
  * What a member's month looks like, as a row.
@@ -31,6 +33,20 @@ function standingOf(m: RosterMember): {
   tone: 'green' | 'ochre' | 'clay'
   icon: string
 } {
+  /*
+   * A leaver outranks everything, including a missing beneficiary.
+   *
+   * They will not be in the next file and that is not a fault — showing "not
+   * deducted" against somebody who retired in August is how an officer spends a
+   * morning chasing a payroll office about a person who left.
+   */
+  if (m.leftOn) {
+    return {
+      label: m.graceUntil ? `Left · covered to ${dayFirst(m.graceUntil)}` : 'Left the payroll',
+      tone: 'ochre',
+      icon: 'ph ph-sign-out',
+    }
+  }
   if (!m.hasBeneficiary) {
     return { label: 'No beneficiary named', tone: 'ochre', icon: 'ph ph-user-minus' }
   }
@@ -236,6 +252,26 @@ export function ConsoleRoster() {
 const BLANK = { fullName: '', nin: '', dateOfBirth: '', msisdn: '', serviceNo: '', grade: '' }
 
 /**
+ * Why somebody came off the payroll.
+ *
+ * Four, and no fifth. Death is not on this list and must not be added to it:
+ * that is a claim, with an assessor, and recording it as a reason for leaving a
+ * payroll would let an officer close the record of somebody whose family is owed
+ * five million naira. The server refuses it too.
+ */
+const LEAVE_REASONS = [
+  { code: 'retired', label: 'Retired' },
+  { code: 'transferred', label: 'Transferred' },
+  { code: 'resigned', label: 'Resigned' },
+  { code: 'dismissed', label: 'Dismissed' },
+] as const satisfies readonly { code: Leaver['reason']; label: string }[]
+
+/** Green for the ones who keep cover easily, clay for the one who may not. */
+function reasonTone(reason: Leaver['reason']) {
+  return tone(reason === 'retired' ? 'green' : reason === 'dismissed' ? 'clay' : 'ochre')
+}
+
+/**
  * Add and remove. The important half is removal: taking someone off the
  * schedule stops the deduction, it does not cancel their cover.
  *
@@ -256,8 +292,30 @@ export function ConsoleMembers() {
   const [problem, setProblem] = useState<string | null>(null)
   const file = useRef<HTMLInputElement>(null)
 
+  const [search, setSearch] = useState('')
+  const [reason, setReason] = useState<Leaver['reason']>('retired')
+  const [lastDay, setLastDay] = useState('')
+  const [leaveProblem, setLeaveProblem] = useState<string | null>(null)
+
   const enrol = useEnrol(dash.sponsor.id)
   const enrolAll = useEnrolAll(dash.sponsor.id)
+  const leave = useLeave(dash.sponsor.id)
+
+  /*
+   * The search goes to the server, because the person being removed is as
+   * likely to be on page eighty of the roster as on page one. One match and one
+   * only: "take this person off the payroll" is not a thing to do to whoever
+   * happened to sort first.
+   */
+  const { data: roster } = useLive(
+    useRoster(dash.sponsor.id, search.length > 1 ? search : '', ROSTER_FIXTURE),
+    ROSTER_FIXTURE,
+  )
+  const matches = search.length > 1 ? roster.members.filter((m) => !m.leftOn) : []
+  const found = matches.length === 1 ? matches[0] : null
+
+  const { data: left } = useLive(useLeavers(dash.sponsor.id, LEAVERS_FIXTURE), LEAVERS_FIXTURE)
+  const leavers = left.leavers
 
   /*
    * The same string the server's @PreAuthorize names. An officer who cannot
@@ -318,6 +376,23 @@ export function ConsoleMembers() {
     enrolAll.mutate(staff.rows, {
       onError: (e) => setProblem(e instanceof Error ? e.message : 'That file could not be sent.'),
     })
+  }
+
+  const removeOne = () => {
+    if (!found || !mayEnrol || !lastDay || leave.isPending) return
+    setLeaveProblem(null)
+    leave.mutate(
+      { memberId: found.id, reason, lastDay },
+      {
+        onSuccess: () => {
+          // Cleared, so the next removal starts from nothing. The date is not:
+          // a batch of retirements usually shares one last payday.
+          setSearch('')
+        },
+        onError: (e) =>
+          setLeaveProblem(e instanceof Error ? e.message : 'That could not be recorded.'),
+      },
+    )
   }
 
   const complete =
@@ -537,48 +612,110 @@ export function ConsoleMembers() {
             next depends on why they left.
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 14 }}>
-            {LEAVERS.map((lv) => {
-              const skin = tone(lv.tone)
-              return (
-                <div key={lv.ref} style={{ padding: '13px 14px', border: `1px solid ${C.line}`, borderRadius: 11, background: '#FDFDFB' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                    <div style={{ flex: 1, minWidth: 150 }}>
-                      <div style={{ fontSize: 13.5, fontWeight: 600 }}>{lv.name}</div>
-                      <Mono size={11.5} color={C.faint} style={{ display: 'block', marginTop: 2 }}>{lv.ref}</Mono>
-                    </div>
-                    <span
+          {/* Who to take off, found the way an officer knows them: by name, by
+              CSP-ID, or by the service number on the payroll file. */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 11, marginTop: 14 }}>
+            <Field
+              label="WHO IS LEAVING"
+              placeholder="Name, service number or CSP-ID"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              note={
+                found
+                  ? `${found.name} · ${found.cspId}${found.grade ? ` · ${found.grade}` : ''}`
+                  : search.length > 1
+                    ? 'Nobody on this employer matches that.'
+                    : undefined
+              }
+            />
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+              <Mono size={10} color={C.faint} style={{ letterSpacing: '.1em' }}>WHY</Mono>
+              <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                {LEAVE_REASONS.map((r) => {
+                  const on = reason === r.code
+                  return (
+                    <button
+                      key={r.code}
+                      type="button"
+                      onClick={() => setReason(r.code)}
                       style={{
-                        flex: 'none', fontSize: 12, fontWeight: 600, color: skin.ic, background: skin.bg,
-                        border: `1px solid ${skin.bc}`, borderRadius: 99, padding: '3px 9px',
+                        flex: 1, minWidth: 74, padding: '9px 8px', borderRadius: 9, cursor: 'pointer',
+                        border: `1.5px solid ${on ? C.clay : C.line3}`,
+                        background: on ? C.clayBg : C.white,
+                        color: on ? C.clayInk : C.ink,
+                        fontSize: 12, fontWeight: on ? 600 : 500,
                       }}
                     >
-                      {lv.reason}
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginTop: 10, paddingTop: 10, borderTop: `1px solid ${C.line7}` }}>
-                    <Icon name={lv.icon} size={15} color={skin.ic} style={{ marginTop: 1 }} />
-                    <div style={{ fontSize: 12.5, lineHeight: 1.5, color: C.mut }}>{lv.outcome}</div>
-                  </div>
-                </div>
-              )
-            })}
+                      {r.label}
+                    </button>
+                  )
+                })}
+              </div>
+              {/* A death is a claim. Said here, on the screen where somebody
+                  would otherwise look for it, rather than only in the 400. */}
+              <span style={{ fontSize: 11.5, lineHeight: 1.45, color: C.faint }}>
+                Someone who has died is not removed here — their cover pays out. Start a claim
+                instead.
+              </span>
+            </div>
+
+            <Field
+              label="LAST DAY ON THE PAYROLL"
+              type="date"
+              value={lastDay}
+              onChange={(e) => setLastDay(e.target.value)}
+              note="Cover continues for sixty days from this date, whatever happens next."
+            />
           </div>
 
-          <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
-            <button type="button" className="btn btn-sm btn-secondary" style={{ flex: 1, minWidth: 130, height: 46 }}>
-              Notify all three
-            </button>
-            <button
-              type="button"
-              className="btn btn-sm"
-              style={{
-                flex: 1, minWidth: 150, height: 46, border: `1.5px solid ${C.clay}`,
-                background: C.white, color: C.clay,
-              }}
-            >
-              Remove from September
-            </button>
+          <button
+            type="button"
+            className="btn btn-sm"
+            style={{
+              width: '100%', marginTop: 14, height: 48, border: `1.5px solid ${C.clay}`,
+              background: C.white, color: C.clay,
+            }}
+            disabled={!mayEnrol || !found || !lastDay || leave.isPending}
+            title={can('MEMBERS_MANAGE') ? undefined : 'Your role cannot remove members.'}
+            onClick={removeOne}
+          >
+            {leave.isPending ? 'Taking them off…' : 'Take off the schedule'}
+          </button>
+
+          {leaveProblem && <Problem message={leaveProblem} />}
+          {leave.data && <LeftNote leaver={leave.data} />}
+
+          <Kicker size={9.5} style={{ marginTop: 18 }}>
+            {leavers.length > 0 ? 'IN GRACE, SOONEST LAST' : 'NOBODY HAS LEFT'}
+          </Kicker>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
+            {leavers.map((lv) => (
+              <div key={lv.memberId} style={{ padding: '13px 14px', border: `1px solid ${C.line}`, borderRadius: 11, background: '#FDFDFB' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                  <div style={{ flex: 1, minWidth: 150 }}>
+                    <div style={{ fontSize: 13.5, fontWeight: 600 }}>{lv.name}</div>
+                    <Mono size={11.5} color={C.faint} style={{ display: 'block', marginTop: 2 }}>
+                      {lv.cspId}
+                      {lv.serviceNo ? ` · SVC ${lv.serviceNo}` : ''}
+                    </Mono>
+                  </div>
+                  <span
+                    style={{
+                      flex: 'none', fontSize: 12, fontWeight: 600,
+                      color: reasonTone(lv.reason).ic, background: reasonTone(lv.reason).bg,
+                      border: `1px solid ${reasonTone(lv.reason).bc}`, borderRadius: 99, padding: '3px 9px',
+                    }}
+                  >
+                    {titleCase(lv.reason)}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginTop: 10, paddingTop: 10, borderTop: `1px solid ${C.line7}` }}>
+                  <Icon name="ph ph-shield-check" size={15} color={reasonTone(lv.reason).ic} style={{ marginTop: 1 }} />
+                  <div style={{ fontSize: 12.5, lineHeight: 1.5, color: C.mut }}>{lv.outcome}</div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
@@ -682,6 +819,36 @@ function EnrolledNote({ enrolled }: { enrolled: Enrolled }) {
         {enrolled.collectionRail === 'payroll' ? 'payroll deduction' : 'direct debit'}. We have texted
         them to open the app
         {enrolled.beneficiariesNamed ? '.' : ' and name who should be paid.'}
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Somebody taken off the schedule.
+ *
+ * Green, not red. The officer has just done a correct and ordinary thing, and
+ * the member is still covered — a warning colour here would teach the desk that
+ * removing a retiree is a kind of damage.
+ */
+function LeftNote({ leaver }: { leaver: Leaver }) {
+  return (
+    <div
+      role="status"
+      style={{
+        marginTop: 12, padding: '12px 13px', border: `1px solid ${C.gBorder}`,
+        borderRadius: 10, background: C.gTint,
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <Icon name="ph-fill ph-check-circle" size={17} color={C.g} />
+        <span style={{ fontSize: 13.5, fontWeight: 700, color: C.gd }}>
+          {leaver.name} comes off the schedule
+        </span>
+        <Mono size={12.5} color={C.gd}>{leaver.cspId}</Mono>
+      </div>
+      <div style={{ fontSize: 12.5, lineHeight: 1.5, color: C.mut, marginTop: 6 }}>
+        Last day {dayFirst(leaver.leftOn)}. {leaver.outcome} They have been texted.
       </div>
     </div>
   )

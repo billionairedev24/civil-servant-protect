@@ -9,8 +9,9 @@
  */
 import { BENEFICIARIES, CLAIM, CONTRIB_MONTHS, MEMBER } from '../data/member'
 import type {
-  BeneficiarySet, Claim, ClaimQueueItem, Ledger, LedgerRow, MemberSummary, MyClaim,
-  ProtectionCard, Reconciliation, Roster, SponsorClaims, SponsorDashboard,
+  AuditEntry, BeneficiarySet, Claim, ClaimQueueItem, ConsoleUser, DebitRun, Dependant, Leaver,
+  Ledger, LedgerRow, MemberSummary, MyClaim, ProtectionCard, Reconciliation, Remittance, Roster,
+  SponsorClaims, SponsorDashboard,
 } from './types'
 
 const NAIRA = 100
@@ -34,6 +35,7 @@ export const MEMBER_SUMMARY: MemberSummary = {
   cover: {
     tier: 'standard',
     sumAssuredMinor: 5_000_000 * NAIRA,
+    premiumMinor: 2_500 * NAIRA,
     inForceSince: '2025-07-16',
   },
   collection: {
@@ -152,6 +154,31 @@ export const MY_CLAIMS: { claims: MyClaim[] } = {
 }
 
 /**
+ * The family cover, in the API's shape.
+ *
+ * The same two people the screens have always shown, priced by the bands the
+ * server quotes — ₦1,200 for an adult, ₦600 for a child — plus one who was
+ * taken off, because a row that stays after somebody is removed is the part of
+ * this model worth seeing in the demo.
+ */
+export const DEPENDANTS: { dependants: Dependant[] } = {
+  dependants: [
+    {
+      id: 'fx-dep-1', name: 'Chinedu Okafor', relation: 'Spouse', dob: '1988-03-12',
+      sumAssuredMinor: 2_000_000 * NAIRA, premiumMinor: 1_200 * NAIRA, active: true,
+    },
+    {
+      id: 'fx-dep-2', name: 'Ngozi Okafor', relation: 'Daughter', dob: '2016-09-04',
+      sumAssuredMinor: 500_000 * NAIRA, premiumMinor: 600 * NAIRA, active: true,
+    },
+    {
+      id: 'fx-dep-3', name: 'Emeka Okafor', relation: 'Son', dob: '2004-01-22',
+      sumAssuredMinor: 2_000_000 * NAIRA, premiumMinor: 1_200 * NAIRA, active: false,
+    },
+  ],
+}
+
+/**
  * The console's dashboard, in the API's shape.
  *
  * Matches the federal rail's figures in `src/surfaces/console/data.ts` — 8,412
@@ -180,11 +207,117 @@ export const SPONSOR_DASHBOARD: SponsorDashboard = {
     returnedAt: '2026-09-14T09:00:00Z',
   },
   roster: { members: 8_440, withoutBeneficiary: 203 },
+  /*
+   * 8,412 on the file and 8,381 credited is 31 rows needing a decision, and
+   * ₦77,500 unallocated until they get one. These are the seed's own numbers:
+   * the demo and the API count the same rows now, which is what SETUP.md has
+   * always claimed and was not true while this said 57 over a ledger holding 3.
+   */
   exceptions: {
-    total: 57,
-    open: 57,
-    byKind: { unmatched: 31, no_deduction: 12, wrong_amount: 5, left_service: 9 },
+    total: 31,
+    open: 31,
+    byKind: { unmatched: 29, no_deduction: 1, wrong_amount: 1 },
   },
+}
+
+/**
+ * Five months of money.
+ *
+ * The one with a variance is the point of the screen: ₦21,030,000 was asked for
+ * and ₦20,952,500 arrived, and the ₦77,500 between them is somebody's cover
+ * until it is explained.
+ */
+export const REMITTANCES: { remittances: Remittance[] } = {
+  remittances: [
+    {
+      cycleId: 'fixture-cycle', period: '2026-09-01', state: 'reconciling',
+      railRef: 'CSP-114/09', valueDate: '2026-09-14T09:00:00Z',
+      scheduledMinor: 21_030_000 * NAIRA, receivedMinor: 20_952_500 * NAIRA,
+      scheduledCount: 8_412, creditedCount: 8_381, varianceMinor: -77_500 * NAIRA,
+      openExceptions: 31,
+    },
+    {
+      cycleId: 'fixture-cycle-08', period: '2026-08-01', state: 'closed',
+      railRef: 'CSP-114/08', valueDate: '2026-08-29T10:00:00Z',
+      scheduledMinor: 21_030_000 * NAIRA, receivedMinor: 21_030_000 * NAIRA,
+      scheduledCount: 8_412, creditedCount: 8_412, varianceMinor: 0, openExceptions: 0,
+    },
+    {
+      cycleId: 'fixture-cycle-07', period: '2026-07-01', state: 'closed',
+      railRef: 'CSP-114/07', valueDate: '2026-07-31T10:00:00Z',
+      scheduledMinor: 21_030_000 * NAIRA, receivedMinor: 21_030_000 * NAIRA,
+      scheduledCount: 8_412, creditedCount: 8_412, varianceMinor: 0, openExceptions: 0,
+    },
+    {
+      cycleId: 'fixture-cycle-06', period: '2026-06-01', state: 'closed',
+      railRef: 'CSP-114/06', valueDate: '2026-07-19T10:00:00Z',
+      scheduledMinor: 21_030_000 * NAIRA, receivedMinor: 21_030_000 * NAIRA,
+      scheduledCount: 8_412, creditedCount: 8_412, varianceMinor: 0, openExceptions: 0,
+    },
+    {
+      // Five people short, nine months ago. A history that reconciles to the
+      // penny every month teaches an officer that this column is always zero,
+      // and the month it is not is the month they skim past.
+      cycleId: 'fixture-cycle-05', period: '2026-05-01', state: 'closed',
+      railRef: 'CSP-114/05', valueDate: '2026-05-30T10:00:00Z',
+      scheduledMinor: 21_030_000 * NAIRA, receivedMinor: 21_017_500 * NAIRA,
+      scheduledCount: 8_412, creditedCount: 8_407, varianceMinor: -12_500 * NAIRA,
+      openExceptions: 0,
+    },
+  ],
+}
+
+/**
+ * Who can act for this sponsor, in the API's shape.
+ *
+ * The same four the settings screen has always shown, now carrying the
+ * permissions each role actually holds — because a screen that hands out
+ * authority should show what it is handing out, not a role name and a guess.
+ */
+export const CONSOLE_USERS_FIXTURE: { users: ConsoleUser[] } = {
+  users: [
+    {
+      id: 'fx-u-1', name: 'Amina Bello', email: 'a.bello@education.gov.ng',
+      role: 'sponsor_preparer', roleLabel: 'Preparer',
+      permissions: ['EXCEPTION_PROPOSE', 'SCHEDULE_UPLOAD', 'SPONSOR_READ'],
+      lastSeenAt: '2026-09-16T08:40:00Z', disabled: false,
+    },
+    {
+      id: 'fx-u-2', name: 'Musa Danjuma', email: 'm.danjuma@education.gov.ng',
+      role: 'sponsor_approver', roleLabel: 'Approver',
+      permissions: ['CYCLE_CLOSE', 'EXCEPTION_PROPOSE', 'EXCEPTION_RESOLVE', 'SCHEDULE_UPLOAD', 'SPONSOR_READ'],
+      lastSeenAt: '2026-09-14T15:02:00Z', disabled: false,
+    },
+    {
+      id: 'fx-u-3', name: 'Ngozi Eze', email: 'n.eze@education.gov.ng',
+      role: 'sponsor_viewer', roleLabel: 'Viewer',
+      permissions: ['SPONSOR_READ'], lastSeenAt: '2026-08-26T11:20:00Z', disabled: false,
+    },
+    {
+      id: 'fx-u-4', name: 'Ibrahim Sule', email: 'i.sule@education.gov.ng',
+      role: 'sponsor_admin', roleLabel: 'Admin',
+      permissions: ['EXCEPTION_PROPOSE', 'MEMBERS_MANAGE', 'ROLES_MANAGE', 'SCHEDULE_UPLOAD', 'SPONSOR_READ'],
+      lastSeenAt: null, disabled: false,
+    },
+  ],
+}
+
+/** The sponsor's own audit trail: who did what, and when. */
+export const AUDIT_TRAIL: { entries: AuditEntry[] } = {
+  entries: [
+    {
+      at: '2026-09-14T15:02:00Z', action: 'exception.resolved', subjectType: 'exception',
+      subjectId: 'fixture-ex-1', actorName: 'Musa Danjuma', actorRole: 'sponsor_approver',
+    },
+    {
+      at: '2026-09-14T14:58:00Z', action: 'exception.proposed', subjectType: 'exception',
+      subjectId: 'fixture-ex-1', actorName: 'Amina Bello', actorRole: 'sponsor_preparer',
+    },
+    {
+      at: '2026-08-21T09:00:00Z', action: 'schedule.sent', subjectType: 'cycle',
+      subjectId: 'fixture-cycle', actorName: 'Amina Bello', actorRole: 'sponsor_preparer',
+    },
+  ],
 }
 
 /**
@@ -199,9 +332,9 @@ export const RECONCILIATION: Reconciliation = {
   method: 'payroll',
   matched: 8_324,
   summary: {
-    total: 57,
-    open: 57,
-    byKind: { unmatched: 31, no_deduction: 12, wrong_amount: 5, left_service: 9 },
+    total: 31,
+    open: 31,
+    byKind: { unmatched: 29, no_deduction: 1, wrong_amount: 1 },
   },
   exceptions: [
     {
@@ -301,6 +434,68 @@ export const CLAIM_QUEUE: { claims: ClaimQueueItem[] } = {
 }
 
 /** Claims on the federal sponsor's members, as that sponsor sees them. */
+/**
+ * Three people who have come off the schedule.
+ *
+ * The same three the console has always shown, now in the shape the API
+ * answers with — and with the outcome sentence the server composes rather than
+ * one written here, so the demo cannot say something the product would not.
+ */
+export const LEAVERS_FIXTURE: { leavers: Leaver[] } = {
+  leavers: [
+    {
+      memberId: 'fx-lv-1', cspId: 'CSP-114-88220', name: 'Chinedu Eze', serviceNo: '5510-8842',
+      reason: 'retired', leftOn: '2026-08-31', graceUntil: '2026-10-30',
+      outcome:
+        'Cover continues to 2026-10-30. A retiree keeps their CSP-ID, their start date and their '
+        + 'price — set up a direct debit before then and nothing else changes.',
+    },
+    {
+      memberId: 'fx-lv-2', cspId: 'CSP-114-88221', name: 'Blessing Umoh', serviceNo: '9930-2214',
+      reason: 'transferred', leftOn: '2026-08-15', graceUntil: '2026-10-14',
+      outcome:
+        'Cover continues to 2026-10-14. If the new MDA runs the scheme they go onto its schedule; '
+        + 'otherwise a direct debit. Either way they keep their CSP-ID and their start date.',
+    },
+    {
+      memberId: 'fx-lv-3', cspId: 'CSP-114-88222', name: 'Sadiq Aliyu', serviceNo: '1182-6640',
+      reason: 'dismissed', leftOn: '2026-07-31', graceUntil: '2026-09-29',
+      outcome:
+        'Cover continues to 2026-09-29. After that it lapses unless they set up a direct debit '
+        + 'themselves. Contributions already made are not refunded and not lost — the cover they '
+        + 'bought was in force for those months.',
+    },
+  ],
+}
+
+/**
+ * A debit run mid-month: most settled the same day, a handful did not.
+ *
+ * The failure mix is the point of the screen. Insufficient funds mostly clears
+ * on the retry after salaries land; a revoked mandate never does, because only
+ * the member can tell their bank to allow it again.
+ */
+export const DEBIT_RUN: DebitRun = {
+  period: '2026-09-01',
+  method: 'direct_debit',
+  counts: { presented: 1240, settled: 1189, awaiting: 0, failed: 51 },
+  failures: [
+    { kind: 'no_funds', count: 41, memberMustAct: false },
+    { kind: 'mandate_revoked', count: 7, memberMustAct: true },
+    { kind: 'card_expired', count: 3, memberMustAct: true },
+  ],
+  timeline: {
+    presented: '2026-09-28',
+    retried: '2026-10-05',
+    cardFallback: '2026-10-12',
+    graceEnds: '2026-11-27',
+  },
+  grace: [
+    { cspId: 'CSP-114-88220', name: 'Chinedu Eze', graceUntil: '2026-10-30', daysLeft: 44 },
+    { cspId: 'CSP-114-88221', name: 'Blessing Umoh', graceUntil: '2026-10-14', daysLeft: 28 },
+  ],
+}
+
 export const SPONSOR_CLAIMS: SponsorClaims = {
   claims: [
     {

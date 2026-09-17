@@ -113,7 +113,7 @@ export function WebSignIn() {
             <div style={{ fontSize: 12.5, lineHeight: 1.5, color: C.faint }}>{t.voice_fallback}</div>
           </div>
 
-          <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
+          <div style={{ display: 'flex', gap: 10, marginTop: 24, flexWrap: 'wrap' }}>
             <button
               type="button"
               className="btn btn-primary"

@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.UUID;
 import ng.csp.api.auth.SessionUser;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -30,10 +31,13 @@ public class SponsorController {
 
   private final SponsorService sponsors;
   private final ng.csp.api.claim.ClaimService claims;
+  private final ReportService reports;
 
-  public SponsorController(SponsorService sponsors, ng.csp.api.claim.ClaimService claims) {
+  public SponsorController(
+      SponsorService sponsors, ng.csp.api.claim.ClaimService claims, ReportService reports) {
     this.sponsors = sponsors;
     this.claims = claims;
+    this.reports = reports;
   }
 
   @GetMapping("/sponsors/me/dashboard")
@@ -92,6 +96,37 @@ public class SponsorController {
       SessionUser session, @PathVariable UUID sponsorId, @PathVariable UUID batchId) {
     session.assertSponsorScope(sponsorId);
     return sponsors.batchStatus(batchId);
+  }
+
+  /**
+   * The money, month by month.
+   *
+   * <p>Derived from the ledger rather than from a table of its own: the cycle says what was asked
+   * for, the contributions say what arrived, and the exceptions say what is still unexplained. A
+   * stored summary would be a second place for the same facts and the one that goes stale.
+   */
+  @GetMapping("/sponsors/{sponsorId}/remittances")
+  @PreAuthorize("hasAuthority('PERM_SPONSOR_READ')")
+  public Map<String, List<SponsorService.Remittance>> remittances(
+      SessionUser session,
+      @PathVariable UUID sponsorId,
+      @RequestParam(defaultValue = "12") int limit) {
+    session.assertSponsorScope(sponsorId);
+    return Map.of("remittances", sponsors.remittances(sponsorId, Math.clamp(limit, 1, 60)));
+  }
+
+  /**
+   * The direct-debit run for the month being collected.
+   *
+   * <p>Answers for a payroll sponsor too. They still run debits — for the people the file missed and
+   * the ones who left service with cover in force — and those members are the ones nobody is
+   * watching, precisely because the main collection looks fine.
+   */
+  @GetMapping("/sponsors/{sponsorId}/collection/direct-debit")
+  @PreAuthorize("hasAuthority('PERM_SPONSOR_READ')")
+  public SponsorService.DebitRun debitRun(SessionUser session, @PathVariable UUID sponsorId) {
+    session.assertSponsorScope(sponsorId);
+    return sponsors.debitRun(sponsorId);
   }
 
   @GetMapping("/sponsors/{sponsorId}/reconciliation/{cycleId}")
@@ -158,6 +193,34 @@ public class SponsorController {
       SessionUser session, @PathVariable UUID sponsorId) {
     session.assertSponsorScope(sponsorId);
     return claims.forSponsor(sponsorId);
+  }
+
+  /**
+   * An export, as CSV.
+   *
+   * <p>Every one of these ends in a spreadsheet — an auditor reconciles it against their own
+   * figures, a payroll officer sorts it — and each is a query over the same rows the screens count,
+   * so an export and the console cannot disagree about a number somebody will quote back six months
+   * later.
+   *
+   * <p>Read-only, so a viewer may take one. What a sponsor may see is already decided by row-level
+   * security and by what the claims projection carries; a report is not a way around either.
+   */
+  @GetMapping(value = "/sponsors/{sponsorId}/reports/{kind}", produces = "text/csv")
+  @PreAuthorize("hasAuthority('PERM_SPONSOR_READ')")
+  public ResponseEntity<String> report(
+      SessionUser session,
+      @PathVariable UUID sponsorId,
+      @PathVariable String kind,
+      @RequestParam(required = false) LocalDate period) {
+    session.assertSponsorScope(sponsorId);
+    var report = reports.of(sponsorId, kind, period);
+    return ResponseEntity.ok()
+        // Named, because a folder of report.csv, report(1).csv, report(2).csv is
+        // how the wrong month gets sent to an auditor.
+        .header("Content-Disposition", "attachment; filename=\"" + report.filename() + "\"")
+        .header("Cache-Control", "no-store")
+        .body(report.csv());
   }
 
   /** Who can do what here. Admin only — this screen hands out authority. */

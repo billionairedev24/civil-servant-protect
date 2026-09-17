@@ -89,7 +89,7 @@ export const MOVEMENT = [
 ] as const
 
 export const SEND_LOG = [
-  { period: 'AUG 26', what: 'Schedule sent, file returned, reconciling', amount: '₦21,030,000', state: '57 exceptions', tone: 'ochre' },
+  { period: 'AUG 26', what: 'Schedule sent, file returned, reconciling', amount: '₦21,030,000', state: '31 exceptions', tone: 'ochre' },
   { period: 'JUL 26', what: 'Closed · all members credited', amount: '₦20,880,000', state: 'Reconciled', tone: 'green' },
   { period: 'JUN 26', what: 'Closed · 4 moved to direct debit', amount: '₦20,745,000', state: 'Reconciled', tone: 'green' },
   { period: 'MAY 26', what: 'File arrived 19 days late', amount: '₦20,700,000', state: 'Closed late', tone: 'ochre' },
@@ -153,21 +153,6 @@ export const LEAVERS = [
   },
 ] as const
 
-export const RETRY_STEPS = [
-  { label: 'First attempt', when: '28.08 · settled 96%', tone: 'green' },
-  { label: 'Second attempt', when: '04.09 · after salaries', tone: 'green' },
-  { label: 'Card fallback', when: '11.09 · card on file', tone: 'ochre' },
-  { label: '60-day grace', when: 'until 27.10', tone: 'clay' },
-] as const
-
-export const REMIT_ROWS = [
-  { period: 'JUL 26', amount: '₦20,880,000', ref: 'NIBSS/8712004', state: 'Fully allocated', icon: 'ph-fill ph-check-circle', tone: 'green' },
-  { period: 'JUN 26', amount: '₦20,745,000', ref: 'NIBSS/8590117', state: 'Fully allocated', icon: 'ph-fill ph-check-circle', tone: 'green' },
-  { period: 'MAY 26', amount: '₦20,700,000', ref: 'NIBSS/8471882', state: 'Paid 19 days late', icon: 'ph ph-clock-countdown', tone: 'ochre' },
-  { period: 'APR 26', amount: '₦20,610,000', ref: 'NIBSS/8330441', state: 'Fully allocated', icon: 'ph-fill ph-check-circle', tone: 'green' },
-  { period: 'MAR 26', amount: '₦20,412,000', ref: 'NIBSS/8214773', state: '₦12,500 written off', icon: 'ph ph-scales', tone: 'ochre' },
-] as const
-
 /**
  * Claims as a sponsor may see them. Cause of death, medical documents, hospital
  * names and beneficiary bank details are never shown — members are told this at
@@ -198,19 +183,13 @@ export const CONSOLE_CLAIMS = [
   },
 ] as const
 
-export const CONSOLE_USERS = [
-  { name: 'Amina Bello', email: 'a.bello@education.gov.ng', role: 'Preparer', initials: 'AB', tone: 'green', last: 'Active now' },
-  { name: 'Musa Danjuma', email: 'm.danjuma@education.gov.ng', role: 'Approver', initials: 'MD', tone: 'green', last: '2 days ago' },
-  { name: 'Ngozi Eze', email: 'n.eze@education.gov.ng', role: 'Viewer', initials: 'NE', tone: 'neutral', last: '3 weeks ago' },
-  { name: 'Ibrahim Sule', email: 'i.sule@education.gov.ng', role: 'Admin', initials: 'IS', tone: 'ochre', last: 'Never signed in' },
-] as const
-
+/** `kind` is the API's own name for the export, so the card and the endpoint cannot drift. */
 export const REPORTS = [
-  { title: 'Deduction schedule', sub: 'What you asked payroll to deduct, per member, for the period.', icon: 'ph ph-list-numbers', tone: 'neutral' },
-  { title: 'Remittance reconciliation', sub: 'Credits received against the file, with every variance and how it was resolved. This is the one auditors ask for.', icon: 'ph ph-git-diff', tone: 'green' },
-  { title: 'Membership movement', sub: 'Starters, leavers, transfers and tier changes, with effective dates.', icon: 'ph ph-users-three', tone: 'neutral' },
-  { title: 'Claims summary', sub: 'Counts, amounts and outcomes. No medical detail, no cause of death.', icon: 'ph ph-first-aid-kit', tone: 'neutral' },
-  { title: 'Lapse risk', sub: 'Members inside the 60-day grace window, ordered by days remaining. Nobody asks for this until a family is refused.', icon: 'ph ph-warning-diamond', tone: 'clay' },
+  { kind: 'schedule', title: 'Deduction schedule', sub: 'What you asked payroll to deduct, per member, for the period.', icon: 'ph ph-list-numbers', tone: 'neutral' },
+  { kind: 'remittances', title: 'Remittance reconciliation', sub: 'Credits received against the file, with every variance and how it was resolved. This is the one auditors ask for.', icon: 'ph ph-git-diff', tone: 'green' },
+  { kind: 'movement', title: 'Membership movement', sub: 'Starters and leavers in the period, with the dates that decide what is owed.', icon: 'ph ph-users-three', tone: 'neutral' },
+  { kind: 'claims', title: 'Claims summary', sub: 'Counts and outcomes. No amount, no cause of death, no medical detail.', icon: 'ph ph-first-aid-kit', tone: 'neutral' },
+  { kind: 'lapse-risk', title: 'Lapse risk', sub: 'Members inside the 60-day grace window, ordered by days remaining. Nobody asks for this until a family is refused.', icon: 'ph ph-warning-diamond', tone: 'clay' },
 ] as const
 
 export const RECENT_EXPORTS = [
@@ -219,8 +198,6 @@ export const RECENT_EXPORTS = [
   { name: 'Lapse risk · Aug 2026', who: 'Amina Bello', when: '28.08', icon: 'ph ph-file-pdf' },
   { name: 'Membership movement · Q2 2026', who: 'Ngozi Eze', when: '12.07', icon: 'ph ph-file-xls' },
 ] as const
-
-export const PERIODS = ['August 2026', 'Q3 2026', 'Year to date', '2025 full year'] as const
 
 /** Shared tone → colour mapping, so a row's semantic is set once. */
 export function tone(t: 'green' | 'ochre' | 'clay' | 'neutral') {

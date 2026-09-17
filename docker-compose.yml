@@ -14,9 +14,14 @@ services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: csp
-      POSTGRES_PASSWORD: csp
-      POSTGRES_DB: csp
+      # `postgres` bootstraps; the application connects as `csp`, which the init
+      # script below creates as an ordinary role. POSTGRES_USER here would make
+      # `csp` the superuser, and a superuser bypasses row-level security
+      # entirely — every policy in this schema would stop applying, silently.
+      # See deploy/local/init-db.sql.
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
       # Deterministic collation: an ORDER BY that differs between a laptop and
       # Abuja is a very slow bug to find.
       POSTGRES_INITDB_ARGS: "--locale=C --encoding=UTF8"
@@ -32,9 +37,9 @@ services:
       - "5432:5432"
     volumes:
       - db-data:/var/lib/postgresql/data
-      - ./deploy/local/init-test-db.sql:/docker-entrypoint-initdb.d/10-test-db.sql:ro
+      - ./deploy/local/init-db.sql:/docker-entrypoint-initdb.d/10-init-db.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U csp -d csp"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
       interval: 3s
       timeout: 3s
       retries: 20

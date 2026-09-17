@@ -80,6 +80,21 @@ public final class Pricing {
                       Benefit.of("funeral_advance", 1_000_000),
                       Benefit.of("hospital_cash", 750_000)))));
 
+  /**
+   * What this tier costs a member each month.
+   *
+   * <p>Here rather than on the client for the same reason as the dependant quote: a price a screen
+   * works out is a price an out-of-date app gets wrong, and the family-cover screen adds this to the
+   * top-up to show one figure a member is deciding about.
+   */
+  public static long priceFor(String tierCode) {
+    return SCHEDULE.tiers().stream()
+        .filter(t -> t.code().equals(tierCode))
+        .findFirst()
+        .map(Tier::priceMinor)
+        .orElse(0L);
+  }
+
   public static long sumAssuredFor(String tierCode) {
     return SCHEDULE.tiers().stream()
         .filter(t -> t.code().equals(tierCode))

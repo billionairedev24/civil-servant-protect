@@ -56,7 +56,8 @@ export interface MemberSummary {
     rail: string
     ref: string
   }
-  cover: { tier: string; sumAssuredMinor: number; inForceSince: string }
+  /** `premiumMinor` is the member's own monthly price, quoted by the server. */
+  cover: { tier: string; sumAssuredMinor: number; premiumMinor: number; inForceSince: string }
   collection: {
     state: CollectionState
     lastPeriod: string | null
@@ -138,6 +139,47 @@ export interface MyClaim {
   openedAt: string
 }
 
+/**
+ * Somebody on a member's family cover.
+ *
+ * `active: false` is somebody who was taken off. The row stays, because it is
+ * what says this person was covered from March to September — a claim in that
+ * window is assessed against it.
+ */
+export interface Dependant {
+  id: string
+  name: string
+  relation: string
+  dob: string
+  sumAssuredMinor: number
+  premiumMinor: number
+  active: boolean
+}
+
+/**
+ * What adding one costs, quoted by the server.
+ *
+ * The band and both figures come back from the API and are never computed here.
+ * A price the client works out is a price an out-of-date app gets wrong and an
+ * edited request gets cheaply.
+ */
+export interface AddedDependant {
+  band: 'child' | 'adult' | 'senior'
+  sumAssuredMinor: number
+  premiumMinor: number
+  /** The whole family premium after this one, so no screen adds prices up. */
+  newPremiumMinor: number
+  effectiveFrom: string
+}
+
+export interface RemovedDependant {
+  name: string
+  newPremiumMinor: number
+  /** Cover runs to here: the month has been paid for. */
+  coveredUntil: string
+  effectiveFrom: string
+}
+
 export interface SponsorDashboard {
   sponsor: {
     id: string
@@ -162,6 +204,34 @@ export interface SponsorDashboard {
   exceptions: { total: number; open: number; byKind: Record<string, number> }
 }
 
+/**
+ * Somebody who can act on a sponsor's behalf in the console.
+ *
+ * `permissions` is the same list `can()` checks, so the screen that hands out
+ * authority shows exactly what it is handing out rather than a role name and a
+ * guess about what it means.
+ */
+export interface ConsoleUser {
+  id: string
+  name: string
+  email: string | null
+  role: string
+  roleLabel: string
+  permissions: string[]
+  lastSeenAt: string | null
+  disabled: boolean
+}
+
+/** One line of a sponsor's own audit trail. Showing your working is the point. */
+export interface AuditEntry {
+  at: string
+  action: string
+  subjectType: string | null
+  subjectId: string | null
+  actorName: string | null
+  actorRole: string | null
+}
+
 export interface RosterMember {
   id: string
   cspId: string
@@ -174,12 +244,86 @@ export interface RosterMember {
   collectionState: 'confirmed' | 'expected' | 'failed' | 'reversed' | null
   lastPeriod: string | null
   hasBeneficiary: boolean
+  /*
+   * Null for almost everybody, and set together when they are not. The second
+   * is the date that matters: cover continues to it whatever happens, so it is
+   * what an officer chases a direct debit against.
+   */
+  leftOn?: string | null
+  graceUntil?: string | null
+}
+
+/**
+ * Somebody who has come off the schedule.
+ *
+ * Not somebody who has been deleted — the deduction stops, the cover does not.
+ * `outcome` is the sentence the server composes for this reason and this date,
+ * kept there rather than here so the console and the SMS cannot disagree about
+ * what a member was told.
+ */
+export interface Leaver {
+  memberId: string
+  cspId: string
+  name: string
+  serviceNo: string | null
+  reason: 'retired' | 'transferred' | 'resigned' | 'dismissed'
+  leftOn: string
+  graceUntil: string
+  outcome: string
+}
+
+/**
+ * The direct-debit run for the month being collected.
+ *
+ * Counted from the ledger rather than reported by the rail: a presentment is a
+ * contribution row, a settlement is that row confirmed, a failure is an
+ * exception raised against the cycle. A screen fed by NIBSS's own summary would
+ * agree with NIBSS and disagree with the ledger — and the ledger is what pays a
+ * claim.
+ */
+export interface DebitRun {
+  period: string
+  method: Method
+  counts: { presented: number; settled: number; awaiting: number; failed: number }
+  failures: {
+    kind: string
+    count: number
+    /** Nobody can retry a revoked mandate into working. The member has to act. */
+    memberMustAct: boolean
+  }[]
+  /** presented → retried → cardFallback → graceEnds, in that order. */
+  timeline: Record<string, string>
+  /** Leavers whose cover is on grace and who have not paid this month. */
+  grace: { cspId: string; name: string; graceUntil: string; daysLeft: number }[]
 }
 
 export interface Roster {
   members: RosterMember[]
   /** Over the whole sponsor, not the page — a chip counting the page would lie. */
   counts: { all: number; paid: number; notDeducted: number; noBeneficiary: number }
+}
+
+/**
+ * One month's money.
+ *
+ * A credit arriving is not cover. On a payroll rail a single transfer covers
+ * thousands of members and only becomes cover once it is matched to the return
+ * file, member by member — so `receivedMinor` is what was credited to members,
+ * not what a bank statement said. `varianceMinor` is negative when less arrived
+ * than was asked for, which is the direction that costs somebody their cover.
+ */
+export interface Remittance {
+  cycleId: string
+  period: string
+  state: string
+  railRef: string | null
+  valueDate: string | null
+  scheduledMinor: number
+  receivedMinor: number
+  scheduledCount: number
+  creditedCount: number
+  varianceMinor: number
+  openExceptions: number
 }
 
 export interface ClaimQueueItem {
@@ -224,6 +368,9 @@ export interface ScheduleRow {
   amountMinor: number
 }
 
+/** The four cover tiers, as the API spells them. */
+export type Tier = 'basic' | 'standard' | 'enhanced' | 'executive'
+
 /**
  * Somebody a sponsor is putting on the scheme.
  *
@@ -232,9 +379,6 @@ export interface ScheduleRow {
  * and a public enrolment endpoint would only be a way to attach a phone number
  * you control to a civil servant whose details you have read.
  */
-/** The four cover tiers, as the API spells them. */
-export type Tier = 'basic' | 'standard' | 'enhanced' | 'executive'
-
 export interface NewMember {
   nin: string
   fullName: string

@@ -8,8 +8,9 @@
  * possible rather than aspirational.
  */
 import type {
-  BeneficiarySet, BulkEnrolment, Claim, ClaimQueueItem, Enrolled, Ledger, MemberSummary, MyClaim,
-  NewMember, ProtectionCard, Reconciliation, Roster, ScheduleBatch, ScheduleRow, Session,
+  AddedDependant, AuditEntry, BeneficiarySet, BulkEnrolment, Claim, ClaimQueueItem, ConsoleUser,
+  DebitRun, Dependant, Enrolled, Leaver, Ledger, MemberSummary, MyClaim, NewMember, ProtectionCard,
+  Reconciliation, RemovedDependant, Remittance, Roster, ScheduleBatch, ScheduleRow, Session,
   SponsorClaims, SponsorDashboard, Tokens,
 } from './types'
 
@@ -216,6 +217,24 @@ export class CspApi {
     return this.call('POST', '/v1/members/me/beneficiaries/confirm', {})
   }
 
+  /** Who is on the member's family cover, including anyone taken off. */
+  dependants(): Promise<{ dependants: Dependant[] }> {
+    return this.call('GET', '/v1/members/me/dependants')
+  }
+
+  /**
+   * Add somebody. The premium comes back from the server, quoted for their age
+   * band — nothing here multiplies anything.
+   */
+  addDependant(body: { name: string; relation: string; dob: string }): Promise<AddedDependant> {
+    return this.call('POST', '/v1/members/me/dependants', body)
+  }
+
+  /** Take somebody off. Their row stays; the premium stops next month. */
+  removeDependant(dependantId: string): Promise<RemovedDependant> {
+    return this.call('DELETE', `/v1/members/me/dependants/${dependantId}`)
+  }
+
   /**
    * The member's own claims.
    *
@@ -298,6 +317,26 @@ export class CspApi {
     return this.call('POST', `/v1/sponsors/${sponsorId}/members/batch`, { members })
   }
 
+  /**
+   * Take somebody off the schedule.
+   *
+   * <p>A POST to `.../leave` rather than a DELETE of the member, because nothing
+   * is deleted: the deduction stops and the cover continues to the grace date in
+   * the answer. The verb is the argument.
+   */
+  leave(
+    sponsorId: string,
+    memberId: string,
+    body: { reason: Leaver['reason']; lastDay: string },
+  ): Promise<Leaver> {
+    return this.call('POST', `/v1/sponsors/${sponsorId}/members/${memberId}/leave`, body)
+  }
+
+  /** Who has left, whose grace runs out soonest last. */
+  leavers(sponsorId: string): Promise<{ leavers: Leaver[] }> {
+    return this.call('GET', `/v1/sponsors/${sponsorId}/leavers`)
+  }
+
   roster(sponsorId: string, search?: string, limit = 50): Promise<Roster> {
     return this.call('GET', `/v1/sponsors/${sponsorId}/members${query({ search, limit })}`)
   }
@@ -305,6 +344,51 @@ export class CspApi {
   /** The assessor's queue — every member's claims, not one sponsor's. */
   claimQueue(): Promise<{ claims: ClaimQueueItem[] }> {
     return this.call('GET', '/v1/claims')
+  }
+
+  /**
+   * An export, as a file the browser can save.
+   *
+   * <p>Not a link the screen can point at: every request carries a bearer token,
+   * and a URL that works without one is an export anybody can fetch. So it is a
+   * normal authenticated call whose body happens to be CSV, and the caller turns
+   * it into a download.
+   */
+  async report(
+    sponsorId: string,
+    kind: string,
+    period?: string,
+  ): Promise<{ filename: string; csv: string }> {
+    const { text, headers } = await this.call<{ text: string; headers: Headers }>(
+      'GET',
+      `/v1/sponsors/${sponsorId}/reports/${kind}${query({ period })}`,
+      undefined,
+      { raw: true },
+    )
+    // The server names the file. A folder of report.csv, report(1).csv,
+    // report(2).csv is how the wrong month reaches an auditor.
+    const named = /filename="([^"]+)"/.exec(headers.get('content-disposition') ?? '')
+    return { filename: named?.[1] ?? `${kind}.csv`, csv: text }
+  }
+
+  /** The money, month by month. Derived from the ledger, not a stored summary. */
+  remittances(sponsorId: string): Promise<{ remittances: Remittance[] }> {
+    return this.call('GET', `/v1/sponsors/${sponsorId}/remittances`)
+  }
+
+  /** Who can act for this sponsor, and what each role may do. Admin only. */
+  consoleUsers(sponsorId: string): Promise<{ users: ConsoleUser[] }> {
+    return this.call('GET', `/v1/sponsors/${sponsorId}/users`)
+  }
+
+  /** The sponsor's own audit trail. */
+  auditTrail(sponsorId: string): Promise<{ entries: AuditEntry[] }> {
+    return this.call('GET', `/v1/sponsors/${sponsorId}/audit`)
+  }
+
+  /** What the bank said this month — and who is on grace with nothing set up. */
+  debitRun(sponsorId: string): Promise<DebitRun> {
+    return this.call('GET', `/v1/sponsors/${sponsorId}/collection/direct-debit`)
   }
 
   /** Claims on one sponsor's members, thinned to what an employer may see. */
@@ -318,7 +402,7 @@ export class CspApi {
     method: string,
     path: string,
     body?: unknown,
-    options: { anonymous?: boolean; retried?: boolean } = {},
+    options: { anonymous?: boolean; retried?: boolean; raw?: boolean } = {},
   ): Promise<T> {
     const headers: Record<string, string> = {}
     if (body !== undefined) headers['Content-Type'] = 'application/json'
@@ -359,6 +443,18 @@ export class CspApi {
 
     const text = await response.text()
     const payload = text ? safeJson(text) : null
+
+    /*
+     * A response that is not JSON — an export, today.
+     *
+     * Through the same method rather than its own fetch, because everything
+     * above this line is the part worth sharing: the bearer token, the one
+     * recoverable 401, the single in-flight refresh. A second fetch elsewhere
+     * would be a second place for a session to go stale differently.
+     */
+    if (response.ok && options.raw) {
+      return { text, headers: response.headers } as T
+    }
 
     if (!response.ok) {
       if (response.status === 401 && !options.anonymous) {

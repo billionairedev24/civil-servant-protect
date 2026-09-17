@@ -2,9 +2,9 @@ import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tan
 import type { CspApi } from './client'
 import { useApi } from './provider'
 import type {
-  BeneficiarySet, Claim, ClaimQueueItem, Ledger, MemberSummary, MyClaim, NewMember,
-  ProtectionCard, Reconciliation, Roster, ScheduleBatch, ScheduleRow, SponsorClaims,
-  SponsorDashboard,
+  AuditEntry, BeneficiarySet, Claim, ClaimQueueItem, ConsoleUser, DebitRun, Dependant, Leaver,
+  Ledger, MemberSummary, MyClaim, NewMember, ProtectionCard, Reconciliation, Remittance, Roster,
+  ScheduleBatch, ScheduleRow, SponsorClaims, SponsorDashboard,
 } from './types'
 
 /**
@@ -22,12 +22,18 @@ export const keys = {
   card: () => [...keys.member(), 'card'] as const,
   beneficiaries: () => [...keys.member(), 'beneficiaries'] as const,
   claims: () => [...keys.member(), 'claims'] as const,
+  dependants: () => [...keys.member(), 'dependants'] as const,
   claim: (ref: string) => ['claim', ref] as const,
   sponsor: () => ['sponsor'] as const,
   dashboard: () => [...keys.sponsor(), 'dashboard'] as const,
   roster: (sponsorId: string, search: string) => [...keys.sponsor(), 'roster', sponsorId, search] as const,
   claimQueue: () => ['claims', 'queue'] as const,
   sponsorClaims: (sponsorId: string) => [...keys.sponsor(), 'claims', sponsorId] as const,
+  leavers: (sponsorId: string) => [...keys.sponsor(), 'leavers', sponsorId] as const,
+  debitRun: (sponsorId: string) => [...keys.sponsor(), 'debit', sponsorId] as const,
+  consoleUsers: (sponsorId: string) => [...keys.sponsor(), 'users', sponsorId] as const,
+  remittances: (sponsorId: string) => [...keys.sponsor(), 'remittances', sponsorId] as const,
+  audit: (sponsorId: string) => [...keys.sponsor(), 'audit', sponsorId] as const,
   scheduleBatch: (batchId: string) => [...keys.sponsor(), 'schedule', batchId] as const,
   reconciliation: (sponsorId: string, cycleId: string) =>
     [...keys.sponsor(), 'reconciliation', sponsorId, cycleId] as const,
@@ -169,6 +175,41 @@ export function useConfirmBeneficiaries() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: () => api!.confirmBeneficiaries(),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.member() }),
+  })
+}
+
+/** The family cover: who is on it, and who was taken off. */
+export function useDependants(fixture: { dependants: Dependant[] }) {
+  const { api } = useApi()
+  return useQuery({
+    queryKey: keys.dependants(),
+    queryFn: () => api!.dependants(),
+    ...shared(api, fixture),
+  })
+}
+
+/**
+ * Add somebody to the cover.
+ *
+ * <p>No optimistic row. The price is the server's to quote — showing a member a
+ * premium this client worked out, on the screen where they are deciding what to
+ * pay, is being confidently wrong about money.
+ */
+export function useAddDependant() {
+  const { api } = useApi()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (body: { name: string; relation: string; dob: string }) => api!.addDependant(body),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.member() }),
+  })
+}
+
+export function useRemoveDependant() {
+  const { api } = useApi()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (dependantId: string) => api!.removeDependant(dependantId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.member() }),
   })
 }
@@ -323,6 +364,112 @@ export function useEnrolAll(sponsorId: string) {
   return useMutation({
     mutationFn: (members: NewMember[]) => api!.enrolAll(sponsorId, members),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.sponsor() }),
+  })
+}
+
+/**
+ * Who has come off the schedule.
+ *
+ * <p>Its own read rather than a filter over the roster: the roster is one page
+ * of eight thousand people ordered by name, and the leavers an officer is
+ * chasing are the handful whose grace runs out next.
+ */
+export function useLeavers(sponsorId: string, fixture: { leavers: Leaver[] }) {
+  const { api } = useApi()
+  return useQuery({
+    queryKey: keys.leavers(sponsorId),
+    queryFn: () => api!.leavers(sponsorId),
+    staleTime: 60_000,
+    ...sharedForSponsor(api, fixture, sponsorId),
+  })
+}
+
+/**
+ * Take somebody off the schedule.
+ *
+ * <p>Invalidates the sponsor rather than the leaver list alone — the roster's
+ * "not deducted" count drops by one, because a leaver is no longer a collection
+ * that failed.
+ */
+export function useLeave(sponsorId: string) {
+  const { api } = useApi()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: { memberId: string; reason: Leaver['reason']; lastDay: string }) =>
+      api!.leave(sponsorId, input.memberId, { reason: input.reason, lastDay: input.lastDay }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.sponsor() }),
+  })
+}
+
+/**
+ * The direct-debit run.
+ *
+ * <p>Polled while an officer watches it, like the dashboard: a debit rail
+ * answers the same day, so these numbers move during the morning somebody is
+ * looking at them.
+ */
+export function useDebitRun(sponsorId: string, fixture: DebitRun) {
+  const { api } = useApi()
+  return useQuery({
+    queryKey: keys.debitRun(sponsorId),
+    queryFn: () => api!.debitRun(sponsorId),
+    staleTime: 30_000,
+    refetchInterval: 120_000,
+    ...sharedForSponsor(api, fixture, sponsorId),
+  })
+}
+
+/**
+ * Take an export.
+ *
+ * <p>A mutation rather than a query, because it is an action somebody takes and
+ * not state a screen holds: nothing should re-fetch a 400-kilobyte CSV because
+ * a window regained focus.
+ */
+export function useReport(sponsorId: string) {
+  const { api } = useApi()
+  return useMutation({
+    mutationFn: (input: { kind: string; period?: string }) =>
+      api!.report(sponsorId, input.kind, input.period),
+  })
+}
+
+/** The money, month by month. */
+export function useRemittances(sponsorId: string, fixture: { remittances: Remittance[] }) {
+  const { api } = useApi()
+  return useQuery({
+    queryKey: keys.remittances(sponsorId),
+    queryFn: () => api!.remittances(sponsorId),
+    staleTime: 60_000,
+    ...sharedForSponsor(api, fixture, sponsorId),
+  })
+}
+
+/**
+ * Who can act for this sponsor.
+ *
+ * <p>Admin only, and the server enforces it — a viewer opening the settings
+ * screen sees the fixture standing in and a notice, not somebody else's list of
+ * who holds authority.
+ */
+export function useConsoleUsers(sponsorId: string, fixture: { users: ConsoleUser[] }) {
+  const { api } = useApi()
+  return useQuery({
+    queryKey: keys.consoleUsers(sponsorId),
+    queryFn: () => api!.consoleUsers(sponsorId),
+    staleTime: 60_000,
+    ...sharedForSponsor(api, fixture, sponsorId),
+  })
+}
+
+/** The sponsor's own audit trail. */
+export function useAuditTrail(sponsorId: string, fixture: { entries: AuditEntry[] }) {
+  const { api } = useApi()
+  return useQuery({
+    queryKey: keys.audit(sponsorId),
+    queryFn: () => api!.auditTrail(sponsorId),
+    staleTime: 30_000,
+    ...sharedForSponsor(api, fixture, sponsorId),
   })
 }
 
