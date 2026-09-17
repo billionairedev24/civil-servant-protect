@@ -1,5 +1,5 @@
 export type WebScreen =
-  | 'signin'
+  | 'signin' | 'kin'
   | 'home' | 'benefits' | 'card' | 'family'
   | 'contrib' | 'benes'
   | 'claim' | 'track'
@@ -14,6 +14,7 @@ export interface WebNavItem {
 
 export const WNAV: readonly WebNavItem[] = [
   { id: 'signin', label: 'Sign in', group: 'ACCESS', icon: 'ph ph-sign-in' },
+  { id: 'kin', label: 'Claim for someone who died', group: 'ACCESS', icon: 'ph ph-hand-heart' },
   { id: 'home', label: 'Dashboard', group: 'COVER', icon: 'ph ph-squares-four' },
   { id: 'benefits', label: 'Cover detail', group: 'COVER', icon: 'ph ph-shield-check' },
   { id: 'card', label: 'Protection card', group: 'COVER', icon: 'ph ph-identification-card' },
@@ -36,6 +37,7 @@ export const APP_GROUPS = ['COVER', 'MONEY', 'PEOPLE', 'CLAIMS', 'ADMIN'] as con
 /** The route each screen owns. */
 export const URLS: Record<WebScreen, string> = {
   signin: '/sign-in',
+  kin: '/next-of-kin',
   home: '/dashboard',
   benefits: '/cover',
   card: '/card',
@@ -55,8 +57,22 @@ export const URLS: Record<WebScreen, string> = {
  * invites them to sign in. A self-service "choose your cover" page would be
  * asking somebody to create an insurance policy for themselves against a
  * payroll they cannot prove they are on.
+ *
+ * The next-of-kin door is public for a different reason: the person using it
+ * never had an account and the member who could have given them one has died.
  */
-export const PUBLIC_WEB_SCREENS: readonly WebScreen[] = ['signin']
+
+/**
+ * What a next of kin may reach once they are in.
+ *
+ * Reporting the death and following it, and nothing else. This is a second
+ * fence rather than the fence — the row-level scope is what actually stops
+ * them reading the ledger or the other beneficiaries' shares, and it would
+ * stop them if this list were wrong. This exists so the app does not offer a
+ * screen whose every request would come back empty.
+ */
+export const KIN_SCREENS: readonly WebScreen[] = ['claim', 'track']
+export const PUBLIC_WEB_SCREENS: readonly WebScreen[] = ['signin', 'kin']
 
 /**
  * Which screen a URL resolves to. Exact first, then the two paths that carry a

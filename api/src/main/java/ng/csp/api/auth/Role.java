@@ -17,7 +17,18 @@ public enum Role {
    * A next of kin sees the cover and the claim they are named in, and can open a claim — which is
    * the point, because the member may have died. They can never change who gets paid.
    */
-  NEXT_OF_KIN("Next of kin", Set.of(Permission.MEMBER_READ, Permission.CLAIM_CREATE, Permission.CLAIM_READ_OWN)),
+  /**
+   * A relative claiming on somebody who has died.
+   *
+   * <p>Deliberately without {@link Permission#MEMBER_READ}. It was here, and it let a kin session
+   * call {@code /v1/members/me/summary} — which answered 200 with the member's cover, premium,
+   * grade and employer. The row-level scope was not the thing at fault: it is row-level, so opening
+   * the member's row so a relative can check they have the right person opens every column any
+   * endpoint chooses to return. The permission is the right fence for that, and
+   * {@code /v1/claims/subject} gives them the name and the CSP-ID, which is all they need to be
+   * sure.
+   */
+  NEXT_OF_KIN("Next of kin", Set.of(Permission.CLAIM_CREATE, Permission.CLAIM_READ_OWN)),
 
   /** Sees every number an approver sees and can change none of them. */
   SPONSOR_VIEWER("Viewer", Set.of(Permission.SPONSOR_READ)),

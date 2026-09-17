@@ -31,6 +31,9 @@ interface AuthState {
 interface AuthActions {
   /** Step one: ask for a code. Returns the challenge to hold on to. */
   requestCode: (msisdn: string) => Promise<{ challengeId: string; devCode?: string }>
+  /** The same, for a relative claiming on a member who has died. */
+  requestKinCode: (cspId: string, msisdn: string) => Promise<{ challengeId: string; devCode?: string }>
+  submitKinCode: (challengeId: string, code: string) => Promise<boolean>
   /** Step two. Resolves true when the code was right. */
   submitCode: (challengeId: string, code: string) => Promise<boolean>
   /** Console: hand over the token Keycloak issued. */
@@ -118,6 +121,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [api, queryClient],
   )
 
+  /**
+   * The same two steps for a relative, against the other pair of endpoints.
+   *
+   * Written out rather than folded into the member flow with a flag, because
+   * they authenticate different people against different facts and end in
+   * sessions that see different things. A branch inside one function is how the
+   * wrong session gets issued.
+   */
+  const requestKinCode = useCallback(
+    async (cspId: string, msisdn: string) => {
+      setError(null)
+      if (!api) return { challengeId: 'fixture' }
+      try {
+        const challenge = await api.requestKinOtp(cspId, msisdn)
+        return { challengeId: challenge.challengeId, devCode: challenge.devCode }
+      } catch (e) {
+        setError(messageFor(e))
+        throw e
+      }
+    },
+    [api],
+  )
+
+  const submitKinCode = useCallback(
+    async (challengeId: string, code: string) => {
+      setError(null)
+      if (!api) return true
+      try {
+        await api.verifyKinOtp(challengeId, code)
+        setHasToken(true)
+        await queryClient.invalidateQueries()
+        return true
+      } catch (e) {
+        setError(messageFor(e))
+        return false
+      }
+    },
+    [api, queryClient],
+  )
+
   const adoptConsoleToken = useCallback(
     (accessToken: string) => {
       api?.adopt(accessToken)
@@ -148,12 +191,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       error,
       requestCode,
       submitCode,
+      requestKinCode,
+      submitKinCode,
       adoptConsoleToken,
       signOut,
       clearError: () => setError(null),
       can,
     }),
-    [live, hasToken, session, isLoading, error, requestCode, submitCode, adoptConsoleToken, signOut, can],
+    [
+      live, hasToken, session, isLoading, error, requestCode, submitCode,
+      requestKinCode, submitKinCode, adoptConsoleToken, signOut, can,
+    ],
   )
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>

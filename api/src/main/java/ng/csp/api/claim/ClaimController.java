@@ -112,6 +112,19 @@ public class ClaimController {
         .body(new InputStreamResource(doc.body()));
   }
 
+  /**
+   * Who this claim is about.
+   *
+   * <p>For a relative who has just signed in and has to be sure they have the right person before
+   * they report a death. The name and the CSP-ID and nothing else — not the cover, not the
+   * premium, not the grade, all of which `/v1/members/me/summary` would have handed over.
+   */
+  @GetMapping("/claims/subject")
+  @PreAuthorize("hasAuthority('PERM_CLAIM_CREATE')")
+  public ClaimService.Subject subject(SessionUser session) {
+    return claims.subject(session);
+  }
+
   /** The member's own claims. Scoped to the session — there is no id to pass. */
   @GetMapping("/members/me/claims")
   @PreAuthorize("hasAuthority('PERM_CLAIM_READ_OWN')")

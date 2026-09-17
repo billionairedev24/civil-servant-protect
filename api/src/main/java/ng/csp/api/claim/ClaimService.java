@@ -454,6 +454,21 @@ public class ClaimService {
         .orElseThrow(() -> ApiException.notFound("No claim with that reference."));
   }
 
+  /** Enough to be sure of the person, and no more. */
+  public record Subject(String name, String cspId) {}
+
+  public Subject subject(SessionUser session) {
+    var memberId = session.memberId();
+    if (memberId == null) {
+      throw ApiException.forbidden("A claim is opened against a member record.");
+    }
+    return db.sql("SELECT display_name, csp_id FROM members WHERE id = :id")
+        .param("id", memberId)
+        .query((rs, n) -> new Subject(rs.getString("display_name"), rs.getString("csp_id")))
+        .optional()
+        .orElseThrow(() -> ApiException.notFound("No member record."));
+  }
+
   public record MyClaim(String ref, String type, String state, Long amountMinor, Instant openedAt) {}
 
   /**

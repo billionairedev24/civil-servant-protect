@@ -69,9 +69,22 @@ public class SecurityConfig {
             auth ->
                 auth.requestMatchers("/actuator/health/**", "/actuator/info", "/actuator/prometheus")
                     .permitAll()
-                    // Signing in cannot require being signed in.
+                    /*
+                     * Signing in cannot require being signed in.
+                     *
+                     * Both doors. The kin pair was added and left off this list,
+                     * and every request to it came back 401 with an empty body —
+                     * invisible to a test that calls the service directly,
+                     * because the filter chain is the part being skipped. It
+                     * took walking the path over HTTP to see it.
+                     */
                     .requestMatchers(
-                        HttpMethod.POST, "/v1/auth/otp", "/v1/auth/verify", "/v1/auth/refresh")
+                        HttpMethod.POST,
+                        "/v1/auth/otp",
+                        "/v1/auth/verify",
+                        "/v1/auth/refresh",
+                        "/v1/auth/kin/otp",
+                        "/v1/auth/kin/verify")
                     .permitAll()
                     // A public key is public. The point of publishing it is that
                     // no service has to be handed one out of band.

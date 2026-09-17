@@ -6,12 +6,13 @@ import { LANGS, type Lang } from '../../i18n'
 import type { SponsorId } from '../../data/sponsors'
 import { C } from '../../theme/tokens'
 import {
-  APP_GROUPS, APP_SCREENS, PUBLIC_WEB_SCREENS, URLS, WNAV, webScreenForPath, type WebScreen,
+  APP_GROUPS, APP_SCREENS, KIN_SCREENS, PUBLIC_WEB_SCREENS, URLS, WNAV, webScreenForPath,
+  type WebScreen,
 } from './nav'
 import { useAuth } from '../../api/auth'
 import { WEB_MEMBER } from './data'
 import { WebStateProvider, useWeb } from './state'
-import { WebSignIn } from './screens/Public'
+import { WebNextOfKin, WebSignIn } from './screens/Public'
 import { WebBenefits, WebCard, WebDashboard, WebFamily } from './screens/Cover'
 import { WebBeneficiaries, WebContributions } from './screens/Money'
 import { WebClaim, WebTrack } from './screens/Claims'
@@ -19,6 +20,7 @@ import { WebProfile } from './screens/Profile'
 
 const SCREENS: Record<WebScreen, () => JSX.Element> = {
   signin: WebSignIn,
+  kin: WebNextOfKin,
   home: WebDashboard,
   benefits: WebBenefits,
   card: WebCard,
@@ -62,9 +64,23 @@ export function MemberWebApp({
   /* Live and signed out, a bookmarked page goes to the front door rather than
      rendering a dashboard whose every request would 401. On fixtures `signedIn`
      is always true, so a design review still opens any page directly. */
-  const { signedIn } = useAuth()
+  const { signedIn, session } = useAuth()
   if (!signedIn && !PUBLIC_WEB_SCREENS.includes(asked)) {
     return <Navigate to={{ pathname: URLS.signin, search: window.location.search }} replace />
+  }
+
+  /*
+   * A relative reached this app to report a death, and that is all it offers
+   * them.
+   *
+   * Asking for the dashboard with a kin session would render a screen whose
+   * every request comes back empty — the row-level scope reaches the claim and
+   * nothing else — so it goes to the claim instead of showing somebody a page
+   * of dashes on the worst day of their life.
+   */
+  const asKin = session?.role === 'next_of_kin'
+  if (asKin && !KIN_SCREENS.includes(asked) && !PUBLIC_WEB_SCREENS.includes(asked)) {
+    return <Navigate to={{ pathname: URLS.claim, search: window.location.search }} replace />
   }
 
   /*

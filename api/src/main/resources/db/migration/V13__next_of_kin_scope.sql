@@ -19,11 +19,15 @@ LANGUAGE sql STABLE AS $$
 $$;
 
 /*
- * The member's own row, and only the columns a screen shows.
+ * The member's own row, so a relative can be sure of the person.
  *
- * A relative confirming they have the right person needs the name and the
- * CSP-ID. They do not need the row to be invisible — they typed the CSP-ID to
- * get here — but they must not reach anybody else's.
+ * Note what this does *not* do: row-level security is row-level. Opening this
+ * row opens every column on it to whatever endpoint chooses to return them —
+ * which is how a kin session got the cover, the premium, the grade and the
+ * employer back from /v1/members/me/summary while this file claimed it was
+ * handing over a name. The fence for that is the permission set, and
+ * NEXT_OF_KIN no longer holds MEMBER_READ; `/v1/claims/subject` returns the
+ * name and the CSP-ID and nothing else.
  */
 DROP POLICY IF EXISTS members_scope ON members;
 CREATE POLICY members_scope ON members

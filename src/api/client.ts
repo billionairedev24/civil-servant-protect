@@ -184,6 +184,28 @@ export class CspApi {
     return tokens
   }
 
+  /**
+   * The other door: somebody claiming on a member who has died.
+   *
+   * Two facts together — the member's CSP-ID, and a number already named on that
+   * member's record. The server answers the same whether or not they go
+   * together, so nothing here can be used to ask whether a person is enrolled.
+   */
+  async requestKinOtp(
+    cspId: string,
+    msisdn: string,
+  ): Promise<{ challengeId: string; expiresIn: number; devCode?: string }> {
+    return this.call('POST', '/v1/auth/kin/otp', { cspId, msisdn }, { anonymous: true })
+  }
+
+  async verifyKinOtp(challengeId: string, code: string): Promise<Tokens> {
+    const tokens = await this.call<Tokens>(
+      'POST', '/v1/auth/kin/verify', { challengeId, code }, { anonymous: true },
+    )
+    this.tokens.write(tokens)
+    return tokens
+  }
+
   /** For the console, whose tokens are minted by Keycloak rather than by us. */
   adopt(accessToken: string, refreshToken = ''): void {
     this.tokens.write({ accessToken, refreshToken })

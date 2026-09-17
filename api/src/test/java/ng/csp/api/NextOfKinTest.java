@@ -203,6 +203,35 @@ class NextOfKinTest {
   }
 
   @Test
+  @DisplayName("the member's own screens are not a relative's to open")
+  void theMemberEndpointsAreClosedToKin() {
+    /*
+     * The permission, not the scope.
+     *
+     * With MEMBER_READ on this role, /v1/members/me/summary answered 200 with
+     * the member's cover, premium, grade and employer — the row-level scope had
+     * opened the member's row so a relative could check the name, and a row
+     * opened for one column is opened for all of them. Found by calling the
+     * endpoint over HTTP; a test that exercises services never crosses the
+     * @PreAuthorize that was letting it through.
+     */
+    assertThat(Role.NEXT_OF_KIN.can(ng.csp.api.auth.Permission.MEMBER_READ)).isFalse();
+    assertThat(Role.MEMBER.can(ng.csp.api.auth.Permission.MEMBER_READ)).isTrue();
+  }
+
+  @Test
+  @DisplayName("a relative is told who they are claiming for, and nothing else about them")
+  void theSubjectIsJustAName() {
+    var session = signIn(cspId, KIN_NUMBER);
+    var subject = asKin(() -> claims.subject(session));
+
+    assertThat(subject.name()).isEqualTo("Emeka Obiora");
+    assertThat(subject.cspId()).isEqualTo(cspId);
+    // Two fields. Adding a third is a decision somebody has to make on purpose.
+    assertThat(ClaimService.Subject.class.getRecordComponents()).hasSize(2);
+  }
+
+  @Test
   @DisplayName("a relative who is themselves a member keeps both accounts")
   void aRelativeCanAlsoBeAMember() {
     /*
