@@ -61,11 +61,23 @@ template's default and it is left visible rather than quietly changed: a real
 release needs a keystore that is not in this repository, and the decision about
 who holds it has not been made. See `android/app/build.gradle`.
 
+## The screens
+
+Sign in · home · the protection card · what the cover pays · the claim wizard ·
+tracking a claim · contributions · who gets paid · family cover · more.
+
+Enrolment is not here and will not be. It is a back-office task — a sponsor
+enrols their staff and the member is invited — so a member's app has no screen
+that creates a member.
+
 ## Not done yet
 
-- **Only English.** The i18n table is wired and every string comes from it; the
-  language picker the web has on its splash screen is not built here.
-- **No navigation library.** Six screens and one back button, held in component
+- **Adding and removing beneficiaries and dependants.** Changing a share is safe
+  on a small screen; retyping a name, a relation and a date of birth on one is
+  how a beneficiary ends up recorded as "Emek". Both are on the web app.
+- **The accident report.** The claim wizard covers death, accident and
+  disability; the separate four-tap accident flow the web has is not ported.
+- **No navigation library.** Ten screens and one back button, held in component
   state. `@react-navigation` was installed and has been taken out again: every
   autolinked native module is compiled for four ABIs, and an 8 MB budget is not
   the place to carry one that nothing imports. It is the right answer at the

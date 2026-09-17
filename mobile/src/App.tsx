@@ -15,6 +15,10 @@ import { CardScreen } from './screens/Card'
 import { ClaimScreen } from './screens/Claim'
 import { TrackScreen } from './screens/Track'
 import { CoverScreen } from './screens/Cover'
+import { BeneficiariesScreen } from './screens/Beneficiaries'
+import { ContributionsScreen } from './screens/Contributions'
+import { FamilyScreen } from './screens/Family'
+import { MoreScreen } from './screens/More'
 
 /**
  * The phone app.
@@ -44,14 +48,14 @@ export default function App() {
   )
 }
 
-type Screen = 'home' | 'card' | 'claim' | 'track' | 'cover'
+type Screen = 'home' | 'card' | 'claim' | 'track' | 'cover' | 'benes' | 'contrib' | 'family' | 'more'
 
 function Shell() {
   const { live } = useApi()
   const { signedIn, signOut } = useAuth()
-  // English for now. The language picker is the splash screen's job on the web
-  // and belongs on this app's first run too; it is not built here yet.
-  const [lang] = useState<Lang>('en')
+  // Changed from the More screen, which is where somebody handing their phone
+  // to a relative can reach it.
+  const [lang, setLang] = useState<Lang>('en')
   const [screen, setScreen] = useState<Screen>('home')
   const [locked, setLocked] = useState(true)
 
@@ -99,6 +103,12 @@ function Shell() {
             {screen === 'cover' && <CoverScreen />}
             {screen === 'claim' && <ClaimScreen onDone={() => setScreen('track')} />}
             {screen === 'track' && <TrackScreen />}
+            {screen === 'benes' && <BeneficiariesScreen />}
+            {screen === 'contrib' && <ContributionsScreen />}
+            {screen === 'family' && <FamilyScreen />}
+            {screen === 'more' && (
+              <MoreScreen lang={lang} setLang={setLang} go={setScreen} onSignOut={leave} />
+            )}
             {screen !== 'home' && (
               <View style={{ padding: 16, paddingTop: 0 }}>
                 <Button label="Back" kind="quiet" onPress={() => setScreen('home')} />
