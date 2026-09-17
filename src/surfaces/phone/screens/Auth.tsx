@@ -87,50 +87,16 @@ export function SignInScreen() {
         </button>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '26px 0 18px' }}>
-        <div style={{ flex: 1, height: 1, background: C.line2 }} />
-        <Mono size={11} color={C.faint}>{t.or}</Mono>
-        <div style={{ flex: 1, height: 1, background: C.line2 }} />
-      </div>
+      {/*
+        No other doors on this page.
 
-      {/* The two non-member doors. A grieving relative and an HR officer must
-          never be routed through a member login. */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-        <button
-          type="button"
-          className="pick"
-          onClick={() => go('bene')}
-          style={{
-            alignItems: 'flex-start', gap: 12, padding: '16px 15px',
-            border: `1.5px solid ${C.line3}`, borderRadius: 10, background: C.white,
-          }}
-        >
-          <Icon name="ph ph-hand-heart" size={21} color={C.g} style={{ marginTop: 1 }} />
-          <span>
-            <span style={{ display: 'block', fontSize: 15.5, fontWeight: 600 }}>{t.bene_title}</span>
-            <span style={{ display: 'block', fontSize: 13, lineHeight: 1.4, color: C.mut, marginTop: 2 }}>
-              {t.bene_sub}
-            </span>
-          </span>
-        </button>
-        <button
-          type="button"
-          className="pick"
-          onClick={() => go('hr')}
-          style={{
-            alignItems: 'flex-start', gap: 12, padding: '16px 15px',
-            border: `1px solid ${C.line}`, borderRadius: 10, background: 'transparent',
-          }}
-        >
-          <Icon name="ph ph-buildings" size={21} color={C.mut} style={{ marginTop: 1 }} />
-          <span>
-            <span style={{ display: 'block', fontSize: 15.5, fontWeight: 600 }}>{t.hr_title}</span>
-            <span style={{ display: 'block', fontSize: 13, lineHeight: 1.4, color: C.mut, marginTop: 2 }}>
-              {t.hr_sub}
-            </span>
-          </span>
-        </button>
-      </div>
+        It used to offer two: a next-of-kin portal and "switch to HR officer
+        view". The first promised a claim with no account, which nothing serves
+        — a death claim today is opened by a signed-in member, or raised through
+        the claims office. The second put a preview of the sponsor console
+        inside a member's app, and is why the two were hard to tell apart. An
+        officer signs in at /console against their MDA account.
+      */}
 
       <div style={{ flex: 1 }} />
       <div style={{ fontSize: 12.5, lineHeight: 1.5, color: C.faint, textAlign: 'center' }}>{t.ussd_note}</div>
@@ -374,12 +340,10 @@ function SignInError({ message }: { message: string }) {
 
 export function BiometricScreen() {
   const { t, go } = usePhone()
-  const { live } = useApi()
-  // On fixtures this is the front of the enrolment tour, so it continues into
-  // it. Against the API you only reach this screen by signing in to an account
-  // that already exists — sending that member back through "who pays you" would
-  // be asking them to enrol twice.
-  const next = () => go(live ? 'home' : 'sponsor')
+  // Straight home. You only reach this screen by signing in to an account that
+  // already exists — there is no enrolment run behind it any more, because
+  // enrolment is not something a member's app does.
+  const next = () => go('home')
   return (
     <Screen pad="8px 24px 28px">
       <div

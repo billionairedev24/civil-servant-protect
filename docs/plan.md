@@ -103,6 +103,18 @@ most misleading to leave, because the product looks complete and is not.
 13. **UAT and prod environments.** Dev values and prod values render; nothing is
     deployed to GBB, and no NITDA ruling has been sought.
 
+### 2b-bis. Removed, and the gap that leaves
+
+22. **A next-of-kin has no way to start a claim.** The member app and the web
+    app both carried a "claim for someone who has died — no account needed"
+    door. Nothing served it: `POST /v1/claims` needs a member session, and the
+    member is the person who died. The screens are gone rather than left
+    promising it, and the real gap is now visible: today a family rings the
+    claims office, or the sponsor raises it. `next_of_kin` exists as a role in
+    the schema, so the shape of the answer is there — what is missing is an
+    endpoint that authenticates a relative against a CSP-ID and a phone number,
+    and a decision about what that is allowed to see.
+
 ### 2c. Quality, content and compliance
 
 14. **Translations are machine-drafted** and need a native-speaker pass.

@@ -9,16 +9,13 @@ import { PhoneStateProvider, usePhone } from './state'
 import {
   BiometricScreen, OtpScreen, PhoneNumberScreen, SignInScreen, SplashScreen,
 } from './screens/Auth'
-import {
-  EmployerOnboardScreen, EnrolDoneScreen, EnrolScreen, SponsorScreen, VerifyScreen,
-} from './screens/Setup'
 import { HomeScreen } from './screens/Home'
 import {
   BeneConfirmScreen, BeneficiariesScreen, BenefitsScreen, FamilyScreen, ProtectionCardScreen,
 } from './screens/Cover'
 import { ContributionsScreen, PayScreen, WhyChangedScreen } from './screens/Pay'
 import { AccidentScreen, ClaimScreen, TrackScreen } from './screens/Claims'
-import { BeneficiaryPortalScreen, HrConsoleScreen, ProfileScreen } from './screens/Other'
+import { ProfileScreen } from './screens/Other'
 
 const SCREENS: Record<PhoneScreen, () => JSX.Element> = {
   splash: SplashScreen,
@@ -26,11 +23,6 @@ const SCREENS: Record<PhoneScreen, () => JSX.Element> = {
   phone: PhoneNumberScreen,
   otp: OtpScreen,
   biometric: BiometricScreen,
-  sponsor: SponsorScreen,
-  verify: VerifyScreen,
-  enrol: EnrolScreen,
-  enroldone: EnrolDoneScreen,
-  onboard: EmployerOnboardScreen,
   home: HomeScreen,
   pay: PayScreen,
   contrib: ContributionsScreen,
@@ -44,8 +36,6 @@ const SCREENS: Record<PhoneScreen, () => JSX.Element> = {
   accident: AccidentScreen,
   claim: ClaimScreen,
   track: TrackScreen,
-  hr: HrConsoleScreen,
-  bene: BeneficiaryPortalScreen,
 }
 
 /**

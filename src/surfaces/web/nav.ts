@@ -1,9 +1,9 @@
 export type WebScreen =
-  | 'signin' | 'enrol'
+  | 'signin'
   | 'home' | 'benefits' | 'card' | 'family'
   | 'contrib' | 'benes'
   | 'claim' | 'track'
-  | 'profile' | 'beneportal'
+  | 'profile'
 
 export interface WebNavItem {
   id: WebScreen
@@ -14,7 +14,6 @@ export interface WebNavItem {
 
 export const WNAV: readonly WebNavItem[] = [
   { id: 'signin', label: 'Sign in', group: 'ACCESS', icon: 'ph ph-sign-in' },
-  { id: 'enrol', label: 'Choose cover', group: 'ACCESS', icon: 'ph ph-list-checks' },
   { id: 'home', label: 'Dashboard', group: 'COVER', icon: 'ph ph-squares-four' },
   { id: 'benefits', label: 'Cover detail', group: 'COVER', icon: 'ph ph-shield-check' },
   { id: 'card', label: 'Protection card', group: 'COVER', icon: 'ph ph-identification-card' },
@@ -24,7 +23,6 @@ export const WNAV: readonly WebNavItem[] = [
   { id: 'claim', label: 'Make a claim', group: 'CLAIMS', icon: 'ph ph-first-aid-kit' },
   { id: 'track', label: 'Track claim', group: 'CLAIMS', icon: 'ph ph-git-commit' },
   { id: 'profile', label: 'Profile + settings', group: 'ADMIN', icon: 'ph ph-user-gear' },
-  { id: 'beneportal', label: 'Next-of-kin portal', group: 'PUBLIC', icon: 'ph ph-hand-heart' },
 ]
 
 /** Screens that render inside the signed-in app shell. The rest are public
@@ -38,7 +36,6 @@ export const APP_GROUPS = ['COVER', 'MONEY', 'PEOPLE', 'CLAIMS', 'ADMIN'] as con
 /** The route each screen owns. */
 export const URLS: Record<WebScreen, string> = {
   signin: '/sign-in',
-  enrol: '/enrol/cover',
   home: '/dashboard',
   benefits: '/cover',
   card: '/card',
@@ -48,18 +45,18 @@ export const URLS: Record<WebScreen, string> = {
   claim: '/claims/new',
   track: '/claims/CLM-2026-0091',
   profile: '/settings',
-  beneportal: '/next-of-kin',
 }
 
 /**
- * Pages reachable without a session.
+ * Pages reachable without a session — which is signing in, and nothing else.
  *
- * Signing in, enrolling — which happens before there is an account to sign in
- * to — and the next-of-kin portal, whose whole point is that the person using it
- * is not the member and never had a login. Everything else needs a session, and
- * on a live build asking for one of those signed out sends you to /sign-in.
+ * There is no enrolment here. A member is enrolled by whoever employs them,
+ * from the console, against a staff record that already exists; the app then
+ * invites them to sign in. A self-service "choose your cover" page would be
+ * asking somebody to create an insurance policy for themselves against a
+ * payroll they cannot prove they are on.
  */
-export const PUBLIC_WEB_SCREENS: readonly WebScreen[] = ['signin', 'enrol', 'beneportal']
+export const PUBLIC_WEB_SCREENS: readonly WebScreen[] = ['signin']
 
 /**
  * Which screen a URL resolves to. Exact first, then the two paths that carry a
@@ -71,7 +68,6 @@ export function webScreenForPath(pathname: string): WebScreen {
   const exact = (Object.keys(URLS) as WebScreen[]).find((id) => URLS[id] === path)
   if (exact) return exact
   if (path.startsWith('/claims/')) return 'track'
-  if (path.startsWith('/enrol')) return 'enrol'
   return 'home'
 }
 

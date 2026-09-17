@@ -20,15 +20,14 @@ export const HOST = '127.0.0.1'
 
 /** Member app — mobile. Mirrors PhoneScreen in src/surfaces/phone/nav.ts. */
 export const PHONE_ROUTES = [
-  'splash', 'auth', 'phone', 'otp', 'biometric', 'sponsor', 'verify', 'enrol', 'enroldone',
-  'onboard', 'home', 'pay', 'contrib', 'id', 'benefits', 'benes', 'family', 'more',
-  'beneconf', 'whychanged', 'accident', 'claim', 'track', 'hr', 'bene',
+  'splash', 'auth', 'phone', 'otp', 'biometric',
+  'home', 'pay', 'contrib', 'id', 'benefits', 'benes', 'family', 'more',
+  'beneconf', 'whychanged', 'accident', 'claim', 'track',
 ].map((id) => ({ id, url: `/m/${id}` }))
 
 /** Member app — web. Mirrors URLS in src/surfaces/web/nav.ts. */
 export const WEB_ROUTES = [
   { id: 'signin', url: '/sign-in' },
-  { id: 'enrol', url: '/enrol/cover' },
   { id: 'home', url: '/dashboard' },
   { id: 'benefits', url: '/cover' },
   { id: 'card', url: '/card' },
@@ -38,7 +37,6 @@ export const WEB_ROUTES = [
   { id: 'claim', url: '/claims/new' },
   { id: 'track', url: '/claims/CLM-2026-0091' },
   { id: 'profile', url: '/settings' },
-  { id: 'beneportal', url: '/next-of-kin' },
 ]
 
 /** Sponsor console. Mirrors CONSOLE_URLS in src/surfaces/console/nav.ts. */
