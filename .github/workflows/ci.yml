@@ -265,6 +265,14 @@ jobs:
       - name: Sizes
         shell: bash
         run: |
+          rows=''
+          for apk in mobile/android/app/build/outputs/apk/release/*.apk; do
+            bytes=$(stat -c%s "$apk")
+            mb=$(awk "BEGIN{printf \"%.1f\", $bytes/1048576}")
+            verdict=$(awk "BEGIN{print ($bytes <= 8388608) ? \"within\" : \"over\"}")
+            rows="${rows}$(basename "$apk") ${mb} MB ${verdict} the 8 MB budget%0A"
+          done
+
           {
             echo '### APK sizes'
             echo ''
@@ -277,6 +285,11 @@ jobs:
               echo "| $(basename "$apk") | ${mb} MB | ${verdict} |"
             done
           } >> "$GITHUB_STEP_SUMMARY"
+
+          # Also as an annotation. A step summary cannot be read back through
+          # the checks API, and this number is one the spec names — it should
+          # not need a browser to find out.
+          echo "::notice title=APK sizes::${rows}"
 
       - uses: actions/upload-artifact@v4
         with:
