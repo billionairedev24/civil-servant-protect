@@ -14,7 +14,7 @@ import {
 import { C } from '../../../theme/tokens'
 import { Screen } from '../Screen'
 import { usePhone } from '../state'
-import { TierList } from './Setup'
+import { TierList } from './Tiers'
 
 /** Digital CSP-ID. Saved on the handset and openable with no network — the
     whole point of it is that it works when nothing else does. */

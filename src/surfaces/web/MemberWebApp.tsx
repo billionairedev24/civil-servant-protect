@@ -11,7 +11,7 @@ import {
 import { useAuth } from '../../api/auth'
 import { WEB_MEMBER } from './data'
 import { WebStateProvider, useWeb } from './state'
-import { WebBenePortal, WebEnrol, WebSignIn } from './screens/Public'
+import { WebSignIn } from './screens/Public'
 import { WebBenefits, WebCard, WebDashboard, WebFamily } from './screens/Cover'
 import { WebBeneficiaries, WebContributions } from './screens/Money'
 import { WebClaim, WebTrack } from './screens/Claims'
@@ -19,8 +19,6 @@ import { WebProfile } from './screens/Profile'
 
 const SCREENS: Record<WebScreen, () => JSX.Element> = {
   signin: WebSignIn,
-  enrol: WebEnrol,
-  beneportal: WebBenePortal,
   home: WebDashboard,
   benefits: WebBenefits,
   card: WebCard,
@@ -69,6 +67,19 @@ export function MemberWebApp({
     return <Navigate to={{ pathname: URLS.signin, search: window.location.search }} replace />
   }
 
+  /*
+   * A path that is not one of ours gets corrected in the address bar.
+   *
+   * Without this, a bookmark to a screen that no longer exists — /enrol/cover,
+   * which was the self-service enrolment flow — renders the dashboard while the
+   * browser still shows the old address. Somebody re-bookmarks it, or sends it
+   * to a colleague, and a deleted page keeps being circulated.
+   */
+  if (URLS[asked] !== (pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname)
+      && !pathname.startsWith('/claims/')) {
+    return <Navigate to={{ pathname: URLS[asked], search: window.location.search }} replace />
+  }
+
   return (
     <WebStateProvider
       lang={lang}
@@ -92,12 +103,23 @@ function Shell() {
 
 /** Public pages: the green panel is the page's own left half, not a mockup. */
 function PublicPage() {
-  const { t, screen, sponsor } = useWeb()
+  const { t, screen } = useWeb()
   const Body = SCREENS[screen]
   const wide = useMediaQuery(BP.smallDesktop)
 
+  /*
+   * Nothing here names an employer, and nothing here is about one member.
+   *
+   * This panel used to read "Collected by IPPIS · Fed. Min. of Education",
+   * which came from the demo's rail switcher. Before anybody has signed in the
+   * app does not know who is looking at it — it has a browser and no session —
+   * so naming a ministry was both unknowable and, on a page every sponsor's
+   * staff reach, wrong for almost everyone who read it. Which rail collects
+   * your contribution is on the dashboard, after sign-in, where it is a fact
+   * about you.
+   */
   const points = [
-    { icon: 'ph ph-buildings', text: `Collected by ${sponsor.short} — the web app never asks you to pay twice.` },
+    { icon: 'ph ph-buildings', text: 'Your contribution is deducted by whoever pays your salary. This app never asks you to pay twice.' },
     { icon: 'ph ph-printer', text: 'Print your protection card, statements and claim papers at A4.' },
     { icon: 'ph ph-timer', text: 'Sessions end after 20 minutes idle, for cyber-cafe and office machines.' },
   ]
@@ -122,9 +144,15 @@ function PublicPage() {
         >
           <Icon name="ph-fill ph-shield-check" size={25} />
         </div>
+        {/* Which of the two applications this is.
+            The console says "Sponsor console" on its own front door; this said
+            nothing, and the two were told apart only by the address bar. */}
+        <Mono size={10} color="rgba(241,246,243,.8)" style={{ display: 'block', marginTop: 24, letterSpacing: '.14em' }}>
+          MEMBER SIGN-IN
+        </Mono>
         <h1
           style={{
-            margin: 0, marginTop: 26, fontSize: wide ? 34 : 26, lineHeight: 1.14,
+            margin: 0, marginTop: 8, fontSize: wide ? 34 : 26, lineHeight: 1.14,
             fontWeight: 700, letterSpacing: '-.03em',
           }}
         >

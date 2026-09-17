@@ -7,7 +7,7 @@ import { LangProvider, type Lang } from '../../src/i18n'
 import { C } from '../../src/theme/tokens'
 import { API_URL } from './env'
 import { deviceTokenStore, forgetEverything } from './storage'
-import { unlock } from './biometrics'
+import { availableLock, lockName, unlock, type Lock } from './biometrics'
 import { Button, FixtureBadge, Screen, Sub, Title } from './ui'
 import { SignInScreen } from './screens/SignIn'
 import { HomeScreen } from './screens/Home'
@@ -15,6 +15,10 @@ import { CardScreen } from './screens/Card'
 import { ClaimScreen } from './screens/Claim'
 import { TrackScreen } from './screens/Track'
 import { CoverScreen } from './screens/Cover'
+import { BeneficiariesScreen } from './screens/Beneficiaries'
+import { ContributionsScreen } from './screens/Contributions'
+import { FamilyScreen } from './screens/Family'
+import { MoreScreen } from './screens/More'
 
 /**
  * The phone app.
@@ -44,16 +48,23 @@ export default function App() {
   )
 }
 
-type Screen = 'home' | 'card' | 'claim' | 'track' | 'cover'
+type Screen = 'home' | 'card' | 'claim' | 'track' | 'cover' | 'benes' | 'contrib' | 'family' | 'more'
 
 function Shell() {
   const { live } = useApi()
   const { signedIn, signOut } = useAuth()
-  // English for now. The language picker is the splash screen's job on the web
-  // and belongs on this app's first run too; it is not built here yet.
-  const [lang] = useState<Lang>('en')
+  // Changed from the More screen, which is where somebody handing their phone
+  // to a relative can reach it.
+  const [lang, setLang] = useState<Lang>('en')
   const [screen, setScreen] = useState<Screen>('home')
   const [locked, setLocked] = useState(true)
+  // What this handset actually offers, so the copy names it rather than
+  // assuming a reader that half these phones do not have.
+  const [lock, setLock] = useState<Lock>('none')
+
+  useEffect(() => {
+    void availableLock().then(setLock)
+  }, [])
 
   /*
    * The lock is asked for once, when the app opens with a session already on
@@ -87,7 +98,7 @@ function Shell() {
           <Screen>
             <Title style={{ marginTop: 80 }}>Locked</Title>
             <Sub>
-              This phone asked for your fingerprint and did not get it. Your session is still here.
+              This phone asked for {lockName(lock)} and did not get it. Your session is still here.
             </Sub>
             <Button label="Try again" onPress={() => void ask()} style={{ marginTop: 20 }} />
             <Button label="Sign out instead" kind="quiet" onPress={leave} style={{ marginTop: 6 }} />
@@ -99,6 +110,12 @@ function Shell() {
             {screen === 'cover' && <CoverScreen />}
             {screen === 'claim' && <ClaimScreen onDone={() => setScreen('track')} />}
             {screen === 'track' && <TrackScreen />}
+            {screen === 'benes' && <BeneficiariesScreen />}
+            {screen === 'contrib' && <ContributionsScreen />}
+            {screen === 'family' && <FamilyScreen />}
+            {screen === 'more' && (
+              <MoreScreen lang={lang} setLang={setLang} go={setScreen} onSignOut={leave} />
+            )}
             {screen !== 'home' && (
               <View style={{ padding: 16, paddingTop: 0 }}>
                 <Button label="Back" kind="quiet" onPress={() => setScreen('home')} />

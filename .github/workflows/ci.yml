@@ -331,3 +331,76 @@ jobs:
           fi
           encoded=$(printf '%s' "$detail" | sed -e 's/%/%25/g' -e 's/\r/%0D/g' | awk '{printf "%s%%0A", $0}')
           echo "::error title=Mobile::${encoded}"
+
+  # The same app, on the other platform.
+  #
+  # A separate job because it needs a macOS runner — Xcode and CocoaPods do not
+  # exist on Linux, and they are several times the cost per minute, so this
+  # builds the simulator target rather than a signed device archive. Signing
+  # needs a team, a provisioning profile and somebody's Apple account, and none
+  # of those are decisions this repository gets to make.
+  #
+  # It proves the project configures, the pods resolve and the app compiles.
+  # Like the Android job, it does not prove the app runs.
+  ios:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install
+        run: |
+          npm ci
+          npm ci --prefix mobile
+
+      # Cached across runs: a cold pod install is minutes of downloading, on the
+      # runner that costs the most per minute.
+      - uses: actions/cache@v4
+        with:
+          path: mobile/ios/Pods
+          key: pods-${{ hashFiles('mobile/ios/Podfile.lock', 'mobile/package-lock.json') }}
+          restore-keys: pods-
+
+      - name: Pods
+        working-directory: mobile/ios
+        shell: bash
+        run: pod install 2>&1 | tee ../../pods.log
+
+      - name: Build for the simulator
+        working-directory: mobile/ios
+        shell: bash
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -workspace CspMobile.xcworkspace \
+            -scheme CspMobile \
+            -configuration Release \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            build 2>&1 | tee ../../xcodebuild.log | tail -40
+
+      # Same reasoning as the Android job: annotations are the one log channel
+      # that comes back through the checks API.
+      - name: Report failure
+        if: failure()
+        shell: bash
+        run: |
+          {
+            echo '### The iOS build failed'
+            echo ''
+            echo '```'
+            tail -80 xcodebuild.log 2>/dev/null || tail -40 pods.log 2>/dev/null || echo 'Failed before the build ran.'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          detail=$(grep -E '(error:|\*\* BUILD FAILED|Podfile|CocoaPods could not)' xcodebuild.log pods.log 2>/dev/null | head -8)
+          [ -n "$detail" ] || detail=$(tail -20 xcodebuild.log 2>/dev/null || echo 'Failed before the build ran.')
+          encoded=$(printf '%s' "$detail" | sed -e 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
+          echo "::error title=iOS::${encoded}"

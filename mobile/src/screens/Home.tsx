@@ -16,7 +16,11 @@ import { Button, Card, Kicker, Pick, Screen, Sub, Title } from '../ui'
  * Three things, in the order they are asked: did my deduction go through, what
  * does my family get, and where is my claim. Everything else is a tap away.
  */
-export function HomeScreen({ go }: { go: (to: 'card' | 'claim' | 'track' | 'cover') => void }) {
+export function HomeScreen({
+  go,
+}: {
+  go: (to: 'card' | 'claim' | 'track' | 'cover' | 'more') => void
+}) {
   const t = useT()
 
   /*
@@ -78,6 +82,8 @@ export function HomeScreen({ go }: { go: (to: 'card' | 'claim' | 'track' | 'cove
       <Pick head={t.make_claim} sub={t.claim_sub} onPress={() => go('claim')} />
       <Pick head={t.claim_status} sub={t.claim_status_sub} onPress={() => go('track')} tone="green" />
       <Pick head={t.card_title} sub={t.card_sub} onPress={() => go('card')} />
+
+      <Pick head={t.tabs[3]} sub={t.more_i.slice(0, 4).join(' · ')} onPress={() => go('more')} />
 
       <Sub style={{ marginTop: 22 }}>{t.ussd_note}</Sub>
     </Screen>

@@ -6,7 +6,9 @@
     "android": "react-native run-android",
     "start": "react-native start",
     "typecheck": "tsc --noEmit",
-    "apk": "cd android && ./gradlew assembleRelease"
+    "apk": "cd android && ./gradlew assembleRelease",
+    "ios": "react-native run-ios",
+    "pods": "cd ios && pod install"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.90.2",

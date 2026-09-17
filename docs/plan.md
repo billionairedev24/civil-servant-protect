@@ -63,18 +63,23 @@ most misleading to leave, because the product looks complete and is not.
 
 ### 2b. In the spec, not built at all
 
-4. **React Native phone app — started.** `mobile/` is a real RN 0.87 app:
-   Hermes, R8, ABI-split APKs, MMKV for the session and the offline card,
-   `react-native-biometrics` on the front door, the camera for claim documents.
+4. **React Native phone app — started.** `mobile/` is a real RN 0.87 app for
+   **Android and iOS**: Hermes, R8, ABI-split APKs, an Xcode project with the
+   permissions its native modules require, MMKV for the session and the offline
+   card, biometrics on the front door — a fingerprint or Face ID, whichever the
+   device has — and the camera for claim documents.
    Metro compiles `../src` rather than a copy, so the phone runs the same API
    client, i18n table, design tokens and claim wizard as the web. Six screens —
    sign in, home, the protection card, cover, the claim wizard, tracking.
 
-   What is not done: only English (the language picker is not built), no
-   navigation library, the card's QR is not drawn, **the APK is over the spec's
-   size budget** (see 2c.21), and **nobody has run it on a handset**. It
-   typechecks and Metro bundles it here; the CI `mobile` job is where an APK
-   first exists, because this machine has no Android SDK.
+   What is not done: no navigation library, the card's QR is not drawn, adding
+   a beneficiary or dependant is web-only, **the APK is over the spec's size
+   budget** (see 2c.21), and **nobody has run it on a handset on either
+   platform**. It typechecks and Metro bundles both platforms here; CI is where
+   an APK first exists and where the iOS target is first compiled, because this
+   machine has neither an Android SDK nor Xcode. iOS builds the simulator
+   target only — a signed archive needs a team and a provisioning profile,
+   which are somebody else's to decide.
 5. **Next.js SSR for the member web.** The spec asks for server rendering so it
    works on slow links and old browsers. This is a Vite SPA.
 6. **USSD twin.** A stateless menu service reading the same i18n table. Not
@@ -102,6 +107,18 @@ most misleading to leave, because the product looks complete and is not.
     has ever seen it.
 13. **UAT and prod environments.** Dev values and prod values render; nothing is
     deployed to GBB, and no NITDA ruling has been sought.
+
+### 2b-bis. Removed, and the gap that leaves
+
+22. **A next-of-kin has no way to start a claim.** The member app and the web
+    app both carried a "claim for someone who has died — no account needed"
+    door. Nothing served it: `POST /v1/claims` needs a member session, and the
+    member is the person who died. The screens are gone rather than left
+    promising it, and the real gap is now visible: today a family rings the
+    claims office, or the sponsor raises it. `next_of_kin` exists as a role in
+    the schema, so the shape of the answer is there — what is missing is an
+    endpoint that authenticates a relative against a CSP-ID and a phone number,
+    and a decision about what that is allowed to see.
 
 ### 2c. Quality, content and compliance
 
@@ -218,7 +235,7 @@ against a running backend rather than asserted.
 |---|---|---|
 | **Console** | Every screen live, including an assessor who can assess and pay | **Done** — verified against a running API |
 | **Member web** | Every screen live, including filing a claim with evidence | **Done** — verified in a browser against a running API |
-| **Member mobile** | An installable Android build doing the member journey offline-capable, with biometrics | Built and bundling; an APK exists only in CI, and no handset has run it |
+| **Member mobile** | An installable Android and iOS build doing the member journey offline-capable, with biometrics | Built and bundling on both; an APK exists only in CI, iOS compiles for the simulator, and no handset has run either |
 | **USSD** | The same journeys reachable with no smartphone | Not started |
 
 ### The estimate
