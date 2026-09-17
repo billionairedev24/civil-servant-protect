@@ -284,10 +284,13 @@ jobs:
           path: mobile/android/app/build/outputs/apk/release/*.apk
           retention-days: 14
 
-      # The same reasoning as the smoke test's reporter: a failure has to arrive
-      # where the change is reviewed. Actions log blobs are not fetchable from
-      # every environment this is worked on from, and "see the log" is useless
-      # advice when the log is what cannot be reached.
+      # The same reasoning as the smoke test's reporter, pushed further.
+      #
+      # Actions log blobs are not fetchable from every environment this is
+      # worked on from, and neither are artifacts — both live on the same
+      # storage. Annotations come back through the checks API, so the failure
+      # travels in one. Newlines are %0A because that is how a workflow command
+      # carries them.
       - name: Report failure
         if: failure()
         shell: bash
@@ -296,10 +299,18 @@ jobs:
             echo '### The phone app did not build'
             echo ''
             echo '```'
-            tail -60 gradle.log 2>/dev/null || echo 'Failed before Gradle ran — see the step above.'
+            tail -120 gradle.log 2>/dev/null || echo 'Failed before Gradle ran.'
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
-          detail=$(grep -E '^(e:|error:|FAILURE|\* What went wrong|Caused by)' gradle.log 2>/dev/null | head -4 | tr '\n' ' ' | cut -c1-900)
-          [ -n "$detail" ] || detail='Failed before Gradle ran.'
-          echo "::error title=Mobile::${detail}"
+          if [ -f gradle.log ]; then
+            # Gradle puts the cause under "What went wrong" and the useful
+            # detail in the twenty-odd lines after it.
+            detail=$(awk '/What went wrong/,0' gradle.log | head -30)
+            [ -n "$detail" ] || detail=$(grep -E '^(e:|error:|FAILURE|Caused by)' gradle.log | head -12)
+            [ -n "$detail" ] || detail=$(tail -30 gradle.log)
+          else
+            detail='Failed before Gradle ran.'
+          fi
+          encoded=$(printf '%s' "$detail" | sed -e 's/%/%25/g' -e 's/\r/%0D/g' | awk '{printf "%s%%0A", $0}')
+          echo "::error title=Mobile::${encoded}"
