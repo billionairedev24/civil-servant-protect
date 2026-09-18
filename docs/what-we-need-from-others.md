@@ -257,11 +257,30 @@ it.
 account if we are distributing that way, an Apple Developer team ID and
 provisioning profile, and **one cheap Android handset in somebody's hand**.
 
-**The one to act on first:** `mobile/android/app/build.gradle` signs the release
-build with the **debug keystore**. That is React Native's default and it is
-still wrong — an APK signed with the debug key cannot go on Play, and anything
-sideloaded with it cannot later be updated by a build signed properly. It needs
-a real keystore before a single install happens, not before the first release.
+**The keystore is now the only thing standing between us and a release build.**
+`mobile/android/app/build.gradle` used to sign the release build with the debug
+keystore that is committed here — React Native's default, and still wrong: Play
+refuses such an APK, and sideloading does not, which is worse. An Android app
+can only ever be replaced by a build signed with the same key, so a pilot handed
+out on the debug key could never be updated, and the only way out is uninstalling
+every copy.
+
+It no longer falls back. A release build reads four properties and stops with
+instructions if any is missing:
+
+| | |
+|---|---|
+| `CSP_UPLOAD_STORE_FILE` | path to the keystore |
+| `CSP_UPLOAD_STORE_PASSWORD` | |
+| `CSP_UPLOAD_KEY_ALIAS` | |
+| `CSP_UPLOAD_KEY_PASSWORD` | |
+
+So **what we need from you is the keystore and those three secrets**, held
+somewhere durable — losing it means never updating the app again, for everyone
+who installed it. CI generates a throwaway key per run so the artefact is still
+installable on a test handset; anything installed from one of those has to be
+uninstalled before a properly signed build will replace it, and the job summary
+says so.
 
 **iOS builds the simulator target only.** A signed archive needs a team and a
 profile, which is a decision rather than work.
