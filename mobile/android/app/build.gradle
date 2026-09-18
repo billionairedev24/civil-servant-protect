@@ -78,6 +78,73 @@ def enableProguardInReleaseBuilds = true
  */
 def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
 
+/*
+ * The upload key: never in this repository, and never the debug key.
+ *
+ * Read from Gradle properties first and the environment second, so the same
+ * four names work from `~/.gradle/gradle.properties` on a build machine, from
+ * `-P` on the command line, and from secrets in CI.
+ */
+def credential = { String name ->
+    def value = project.findProperty(name) ?: System.getenv(name)
+    return value?.toString()?.trim() ?: null
+}
+
+def uploadKeystore = credential('CSP_UPLOAD_STORE_FILE')
+def uploadStorePassword = credential('CSP_UPLOAD_STORE_PASSWORD')
+def uploadKeyAlias = credential('CSP_UPLOAD_KEY_ALIAS')
+def uploadKeyPassword = credential('CSP_UPLOAD_KEY_PASSWORD')
+
+/*
+ * Fail before compiling, not at the signing step twenty minutes later.
+ *
+ * Only when a release is what was actually asked for: `assembleDebug` and the
+ * bundle tasks have no business needing an upload key, and a configuration
+ * block that threw unconditionally would stop those too.
+ */
+def wantsRelease = gradle.startParameter.taskNames.any { it.toLowerCase().contains('release') }
+if (wantsRelease) {
+    def missing = [
+        'CSP_UPLOAD_STORE_FILE': uploadKeystore,
+        'CSP_UPLOAD_STORE_PASSWORD': uploadStorePassword,
+        'CSP_UPLOAD_KEY_ALIAS': uploadKeyAlias,
+        'CSP_UPLOAD_KEY_PASSWORD': uploadKeyPassword,
+    ].findAll { it.value == null }.keySet()
+
+    if (!missing.isEmpty()) {
+        throw new GradleException("""
+            A release build needs the upload key. Missing: ${missing.join(', ')}.
+
+            This used to fall back to the debug key, which is committed to this
+            repository with the password "android". Play refuses such an APK,
+            but sideloading does not — and an Android app can only ever be
+            replaced by a build signed with the same key, so a pilot signed with
+            the debug key cannot be updated at all.
+
+            For a real build, set all four (~/.gradle/gradle.properties, -P, or
+            the environment) pointing at the keystore held by whoever publishes
+            the app.
+
+            For a throwaway — a size check, or an APK to install on a test
+            handset, which is what CI builds:
+
+              keytool -genkeypair -v -keystore /tmp/throwaway.jks \\
+                -alias throwaway -keyalg RSA -keysize 2048 -validity 30 \\
+                -storepass throwaway -keypass throwaway \\
+                -dname "CN=Civil Servant Protect throwaway, O=not for release"
+
+              ./gradlew assembleRelease \\
+                -PCSP_UPLOAD_STORE_FILE=/tmp/throwaway.jks \\
+                -PCSP_UPLOAD_STORE_PASSWORD=throwaway \\
+                -PCSP_UPLOAD_KEY_ALIAS=throwaway \\
+                -PCSP_UPLOAD_KEY_PASSWORD=throwaway
+
+            Anything installed from a throwaway build has to be uninstalled
+            before a properly signed one will replace it.
+        """.stripIndent())
+    }
+}
+
 android {
     ndkVersion rootProject.ext.ndkVersion
     buildToolsVersion rootProject.ext.buildToolsVersion
@@ -137,15 +204,62 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        /*
+         * The upload key, from outside this repository.
+         *
+         * Only defined when the properties are actually there, because a
+         * signingConfig pointing at a keystore that does not exist fails at
+         * signing time with a message about a missing file rather than about a
+         * missing credential.
+         */
+        if (uploadKeystore) {
+            release {
+                storeFile file(uploadKeystore)
+                storePassword uploadStorePassword
+                keyAlias uploadKeyAlias
+                keyPassword uploadKeyPassword
+            }
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
+            /*
+             * Signed with the upload key, or not built at all.
+             *
+             * This said `signingConfig signingConfigs.debug` — React Native's
+             * default, with a comment reminding whoever read it to generate
+             * their own. Nobody reads a comment while running a release build,
+             * and the failure it warns about is silent: the APK builds, it
+             * installs, it works, and it is signed with a key whose password is
+             * the string "android" and which is committed to this repository.
+             *
+             * Two things follow from that, and the second is the one that
+             * bites. Google Play refuses an APK signed with a debug key, so
+             * that route fails loudly. Sideloading does not — a pilot could
+             * hand out a hundred installs and only discover the problem at the
+             * first update, because an Android app can only be replaced by a
+             * build signed with the same key. There is no recovery from that
+             * except uninstalling every copy, which for a scheme whose members
+             * keep the app for decades is not a recovery.
+             *
+             * So an unconfigured release build now stops — see the message
+             * thrown above for what to set, including the throwaway CI uses to
+             * produce an installable artefact.
+             *
+             * Guarded, because buildTypes is configured on every invocation and
+             * not only on the one that asked for a release. Referring to
+             * `signingConfigs.release` unconditionally would fail `assembleDebug`
+             * with "SigningConfig with name 'release' not found" on any machine
+             * without the credentials, which is every machine that is not
+             * building a release. When a release *is* what was asked for, the
+             * check above has already stopped the build if this would be unset.
+             */
+            if (uploadKeystore) {
+                signingConfig signingConfigs.release
+            }
             minifyEnabled enableProguardInReleaseBuilds
             // Unreferenced drawables, layouts and strings go with the
             // unreferenced code. Needs minifyEnabled, which is why it is here

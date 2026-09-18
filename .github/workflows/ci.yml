@@ -273,6 +273,29 @@ jobs:
             --entry-file index.js \
             --bundle-output /tmp/index.android.bundle --assets-dest /tmp/assets
 
+      # A throwaway upload key, generated per run and gone with the runner.
+      #
+      # The release build used to be signed with the debug keystore that is
+      # committed here, which is what made this step unnecessary and was the
+      # bug: an app installed from such a build can never be updated, because
+      # Android will only replace an app with a build signed by the same key.
+      #
+      # CI cannot hold the real upload key — it belongs to whoever publishes the
+      # app — but it must still produce something installable, since the whole
+      # point of the artefact below is that somebody runs it on a handset. So it
+      # makes its own, and the summary says what that means.
+      - name: Throwaway signing key
+        shell: bash
+        run: |
+          keytool -genkeypair -v -keystore /tmp/throwaway.jks \
+            -alias throwaway -keyalg RSA -keysize 2048 -validity 30 \
+            -storepass throwaway -keypass throwaway \
+            -dname "CN=Civil Servant Protect throwaway, O=not for release" >/dev/null
+          echo "CSP_UPLOAD_STORE_FILE=/tmp/throwaway.jks" >> "$GITHUB_ENV"
+          echo "CSP_UPLOAD_STORE_PASSWORD=throwaway" >> "$GITHUB_ENV"
+          echo "CSP_UPLOAD_KEY_ALIAS=throwaway" >> "$GITHUB_ENV"
+          echo "CSP_UPLOAD_KEY_PASSWORD=throwaway" >> "$GITHUB_ENV"
+
       - name: Build the APKs
         working-directory: mobile/android
         shell: bash
@@ -294,6 +317,10 @@ jobs:
 
           {
             echo '### APK sizes'
+            echo ''
+            echo '> Signed with a throwaway key generated for this run. Installable'
+            echo '> on a test handset, and **not** upgradable — a properly signed'
+            echo '> build will not replace it, so uninstall before trying one.'
             echo ''
             echo '| Build | Size | Against the 8 MB budget |'
             echo '|---|---|---|'
