@@ -1,15 +1,24 @@
 name: CI
 
 on:
+  # Every branch, with no list.
+  #
+  # `pull_request` only fires while a PR is open, so anything pushed to a branch
+  # whose PR has just been merged is built by neither trigger — and nothing says
+  # so, because a branch with no runs looks exactly like a branch whose runs all
+  # passed.
+  #
+  # This has now happened three times. The first fix added `implement-csp-system`
+  # to a branch list, which closed it for that branch and left every future one
+  # open; the very next branch lost the Android signing fix the same way, and
+  # the commit sat on `main`'s doorstep unbuilt while its PR was merged without
+  # it. A list of branch names is a fix that has to be remembered, and the thing
+  # being guarded against is forgetting.
+  #
+  # The cost is a run on branches that have no PR yet. The concurrency group
+  # below means an open PR still gets one run rather than two, so that is the
+  # whole of the cost.
   push:
-    # The working branch as well as main.
-    #
-    # `pull_request` only fires while a PR is open. Four commits went onto this
-    # branch after #14 was merged and before #15 was opened, and not one of them
-    # was ever built — a closed PR fires neither trigger, and nothing says so.
-    # The gap is silent by construction: a branch with no runs looks the same as
-    # a branch whose runs all passed.
-    branches: [main, implement-csp-system]
   pull_request:
 
 # One run per branch.
