@@ -88,10 +88,16 @@ most misleading to leave, because the product looks complete and is not.
    Published in one process. The stage boundaries are in the right places, so
    this is a deployment change rather than a rewrite — but there is no topic,
    no retry policy and no dead-letter queue.
-8. **Object storage, for everything else.** Claim evidence is done (see 2a.3) —
-   MinIO in compose, presigned PUT, SSE-S3. Roll files and their PGP signatures
-   still live on disk, and object lock is configured on the bucket rather than
-   asserted by the application.
+8. **Signed roll files do not exist.** This entry used to read "roll files and
+   their PGP signatures still live on disk", which was wrong twice over and
+   understated the work. There is no roll file on disk: the upload endpoint
+   takes JSON rows, not a multipart file, and staging writes them straight into
+   `schedule_rows`. And there is no PGP anywhere — no signing code, no
+   BouncyCastle in `api/pom.xml`. So this is not "move some files into the
+   bucket a day's work away"; it is producing a signed, retained artefact of
+   what a payroll sent and what came back, which the bucket from 2a.3 is ready
+   to hold. Object lock is configured on that bucket rather than asserted by the
+   application.
 9. **The integration adapters over the wire.** NIMC (JAX-WS SOAP over IPsec),
    comms (SMS/USSD REST), payout (NIBSS REST), the SFTP poller (Apache MINA).
    Each has an interface, a circuit breaker with settings chosen for that
@@ -110,15 +116,20 @@ most misleading to leave, because the product looks complete and is not.
 
 ### 2b-bis. Removed, and the gap that leaves
 
-22. **A next-of-kin has no way to start a claim.** The member app and the web
-    app both carried a "claim for someone who has died — no account needed"
-    door. Nothing served it: `POST /v1/claims` needs a member session, and the
-    member is the person who died. The screens are gone rather than left
-    promising it, and the real gap is now visible: today a family rings the
-    claims office, or the sponsor raises it. `next_of_kin` exists as a role in
-    the schema, so the shape of the answer is there — what is missing is an
-    endpoint that authenticates a relative against a CSP-ID and a phone number,
-    and a decision about what that is allowed to see.
+22. ~~**A next-of-kin has no way to start a claim.**~~ **Done.** A relative
+    gives the member's CSP-ID and their own phone number, and it is checked
+    against the beneficiaries already named on the policy — nobody registers
+    anything. `V13` scopes the member, the claim, its stages, its documents and
+    the projection to the kin; the upsert needed the clause on `USING` as well
+    as `WITH CHECK`, because `ON CONFLICT ... DO UPDATE` reads the row before it
+    writes it.
+
+    What that door may see took two attempts. `/v1/members/me/summary` returned
+    `200` to a kin session with cover, premium, grade and employer, because RLS
+    is row-level: opening the member's row opens every column any endpoint
+    selects from it. The comment in `V13` had claimed the opposite. `NEXT_OF_KIN`
+    lost `MEMBER_READ`, and `/v1/claims/subject` returns a name and a CSP-ID,
+    with a test that fails if a third field appears.
 
 ### 2c. Quality, content and compliance
 
@@ -187,13 +198,24 @@ this order, because each was worth having on its own:
 reads the certificate and approves, and operations pays — walked end to end
 against a running API, in a browser and over HTTP.*
 
-### Now — finish the phone app (2b.4)
+### Done — the phone app (2b.4), bar a handset
 
-Only after the claim path, because building it first would mean building the
-claim screens twice. By then the API client, the i18n table and the design
-tokens are settled, which is what makes an RN shell a few days rather than a
-rewrite. Android-first, Hermes, MMKV for the offline card, biometrics on the
-device.
+Built after the claim path, because building it first would have meant building
+the claim screens twice. Android and iOS, Hermes, MMKV for the offline card,
+biometrics on the device, and ten screens that reach parity with `/m` — the
+beneficiary confirmation folded into the beneficiaries screen and the accident
+report into the claim wizard's type picker, rather than as separate screens.
+
+Two things are still open inside it: the protection card's QR is not drawn, and
+there is no navigation library — `App.tsx` switches on a string. Neither blocks
+anything else, and both are small.
+
+### Now — everything left is blocked on somebody else, except four things
+
+Worth stating plainly rather than burying in the table below. The pilot tier is
+credentials, a hosting decision, a NITDA ruling and native speakers, none of
+which are code. The unblocked code is: signed roll files (2b.8), Kafka between
+the stages (2b.7), Next.js SSR (2b.5), and the two small mobile items above.
 
 ### Then — the things a pilot cannot start without
 
@@ -253,8 +275,8 @@ promise.
 | ~~**3**~~ | ~~**Assessor queue** wired — assess, pay~~ — **done** | 0.5 | — |
 | | **→ Console and member web are finished: a member can report a death, attach a certificate, and be paid** | **done** | |
 | **4** | ~~**React Native app**: shell, the member journey in RN primitives, MMKV offline card, biometrics, Hermes, ABI-split release config, CI that builds the APK~~ — **done bar a device** | 5 | Somebody with an Android handset |
-| **5** | Remaining `/m` screens ported to reach parity | 3 | 4 |
-| | **→ Mobile is finished here** | **8** | |
+| ~~**5**~~ | ~~Remaining `/m` screens ported to reach parity~~ — **done**: ten screens, parity reached | 3 | — |
+| | **→ Mobile is finished here, bar a QR, a nav library and a handset** | **8** | |
 | **6** | The four adapters over the wire — NIMC SOAP/IPsec, comms REST, NIBSS REST, SFTP poller | 3 | **Credentials, endpoints and sandbox access** for each |
 | **7** | Postgres HA + DR replica, pgAudit, Vault, mTLS, Loki, Sentry | 3 | Hosting decision |
 | **8** | Kafka between the load stages, workers autoscaling | 2 | — |
