@@ -28,6 +28,7 @@ export const PHONE_ROUTES = [
 /** Member app — web. Mirrors URLS in src/surfaces/web/nav.ts. */
 export const WEB_ROUTES = [
   { id: 'signin', url: '/sign-in' },
+  { id: 'kin', url: '/next-of-kin' },
   { id: 'home', url: '/dashboard' },
   { id: 'benefits', url: '/cover' },
   { id: 'card', url: '/card' },

@@ -1,3 +1,4 @@
+import { friendly } from '../../../api/problems'
 import { useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { Icon } from '../../../components/Icon'
@@ -330,7 +331,7 @@ export function ConsoleRecon() {
         >
           <Icon name="ph-fill ph-warning-circle" size={17} color={C.clay} />
           <span style={{ fontSize: 13, lineHeight: 1.45, color: C.clayInk }}>
-            {close.error instanceof Error ? close.error.message : 'That could not be closed.'}
+            {friendly(close.error, 'That could not be closed.')}
           </span>
         </div>
       )}
@@ -653,7 +654,7 @@ export function ConsoleException() {
                 proposed it" is the control explaining itself; a generic
                 apology teaches an officer that the console is flaky. */}
             <span style={{ fontSize: 13, lineHeight: 1.45, color: C.clayInk }}>
-              {failure instanceof Error ? failure.message : 'That could not be saved.'}
+              {friendly(failure, 'That could not be saved.')}
             </span>
           </div>
         )}

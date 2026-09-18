@@ -80,7 +80,20 @@ public class RlsScopeFilter extends OncePerRequestFilter {
 
     if (role.isMemberSide()) {
       var memberId = jwt.getClaimAsString(TokenService.CLAIM_MEMBER_ID);
-      return memberId == null ? RlsScope.none() : RlsScope.forMember(UUID.fromString(memberId));
+      if (memberId == null) {
+        return RlsScope.none();
+      }
+      /*
+       * Both carry a member id and they do not mean the same thing.
+       *
+       * A member's id is who they are. A relative's is who died — so the scope
+       * it opens is the claim about that person, not that person's record. The
+       * same claim on a token, read two different ways, is exactly the kind of
+       * thing to make explicit rather than let a shared branch decide.
+       */
+      return role == Role.NEXT_OF_KIN
+          ? RlsScope.forNextOfKin(UUID.fromString(memberId))
+          : RlsScope.forMember(UUID.fromString(memberId));
     }
 
     // A console token from Keycloak does not carry our sponsor id — it carries

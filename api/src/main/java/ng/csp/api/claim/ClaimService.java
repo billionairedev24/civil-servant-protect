@@ -46,6 +46,19 @@ public class ClaimService {
    */
   @Transactional
   public Opened open(SessionUser session, String type, String claimantRelation, Object answers) {
+    /*
+     * A relative may report a death and nothing else.
+     *
+     * Accident and disability claims are about a living member and are theirs
+     * to make: they are the one who knows what happened, and the payout is
+     * theirs. A next-of-kin session exists because the member cannot sign in,
+     * which is only true of the one claim type.
+     */
+    if (session.role() == Role.NEXT_OF_KIN && !"death".equals(type)) {
+      throw ApiException.forbidden(
+          "A next of kin can report a death. An accident or disability claim is made by the member.");
+    }
+
     var memberId = session.memberId();
     if (memberId == null) {
       throw ApiException.forbidden("A claim is opened against a member record.");
@@ -69,7 +82,14 @@ public class ClaimService {
             .query(UUID.class)
             .single();
 
-    stage(claimId, "submitted", "done", session.userId().toString(), "Opened on the member app");
+    // Who opened it, on the trail. "Opened on the member app" was true of every
+    // claim when only a member could open one; on a death claim it is now
+    // usually a relative, and an assessor reading the trail should see that.
+    stage(
+        claimId, "submitted", "done", session.userId().toString(),
+        session.role() == Role.NEXT_OF_KIN
+            ? "Reported by the next of kin"
+            : "Opened on the member app");
     requireDocs(claimId, Claims.requiredDocs(type));
 
     // A death claim opens a funeral advance beside it automatically. Nobody
@@ -432,6 +452,21 @@ public class ClaimService {
         .query(UUID.class)
         .optional()
         .orElseThrow(() -> ApiException.notFound("No claim with that reference."));
+  }
+
+  /** Enough to be sure of the person, and no more. */
+  public record Subject(String name, String cspId) {}
+
+  public Subject subject(SessionUser session) {
+    var memberId = session.memberId();
+    if (memberId == null) {
+      throw ApiException.forbidden("A claim is opened against a member record.");
+    }
+    return db.sql("SELECT display_name, csp_id FROM members WHERE id = :id")
+        .param("id", memberId)
+        .query((rs, n) -> new Subject(rs.getString("display_name"), rs.getString("csp_id")))
+        .optional()
+        .orElseThrow(() -> ApiException.notFound("No member record."));
   }
 
   public record MyClaim(String ref, String type, String state, Long amountMinor, Instant openedAt) {}

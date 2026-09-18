@@ -13,7 +13,7 @@ import org.springframework.jdbc.datasource.DelegatingDataSource;
  *
  * <p>The settings are session-level rather than transaction-level, because reads here are not all
  * inside a transaction and {@code SET LOCAL} outside one does nothing silently. Session-level on a
- * pooled connection would be a leak — so every checkout writes all four values, including the empty
+ * pooled connection would be a leak — so every checkout writes all five values, including the empty
  * ones. A connection returning to the pool carrying a stale scope cannot hand it to the next
  * borrower, because the next borrower overwrites it before running anything.
  */
@@ -54,15 +54,17 @@ public class ScopedDataSource extends DelegatingDataSource {
   static void write(Connection connection, RlsScope scope) throws SQLException {
     try (var statement = connection.prepareStatement(
         """
-        SELECT set_config('csp.member_id',  ?, false),
-               set_config('csp.sponsor_id', ?, false),
-               set_config('csp.assessor',   ?, false),
-               set_config('csp.unscoped',   ?, false)
+        SELECT set_config('csp.member_id',     ?, false),
+               set_config('csp.sponsor_id',    ?, false),
+               set_config('csp.kin_member_id', ?, false),
+               set_config('csp.assessor',      ?, false),
+               set_config('csp.unscoped',      ?, false)
         """)) {
       statement.setString(1, scope.memberId() == null ? "" : scope.memberId().toString());
       statement.setString(2, scope.sponsorId() == null ? "" : scope.sponsorId().toString());
-      statement.setString(3, scope.assessor() ? "on" : "off");
-      statement.setString(4, scope.unscoped() ? "on" : "off");
+      statement.setString(3, scope.kinMemberId() == null ? "" : scope.kinMemberId().toString());
+      statement.setString(4, scope.assessor() ? "on" : "off");
+      statement.setString(5, scope.unscoped() ? "on" : "off");
       statement.execute();
     }
   }

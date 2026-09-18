@@ -185,15 +185,39 @@ export function WebSignIn() {
           {error && <SignInProblem message={error} />}
 
           {/*
-            Nothing else on this page.
+            One other door, and it goes somewhere now.
 
-            It used to carry a "Continue with Google" button, which no member
-            account has ever had — it was a design-bundle control that opened a
-            self-service enrolment flow — and a "claim for someone who has died,
-            no account needed" door, which promised something no endpoint
-            serves. A sign-in page that offers a bereaved relative a route that
-            cannot work is worse than one that offers nothing.
+            This page used to carry a "Continue with Google" button — a
+            design-bundle control wearing Google's logo that opened a
+            self-service enrolment flow no member account has ever had — and this
+            one, which promised a claim with no account and reached nothing. The
+            first is gone. The second is below, backed by `/v1/auth/kin/*`: the
+            member cannot sign in to report their own death, so their family
+            needs a way in that is not the member's.
           */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '26px 0 18px' }}>
+            <div style={{ flex: 1, height: 1, background: C.line2 }} />
+            <Mono size={11} color={C.faint}>{t.or}</Mono>
+            <div style={{ flex: 1, height: 1, background: C.line2 }} />
+          </div>
+
+          <button
+            type="button"
+            className="pick"
+            onClick={() => go('kin')}
+            style={{
+              alignItems: 'flex-start', gap: 12, padding: 15,
+              border: `1.5px solid ${C.line3}`, borderRadius: 10, background: C.white,
+            }}
+          >
+            <Icon name="ph ph-hand-heart" size={20} color={C.g} style={{ marginTop: 1 }} />
+            <span>
+              <span style={{ display: 'block', fontSize: 15, fontWeight: 600 }}>{t.bene_title}</span>
+              <span style={{ display: 'block', fontSize: 13, lineHeight: 1.45, color: C.mut, marginTop: 2 }}>
+                {t.bene_sub}
+              </span>
+            </span>
+          </button>
         </>
       )}
 
@@ -217,6 +241,156 @@ export function WebSignIn() {
           The sponsor console is at /console
         </a>{' '}
         — sign in there with your ministry account.
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Claiming for somebody who has died.
+ *
+ * The door the sign-in page used to offer and nothing served. It is real now:
+ * the member's CSP-ID and a number already named on their record, checked
+ * together — see `AuthService.startKinChallenge`. Neither fact alone opens it,
+ * and the server answers the same either way, so this cannot be used to ask
+ * whether a given person is enrolled.
+ *
+ * What it leads to is deliberately narrow. A relative signs in to report the
+ * death and follow the claim; they do not get the member's ledger, cover,
+ * dependants or the other beneficiaries' shares, and that is enforced by the
+ * row-level scope rather than by which screens this app happens to render.
+ */
+export function WebNextOfKin() {
+  const { t, go } = useWeb()
+  const { live } = useApi()
+  const { requestKinCode, submitKinCode, error, clearError } = useAuth()
+
+  const [cspId, setCspId] = useState('')
+  const [msisdn, setMsisdn] = useState('')
+  const [challengeId, setChallengeId] = useState<string | null>(null)
+  const [code, setCode] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  const ask = async () => {
+    if (!live) return go('claim')
+    setBusy(true)
+    try {
+      const challenge = await requestKinCode(cspId, toE164(msisdn))
+      setChallengeId(challenge.challengeId)
+      if (challenge.devCode) setCode(challenge.devCode)
+    } catch {
+      // The message is on the auth context; staying here lets them fix what
+      // they typed rather than landing on a code screen that cannot work.
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const verify = async () => {
+    if (!challengeId) return
+    setBusy(true)
+    try {
+      if (await submitKinCode(challengeId, code)) go('claim')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="rise" style={{ maxWidth: 470 }}>
+      <div style={{ fontSize: 28, lineHeight: 1.2, fontWeight: 700, letterSpacing: '-.025em' }}>
+        {t.bene_page_title}
+      </div>
+      <div style={{ fontSize: 15, lineHeight: 1.55, color: C.mut, marginTop: 8 }}>{t.bene_page_sub}</div>
+
+      {challengeId === null ? (
+        <>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 24 }}>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+              <Kicker>{t.their_id}</Kicker>
+              <input
+                value={cspId}
+                onChange={(e) => {
+                  setCspId(e.target.value.toUpperCase())
+                  clearError()
+                }}
+                placeholder="CSP-114-88214"
+                aria-label={t.their_id}
+                style={{
+                  padding: 15, border: `1.5px solid ${C.g}`, borderRadius: 10, background: C.white,
+                  fontFamily: MONO, fontSize: 17, fontWeight: 500, color: C.ink, minWidth: 0,
+                }}
+              />
+            </label>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+              <Kicker>{t.your_number}</Kicker>
+              <input
+                type="tel"
+                inputMode="numeric"
+                value={msisdn}
+                onChange={(e) => {
+                  setMsisdn(e.target.value)
+                  clearError()
+                }}
+                placeholder="0803 000 0214"
+                aria-label={t.your_number}
+                style={{
+                  padding: 15, border: `1.5px solid ${C.line4}`, borderRadius: 10, background: C.white,
+                  fontFamily: MONO, fontSize: 17, fontWeight: 500, color: C.ink, minWidth: 0,
+                }}
+              />
+            </label>
+          </div>
+
+          <button
+            type="button"
+            className="btn btn-primary"
+            style={{ marginTop: 20, height: 48, padding: '0 26px', fontSize: 15.5 }}
+            disabled={busy || (live && (cspId.length < 6 || msisdn.replace(/\D/g, '').length < 10))}
+            onClick={() => void ask()}
+          >
+            {busy ? '…' : t.start_funeral}
+          </button>
+        </>
+      ) : (
+        <>
+          <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 9 }}>
+            <Kicker>{t.otp_title}</Kicker>
+            <input
+              inputMode="numeric"
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              aria-label={t.otp_title}
+              style={{
+                padding: 15, border: `1.5px solid ${C.g}`, borderRadius: 10, background: C.white,
+                fontFamily: MONO, fontSize: 24, letterSpacing: '.4em', textAlign: 'center', color: C.ink,
+              }}
+            />
+            <div style={{ fontSize: 13, lineHeight: 1.5, color: C.mut }}>
+              Sent to the number you gave, if it is one they nominated.
+            </div>
+          </div>
+          <button
+            type="button"
+            className="btn btn-primary"
+            style={{ marginTop: 18, height: 48, padding: '0 26px', fontSize: 15.5 }}
+            disabled={busy || (live && code.length !== 6)}
+            onClick={() => void verify()}
+          >
+            {busy ? '…' : 'Continue'}
+          </button>
+        </>
+      )}
+
+      {error && <SignInProblem message={error} />}
+
+      <div
+        style={{
+          marginTop: 22, padding: '13px 15px', borderRadius: 9,
+          background: C.ochreBg, border: `1px solid ${C.ochreBorder}`,
+        }}
+      >
+        <div style={{ fontSize: 13, lineHeight: 1.55, color: C.ochre }}>{t.no_id_note}</div>
       </div>
     </div>
   )

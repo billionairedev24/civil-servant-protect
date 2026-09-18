@@ -1,3 +1,4 @@
+import { friendly } from '../../../api/problems'
 import { useState } from 'react'
 import { Icon } from '../../../components/Icon'
 import { Kicker, Mono } from '../../../components/primitives'
@@ -289,7 +290,7 @@ export function ConsoleReports() {
           URL.revokeObjectURL(url)
         },
         onError: (e) =>
-          setProblem(e instanceof Error ? e.message : 'That report could not be produced.'),
+          setProblem(friendly(e, 'That report could not be produced.')),
         onSettled: () => setTaking(null),
       },
     )

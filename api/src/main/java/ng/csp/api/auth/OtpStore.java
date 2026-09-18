@@ -38,15 +38,29 @@ public class OtpStore {
     this.redis = redis;
   }
 
-  public record Challenge(UUID id, String msisdn, String codeHash, int attempts) {}
+  /**
+   * @param aboutMemberId set only on a next-of-kin sign-in: the member who has died.
+   *     Pinned when the challenge is made rather than worked out at verify time, because one
+   *     number can be named by two members — a woman on her husband's record and her brother's —
+   *     and "which of them is this code for" is not a question to answer by guessing.
+   */
+  public record Challenge(
+      UUID id, String msisdn, String codeHash, int attempts, UUID aboutMemberId) {}
 
   public UUID create(String msisdn, String code) {
+    return create(msisdn, code, null);
+  }
+
+  public UUID create(String msisdn, String code, UUID aboutMemberId) {
     var id = UUID.randomUUID();
-    redis
-        .opsForHash()
-        .putAll(
-            CHALLENGE + id,
-            Map.of("msisdn", msisdn, "codeHash", sha256(code), "attempts", "0"));
+    var fields = new java.util.HashMap<String, String>();
+    fields.put("msisdn", msisdn);
+    fields.put("codeHash", sha256(code));
+    fields.put("attempts", "0");
+    if (aboutMemberId != null) {
+      fields.put("about", aboutMemberId.toString());
+    }
+    redis.opsForHash().putAll(CHALLENGE + id, fields);
     redis.expire(CHALLENGE + id, CHALLENGE_TTL);
     return id;
   }
@@ -56,12 +70,14 @@ public class OtpStore {
     if (hash.isEmpty()) {
       return Optional.empty();
     }
+    var about = (String) hash.get("about");
     return Optional.of(
         new Challenge(
             id,
             (String) hash.get("msisdn"),
             (String) hash.get("codeHash"),
-            Integer.parseInt((String) hash.getOrDefault("attempts", "0"))));
+            Integer.parseInt((String) hash.getOrDefault("attempts", "0")),
+            about == null ? null : UUID.fromString(about)));
   }
 
   /** A used challenge is gone, not flagged — there is nothing to replay. */

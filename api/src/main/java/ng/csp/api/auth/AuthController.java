@@ -66,6 +66,36 @@ public class AuthController {
         session.sponsorId());
   }
 
+  public record KinOtpRequest(
+      @NotBlank @Size(min = 6, max = 24) String cspId,
+      @NotBlank @Size(min = 7, max = 20) String msisdn) {}
+
+  /**
+   * The other door: somebody claiming on a member who has died.
+   *
+   * <p>Separate from {@code /auth/otp} rather than a flag on it, because it authenticates a
+   * different person against different facts and issues a session that sees different things. A
+   * branch inside one endpoint is how the wrong one gets issued.
+   */
+  @PostMapping("/auth/kin/otp")
+  public OtpResponse kinOtp(@Valid @RequestBody KinOtpRequest body) {
+    var challenge = auth.startKinChallenge(body.cspId(), body.msisdn());
+    return new OtpResponse(challenge.challengeId(), challenge.expiresIn(), challenge.devCode());
+  }
+
+  @PostMapping("/auth/kin/verify")
+  public TokenResponse kinVerify(@Valid @RequestBody VerifyRequest body) {
+    var session = auth.verifyKin(body.challengeId(), body.code());
+    var issued = tokens.issue(session);
+    return new TokenResponse(
+        issued.accessToken(),
+        issued.refreshToken(),
+        issued.expiresIn(),
+        session.role().wire(),
+        session.memberId(),
+        session.sponsorId());
+  }
+
   public record RefreshRequest(@NotBlank String refreshToken) {}
 
   @PostMapping("/auth/refresh")

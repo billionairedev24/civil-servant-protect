@@ -1,6 +1,7 @@
 // With the extension, because tests/csv.mjs imports this module directly under
 // node's type stripping and node resolves what is written rather than guessing.
 // tsconfig allows it and Vite follows it.
+import { UserFacingError } from './problems.ts'
 import { TIER_CODES } from '../data/member.ts'
 import type { NewMember, ScheduleRow, Tier } from './types'
 
@@ -33,7 +34,12 @@ export interface ParseResult {
   usedColumns: { serviceNo: string; name: string; amount: string }
 }
 
-export class CsvError extends Error {}
+/**
+ * Written for the officer holding the file — "that file has a header and no
+ * rows" is something they can act on. Extends {@link UserFacingError} so it
+ * reaches the screen rather than being swapped for a generic apology.
+ */
+export class CsvError extends UserFacingError {}
 
 /**
  * The header row, and a way to ask it where a field is.

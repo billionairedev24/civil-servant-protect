@@ -1,3 +1,4 @@
+import { friendly } from '../../../api/problems'
 import { Icon } from '../../../components/Icon'
 import { Kicker, Mono, ScreenTitle, Sub } from '../../../components/primitives'
 import { EN_ONLY, fill } from '../../../i18n'
@@ -392,7 +393,7 @@ export function BeneConfirmScreen() {
           <Icon name="ph-fill ph-warning-circle" size={17} color={C.clay} />
           <span style={{ fontSize: 13, lineHeight: 1.45, color: C.clayInk }}>
             {confirm.error instanceof Error
-              ? confirm.error.message
+              ? friendly(confirm.error, 'That could not be saved.')
               : 'We could not record that. Try again.'}
           </span>
         </div>

@@ -16,6 +16,7 @@ import type {
   Reconciliation, RemovedDependant, Remittance, Roster, ScheduleBatch, ScheduleRow, Session,
   SponsorClaims, SponsorDashboard, Tokens,
 } from './types'
+import { UserFacingError } from './problems'
 
 /**
  * Thrown for anything the API refused.
@@ -24,7 +25,7 @@ import type {
  * product: "a preparer cannot close a cycle — ask an approver" is a next step,
  * "Request failed with status 403" is a dead end.
  */
-export class ApiError extends Error {
+export class ApiError extends UserFacingError {
   constructor(
     readonly status: number,
     readonly code: string,
@@ -178,6 +179,28 @@ export class CspApi {
   async verifyOtp(challengeId: string, code: string): Promise<Tokens> {
     const tokens = await this.call<Tokens>(
       'POST', '/v1/auth/verify', { challengeId, code }, { anonymous: true },
+    )
+    this.tokens.write(tokens)
+    return tokens
+  }
+
+  /**
+   * The other door: somebody claiming on a member who has died.
+   *
+   * Two facts together — the member's CSP-ID, and a number already named on that
+   * member's record. The server answers the same whether or not they go
+   * together, so nothing here can be used to ask whether a person is enrolled.
+   */
+  async requestKinOtp(
+    cspId: string,
+    msisdn: string,
+  ): Promise<{ challengeId: string; expiresIn: number; devCode?: string }> {
+    return this.call('POST', '/v1/auth/kin/otp', { cspId, msisdn }, { anonymous: true })
+  }
+
+  async verifyKinOtp(challengeId: string, code: string): Promise<Tokens> {
+    const tokens = await this.call<Tokens>(
+      'POST', '/v1/auth/kin/verify', { challengeId, code }, { anonymous: true },
     )
     this.tokens.write(tokens)
     return tokens
