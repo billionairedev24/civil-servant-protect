@@ -65,10 +65,14 @@ public class ScheduleLoadJob {
   private final int chunk;
 
   private final JdbcClient db;
+  private final ng.csp.api.rollfile.RollFileService rollFiles;
 
   public ScheduleLoadJob(
-      JdbcClient db, @Value("${csp.schedule.chunk-size:10000}") int chunk) {
+      JdbcClient db,
+      ng.csp.api.rollfile.RollFileService rollFiles,
+      @Value("${csp.schedule.chunk-size:10000}") int chunk) {
     this.db = db;
+    this.rollFiles = rollFiles;
     this.chunk = chunk;
   }
 
@@ -78,6 +82,33 @@ public class ScheduleLoadJob {
         .start(matchStep(jobs, tx))
         .next(loadStep(jobs, tx))
         .next(finaliseStep(jobs, tx))
+        .next(rollFileStep(jobs, tx))
+        .build();
+  }
+
+  /**
+   * Write down what arrived and what we did with it, and sign it.
+   *
+   * <p>A step of its own, after finalise, for two reasons. The rows must be in their final states —
+   * a roll file rendered mid-load is a snapshot of work in progress, which is a different and much
+   * less useful document. And rendering a million rows to a file and pushing it to a bucket is slow
+   * and touches the network, which is not work to do inside the transaction that is finishing the
+   * batch.
+   *
+   * <p>It cannot fail the job. {@link RollFileService#produce} catches everything and records the
+   * reason on the batch — see the comment there and on {@code roll_file_error} in V14. A load that
+   * posted a million contributions correctly and then could not reach object storage has a missing
+   * document, not bad money, and the two need different responses.
+   */
+  private Step rollFileStep(JobRepository jobs, PlatformTransactionManager tx) {
+    return new StepBuilder("rollFile", jobs)
+        .tasklet(
+            (contribution, context) -> {
+              var params = context.getStepContext().getJobParameters();
+              rollFiles.produce(UUID.fromString((String) params.get("batchId")));
+              return RepeatStatus.FINISHED;
+            },
+            tx)
         .build();
   }
 

@@ -107,6 +107,16 @@ csp:
     bucket: ${EVIDENCE_BUCKET:}
     access-key: ${EVIDENCE_ACCESS_KEY:}
     secret-key: ${EVIDENCE_SECRET_KEY:}
+  roll-file:
+    # The PGP key that signs the record of each schedule load, armoured. Belongs
+    # in Vault: it is the key that says a roll file is ours, and a scheme that
+    # cannot prove what a payroll sent has no answer to an audit.
+    #
+    # Unset, a key is generated at startup and lost when the process exits, so
+    # signatures stop verifying at the next restart — fine locally, refused
+    # under the prod profile. See SETUP.md.
+    signing-key: ${ROLL_FILE_SIGNING_KEY:}
+    passphrase: ${ROLL_FILE_PASSPHRASE:}
   otp:
     echo: ${OTP_ECHO:false}
     fixed-code: ${OTP_FIXED_CODE:#{null}}

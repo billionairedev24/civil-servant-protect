@@ -30,6 +30,11 @@
       upgrade.
     -->
     <awssdk.version>2.54.20</awssdk.version>
+    <!-- OpenPGP. Spring Boot's BOM manages no BouncyCastle artefact, so the
+         version is ours to pin; bcpg brings a matching bcprov and bcutil with
+         it, which is what wants to stay matched — a bcpg against a different
+         bcprov fails at provider registration, not at compile time. -->
+    <bouncycastle.version>1.82</bouncycastle.version>
   </properties>
 
   <dependencies>
@@ -193,6 +198,22 @@
           <artifactId>netty-nio-client</artifactId>
         </exclusion>
       </exclusions>
+    </dependency>
+
+    <!--
+      OpenPGP, for the detached signature over a roll file.
+
+      The spec asks for PGP by name, and for once the format matters more than
+      the algorithm: an auditor verifying what a payroll sent should be able to
+      do it with gpg on their own machine and a published public key, without
+      this project handing them a bespoke tool. That rules out a JWS, which is
+      otherwise the obvious choice and which nobody outside a developer can
+      check.
+    -->
+    <dependency>
+      <groupId>org.bouncycastle</groupId>
+      <artifactId>bcpg-jdk18on</artifactId>
+      <version>${bouncycastle.version}</version>
     </dependency>
   </dependencies>
 

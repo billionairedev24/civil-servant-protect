@@ -44,6 +44,20 @@ public interface Evidence {
    */
   Upload begin(String key, String contentType, long byteSize);
 
+  /**
+   * Put a file there directly, from this service.
+   *
+   * <p>The other way round from {@link #begin}, and needed for the things the server itself
+   * produces rather than receives: a rendered roll file and its signature. There is no browser in
+   * that path to hand a presigned URL to.
+   *
+   * <p>Takes a {@link Path} rather than an {@code InputStream} deliberately. S3 wants a length up
+   * front, a roll file for a federal payroll is tens of megabytes, and the honest way to have both
+   * is to render to a temporary file and upload that — rather than to hold a million rows in the
+   * heap so the signature and the length can be computed from an array.
+   */
+  void put(String key, String contentType, java.nio.file.Path file);
+
   /** The bytes back, for an assessor reading what was sent. */
   InputStream read(String key);
 

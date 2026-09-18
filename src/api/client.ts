@@ -13,7 +13,7 @@ import type {
   NewMember,
   Paid,
   ProtectionCard,
-  Reconciliation, RemovedDependant, Remittance, Roster, ScheduleBatch, ScheduleRow, Session,
+  Reconciliation, RemovedDependant, Remittance, RollFile, Roster, ScheduleBatch, ScheduleRow, Session,
   SponsorClaims, SponsorDashboard, Tokens,
 } from './types'
 import { UserFacingError } from './problems'
@@ -465,6 +465,36 @@ export class CspApi {
 
   roster(sponsorId: string, search?: string, limit = 50): Promise<Roster> {
     return this.call('GET', `/v1/sponsors/${sponsorId}/members${query({ search, limit })}`)
+  }
+
+  /** Whether a load left a signed roll file, and what it is. */
+  rollFile(sponsorId: string, batchId: string): Promise<RollFile> {
+    return this.call('GET', `/v1/sponsors/${sponsorId}/schedules/${batchId}/roll-file`)
+  }
+
+  /**
+   * The roll file itself, or its detached signature.
+   *
+   * Both come through this service rather than as a link to the bucket — the
+   * file lists every name and service number on a payroll, and a presigned URL
+   * works for whoever ends up holding it.
+   */
+  async rollFileDownload(
+    sponsorId: string,
+    batchId: string,
+    part: 'download' | 'signature',
+  ): Promise<{ blob: Blob; filename: string }> {
+    const { blob, headers } = await this.call<{ blob: Blob; headers: Headers }>(
+      'GET',
+      `/v1/sponsors/${sponsorId}/schedules/${batchId}/roll-file/${part}`,
+      undefined,
+      { binary: true },
+    )
+    const named = /filename="([^"]+)"/.exec(headers.get('content-disposition') ?? '')
+    return {
+      blob,
+      filename: named?.[1] ?? `${batchId}.txt${part === 'signature' ? '.asc' : ''}`,
+    }
   }
 
   /** The assessor's queue — every member's claims, not one sponsor's. */

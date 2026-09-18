@@ -4,7 +4,8 @@ import { useApi } from './provider'
 import type {
   AuditEntry, BenefitSchedule, BeneficiarySet, Claim, ClaimQueueItem, ConsoleUser, DebitRun,
   Dependant, Leaver,
-  Ledger, MemberSummary, MyClaim, NewMember, ProtectionCard, Reconciliation, Remittance, Roster,
+  Ledger, MemberSummary, MyClaim, NewMember, ProtectionCard, Reconciliation, Remittance, RollFile,
+  Roster,
   ScheduleBatch, ScheduleRow, SponsorClaims, SponsorDashboard,
 } from './types'
 
@@ -37,6 +38,7 @@ export const keys = {
   remittances: (sponsorId: string) => [...keys.sponsor(), 'remittances', sponsorId] as const,
   audit: (sponsorId: string) => [...keys.sponsor(), 'audit', sponsorId] as const,
   scheduleBatch: (batchId: string) => [...keys.sponsor(), 'schedule', batchId] as const,
+  rollFile: (batchId: string) => [...keys.sponsor(), 'roll-file', batchId] as const,
   reconciliation: (sponsorId: string, cycleId: string) =>
     [...keys.sponsor(), 'reconciliation', sponsorId, cycleId] as const,
 }
@@ -390,6 +392,31 @@ export function useScheduleBatch(
     enabled: api !== null && batchId !== null,
     refetchInterval: (query) =>
       query.state.data?.state === 'staged' ? 1_000 : false,
+  })
+}
+
+/**
+ * The signed roll file for a load.
+ *
+ * Polled while it is neither there nor failed, because it is produced in a step
+ * *after* the one that marks the batch complete — an officer watching the load
+ * finish would otherwise see "no roll file" and reasonably conclude there is
+ * not going to be one.
+ */
+export function useRollFile(
+  sponsorId: string,
+  batchId: string | null,
+): UseQueryResult<RollFile> {
+  const { api } = useApi()
+  return useQuery({
+    queryKey: keys.rollFile(batchId ?? ''),
+    queryFn: () => api!.rollFile(sponsorId, batchId!),
+    enabled: api !== null && batchId !== null,
+    refetchInterval: (query) => {
+      const data = query.state.data
+      if (!data) return 1_000
+      return data.objectKey === null && data.error === null ? 1_000 : false
+    },
   })
 }
 

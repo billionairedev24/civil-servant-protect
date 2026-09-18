@@ -98,6 +98,21 @@ public class S3Evidence implements Evidence {
   }
 
   @Override
+  public void put(String key, String contentType, java.nio.file.Path file) {
+    s3.putObject(
+        PutObjectRequest.builder()
+            .bucket(bucket)
+            .key(key)
+            .contentType(contentType)
+            // Same server-side encryption as a presigned upload gets. A roll
+            // file carries every name and service number on a payroll, which is
+            // not less sensitive than one death certificate.
+            .serverSideEncryption(ServerSideEncryption.AES256)
+            .build(),
+        file);
+  }
+
+  @Override
   public InputStream read(String key) {
     try {
       return s3.getObject(GetObjectRequest.builder().bucket(bucket).key(key).build());

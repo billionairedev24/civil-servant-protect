@@ -2,8 +2,27 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    # The working branch as well as main.
+    #
+    # `pull_request` only fires while a PR is open. Four commits went onto this
+    # branch after #14 was merged and before #15 was opened, and not one of them
+    # was ever built — a closed PR fires neither trigger, and nothing says so.
+    # The gap is silent by construction: a branch with no runs looks the same as
+    # a branch whose runs all passed.
+    branches: [main, implement-csp-system]
   pull_request:
+
+# One run per branch.
+#
+# With both triggers live, an open PR builds every push twice: once for the
+# branch tip, once for the merge with main. Keying on head_ref for a PR and
+# ref_name for a push puts both in the same group, so the newer cancels the
+# older instead of queueing behind it.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  # Except on main, where a cancelled run leaves a commit that is already on the
+  # default branch with no answer either way.
+  cancel-in-progress: ${{ github.ref_name != 'main' }}
 
 jobs:
   # The API. Postgres and Redis are real services rather than stand-ins,

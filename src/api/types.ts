@@ -484,6 +484,22 @@ export interface ScheduleBatch {
   failure: string | null
 }
 
+/**
+ * The signed record of what was sent and what was taken.
+ *
+ * Three states, and they are not the same thing. A key and no error: it exists.
+ * An error: it was attempted and failed, and the load is still fine. Neither:
+ * nothing was attempted — a batch from before roll files existed.
+ */
+export interface RollFile {
+  objectKey: string | null
+  signatureKey: string | null
+  sha256: string | null
+  byteSize: number | null
+  signedAt: string | null
+  error: string | null
+}
+
 export interface ReconciliationException {
   id: string
   memberId: string | null

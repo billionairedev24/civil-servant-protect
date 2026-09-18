@@ -8,7 +8,7 @@ import { FORMAT_NOTES, SEND_LOG, tone } from '../data'
 import { useConsole } from '../state'
 import { useAuth } from '../../../api/auth'
 import { SPONSOR_DASHBOARD } from '../../../api/fixtures'
-import { useScheduleBatch, useSponsorDashboard, useUploadSchedule } from '../../../api/queries'
+import { useRollFile, useScheduleBatch, useSponsorDashboard, useUploadSchedule } from '../../../api/queries'
 import { useLive } from '../../../api/live'
 import { parseSchedule, type ParseResult } from '../../../api/csv'
 import type { ScheduleBatch } from '../../../api/types'
@@ -240,6 +240,9 @@ export function ConsoleSchedule() {
             />
           )}
           {batch.data && <BatchProgress batch={batch.data} />}
+          {batch.data?.state === 'complete' && batchId && (
+            <RollFilePanel sponsorId={dash.sponsor.id} batchId={batchId} />
+          )}
           {/* Two-person control. An internal auditor asks about this first. */}
           <div style={{ fontSize: 12, lineHeight: 1.5, color: C.faint, marginTop: 10 }}>
             Sending needs a second approver. Amina prepares, Musa approves — no single person can change what payroll
@@ -335,6 +338,94 @@ function ParsedSummary({ parsed }: { parsed: ParseResult }) {
     </div>
   )
 }
+
+/**
+ * The signed record of what was sent.
+ *
+ * Offered here rather than buried in a reports screen, because the moment an
+ * officer has just handed over eight thousand salaries is the moment the
+ * receipt is worth having. It is a receipt in the strict sense: the file says
+ * what arrived and what was taken, and the signature says we cannot have
+ * changed our mind about it afterwards.
+ */
+function RollFilePanel({ sponsorId, batchId }: { sponsorId: string; batchId: string }) {
+  const { api } = useApi()
+  const rollFile = useRollFile(sponsorId, batchId)
+  const [problem, setProblem] = useState<string | null>(null)
+
+  const save = async (part: 'download' | 'signature') => {
+    setProblem(null)
+    try {
+      const { blob, filename } = await api!.rollFileDownload(sponsorId, batchId, part)
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = filename
+      link.click()
+      // Revoked on the next tick: revoking immediately races the click on
+      // Safari and the file arrives empty.
+      setTimeout(() => URL.revokeObjectURL(url), 0)
+    } catch (e) {
+      setProblem(friendly(e, 'That file could not be downloaded.'))
+    }
+  }
+
+  const data = rollFile.data
+  if (!data) return null
+
+  if (data.error) {
+    return (
+      <div style={{ marginTop: 10 }}>
+        <Problem
+          message={
+            'The schedule loaded correctly, but the signed record of it could not be written. ' +
+            'The deductions are unaffected. Someone should look at this before the cycle closes.'
+          }
+        />
+      </div>
+    )
+  }
+
+  // Neither a key nor an error: the step has not run yet. The hook is polling.
+  if (!data.objectKey) {
+    return (
+      <div style={{ fontSize: 12.5, color: C.mut, marginTop: 10 }}>Writing the signed record…</div>
+    )
+  }
+
+  return (
+    <div
+      style={{
+        marginTop: 10, padding: '12px 13px', borderRadius: 10,
+        border: `1px solid ${C.line}`, background: C.white,
+      }}
+    >
+      <div style={{ fontSize: 13.5, fontWeight: 600, color: C.ink }}>Signed record</div>
+      <div style={{ fontSize: 12.5, lineHeight: 1.55, color: C.mut, marginTop: 4 }}>
+        What this payroll sent and what was taken, as one file, signed. Keep it with the month's
+        paperwork — it is what answers a query about this schedule in a year's time.
+      </div>
+      <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+        <button type="button" onClick={() => save('download')} style={saveButton}>
+          <Icon name="ph ph-download-simple" size={14} /> Download
+        </button>
+        <button type="button" onClick={() => save('signature')} style={saveButton}>
+          Signature
+        </button>
+      </div>
+      <Mono size={11} color={C.faint}>
+        <div style={{ marginTop: 9, wordBreak: 'break-all' }}>sha256 {data.sha256}</div>
+      </Mono>
+      {problem && <Problem message={problem} />}
+    </div>
+  )
+}
+
+const saveButton = {
+  display: 'inline-flex', alignItems: 'center', gap: 6,
+  padding: '7px 11px', borderRadius: 8, border: `1px solid ${C.line}`,
+  background: C.white, color: C.ink, fontSize: 12.5, fontWeight: 600, cursor: 'pointer',
+} as const
 
 /**
  * The load, while it runs.
