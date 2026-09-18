@@ -310,6 +310,61 @@ Claim evidence: local directory /home/you/repo/api/var/evidence
 Claim evidence: s3 http://localhost:9000/csp-evidence
 ```
 
+### The signed roll file
+
+Every schedule load ends by writing down what the payroll sent and what the
+scheme took, as one plain text file in the same bucket, with a detached OpenPGP
+signature beside it. It is the answer to "show me what the Ministry of Education
+sent in August" that does not depend on trusting a query somebody ran.
+
+```bash
+# Is there one, and what is it? (No bytes — just the digest and the signing time.)
+curl -s localhost:8080/v1/sponsors/$SPONSOR/schedules/$BATCH/roll-file \
+  -H "Authorization: Bearer $PREPARER" | jq
+
+# The file and its signature.
+curl -s localhost:8080/v1/sponsors/$SPONSOR/schedules/$BATCH/roll-file/download \
+  -H "Authorization: Bearer $PREPARER" -o roll.txt
+curl -s localhost:8080/v1/sponsors/$SPONSOR/schedules/$BATCH/roll-file/signature \
+  -H "Authorization: Bearer $PREPARER" -o roll.txt.asc
+
+# The public key is public — no token, by design.
+curl -s localhost:8080/v1/roll-files/public-key -o public.asc
+
+gpg --import public.asc && gpg --verify roll.txt.asc roll.txt
+#  gpg: Good signature from "Civil Servant Protect roll files …"
+```
+
+**Without a configured key the signing key is generated at startup and lost when
+the process exits**, so signatures from an earlier run stop verifying after a
+restart. That is fine on a laptop and is refused under the `prod` profile. The
+startup log always says which you are on:
+
+```
+Roll files signed by ephemeral PGP key 2BF4BCCDEF965C97
+Roll files signed by PGP key 9C41A0E7B5D3F210
+```
+
+To make a real one — this belongs in Vault, not in a values file:
+
+```bash
+gpg --batch --quick-generate-key "Civil Servant Protect roll files" rsa4096 sign never
+gpg --armor --export-secret-keys "Civil Servant Protect roll files" > signing-key.asc
+
+ROLL_FILE_SIGNING_KEY="$(cat signing-key.asc)" \
+ROLL_FILE_PASSPHRASE=… mvn spring-boot:run
+```
+
+A keyring whose primary key is certification-only is fine: the first key that
+can actually sign is used, and the whole public ring is published so `gpg
+--import` accepts it. A bare signing subkey has no user id and no self
+signature, and gpg refuses those.
+
+If the bucket is unreachable the load still succeeds — the deductions are real
+money and are not rolled back to punish a storage outage — and the reason is
+recorded on the batch, which the console shows. A batch with neither a key nor
+an error is one where nothing was attempted, which is not the same thing.
+
 ### Paying a claim
 
 The money path is two decisions by two people, like everything else here:

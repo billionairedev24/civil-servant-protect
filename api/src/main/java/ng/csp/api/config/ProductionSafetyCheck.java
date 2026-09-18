@@ -19,10 +19,16 @@ public class ProductionSafetyCheck implements InitializingBean {
 
   private final CspProperties props;
   private final KeyVault keys;
+  private final String rollFileKey;
 
-  public ProductionSafetyCheck(CspProperties props, KeyVault keys) {
+  public ProductionSafetyCheck(
+      CspProperties props,
+      KeyVault keys,
+      @org.springframework.beans.factory.annotation.Value("${csp.roll-file.signing-key:}")
+          String rollFileKey) {
     this.props = props;
     this.keys = keys;
+    this.rollFileKey = rollFileKey;
   }
 
   @Override
@@ -53,6 +59,16 @@ public class ProductionSafetyCheck implements InitializingBean {
           object lock, no retention, and gone when the pod is replaced. A death certificate is the \
           document a payout is justified by, and losing it means asking a bereaved family for it \
           again. Set EVIDENCE_MODE=s3 with the bucket and credentials.""");
+    }
+
+    if (rollFileKey == null || rollFileKey.isBlank()) {
+      throw new IllegalStateException(
+          """
+          Refusing to start: csp.roll-file.signing-key is unset under the prod profile.
+          Roll files would be signed with a key generated at startup and lost when this pod is \
+          replaced, so every signature stops verifying at the next restart — which is worse than \
+          not signing at all, because the file still looks signed. Put a PGP secret key in Vault \
+          and set csp.roll-file.signing-key and csp.roll-file.passphrase.""");
     }
 
     if (!(keys instanceof Pkcs11KeyVault)) {

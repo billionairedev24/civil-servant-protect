@@ -67,6 +67,17 @@ public class LocalEvidence implements Evidence {
   }
 
   @Override
+  public void put(String key, String contentType, Path file) {
+    var target = resolve(key);
+    try {
+      Files.createDirectories(target.getParent());
+      Files.copy(file, target, StandardCopyOption.REPLACE_EXISTING);
+    } catch (IOException e) {
+      throw new IllegalStateException("Could not store " + key, e);
+    }
+  }
+
+  @Override
   public InputStream read(String key) {
     try {
       return Files.newInputStream(resolve(key));

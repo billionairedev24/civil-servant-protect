@@ -86,9 +86,18 @@ public class SecurityConfig {
                         "/v1/auth/kin/otp",
                         "/v1/auth/kin/verify")
                     .permitAll()
-                    // A public key is public. The point of publishing it is that
-                    // no service has to be handed one out of band.
-                    .requestMatchers(HttpMethod.GET, "/v1/auth/jwks")
+                    /*
+                     * A public key is public. The point of publishing it is that
+                     * no service has to be handed one out of band.
+                     *
+                     * The roll-file key is here for a stronger version of the
+                     * same reason: a signature that can only be verified by
+                     * somebody with an account in this system is a signature
+                     * that mostly cannot be verified, and an auditor checking
+                     * what a payroll sent should not need to ask us for
+                     * anything.
+                     */
+                    .requestMatchers(HttpMethod.GET, "/v1/auth/jwks", "/v1/roll-files/public-key")
                     .permitAll()
                     /*
                      * The benefit schedule is a price list.

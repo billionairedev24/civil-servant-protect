@@ -88,16 +88,27 @@ most misleading to leave, because the product looks complete and is not.
    Published in one process. The stage boundaries are in the right places, so
    this is a deployment change rather than a rewrite — but there is no topic,
    no retry policy and no dead-letter queue.
-8. **Signed roll files do not exist.** This entry used to read "roll files and
-   their PGP signatures still live on disk", which was wrong twice over and
-   understated the work. There is no roll file on disk: the upload endpoint
-   takes JSON rows, not a multipart file, and staging writes them straight into
-   `schedule_rows`. And there is no PGP anywhere — no signing code, no
-   BouncyCastle in `api/pom.xml`. So this is not "move some files into the
-   bucket a day's work away"; it is producing a signed, retained artefact of
-   what a payroll sent and what came back, which the bucket from 2a.3 is ready
-   to hold. Object lock is configured on that bucket rather than asserted by the
-   application.
+8. ~~**Signed roll files do not exist.**~~ **Done.** Every load now ends by
+   writing what the payroll sent and what the scheme took to the evidence
+   bucket, with a detached OpenPGP signature beside it and the digest on the
+   batch. The console offers both downloads the moment a load finishes, and the
+   verifying key is published at `/v1/roll-files/public-key` — open, because a
+   signature only auditors with an account can check is one that mostly cannot
+   be checked.
+
+   Two things the work turned up. The format is hand-rolled tab-separated text
+   rather than JSON or a CSV library, because a signature is over bytes and a
+   library that changes its quoting in a minor release would invalidate every
+   signature made before the upgrade. And the first version rendered
+   `load-started` through `java.sql.Timestamp.toString()` — a local time with no
+   zone — beside a `generated` field that was correctly ISO-8601 UTC. Two
+   formats, one of them ambiguous, in a document whose only purpose is to be
+   unambiguous in thirty years. Found by reading the file rather than the
+   assertions.
+
+   Verified against real `gpg`, not only against the library that produced it:
+   good signature, then bad after editing an amount. Object lock is still
+   configured on the bucket rather than asserted by the application.
 9. **The integration adapters over the wire.** NIMC (JAX-WS SOAP over IPsec),
    comms (SMS/USSD REST), payout (NIBSS REST), the SFTP poller (Apache MINA).
    Each has an interface, a circuit breaker with settings chosen for that
@@ -214,8 +225,9 @@ anything else, and both are small.
 
 Worth stating plainly rather than burying in the table below. The pilot tier is
 credentials, a hosting decision, a NITDA ruling and native speakers, none of
-which are code. The unblocked code is: signed roll files (2b.8), Kafka between
-the stages (2b.7), Next.js SSR (2b.5), and the two small mobile items above.
+which are code. The unblocked code was: signed roll files (2b.8, **now done**),
+Kafka between the stages (2b.7), Next.js SSR (2b.5), and the two small mobile
+items above.
 
 ### Then — the things a pilot cannot start without
 
