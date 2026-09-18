@@ -1,15 +1,24 @@
 name: CI
 
 on:
+  # Every branch, with no list.
+  #
+  # `pull_request` only fires while a PR is open, so anything pushed to a branch
+  # whose PR has just been merged is built by neither trigger — and nothing says
+  # so, because a branch with no runs looks exactly like a branch whose runs all
+  # passed.
+  #
+  # This has now happened three times. The first fix added `implement-csp-system`
+  # to a branch list, which closed it for that branch and left every future one
+  # open; the very next branch lost the Android signing fix the same way, and
+  # the commit sat on `main`'s doorstep unbuilt while its PR was merged without
+  # it. A list of branch names is a fix that has to be remembered, and the thing
+  # being guarded against is forgetting.
+  #
+  # The cost is a run on branches that have no PR yet. The concurrency group
+  # below means an open PR still gets one run rather than two, so that is the
+  # whole of the cost.
   push:
-    # The working branch as well as main.
-    #
-    # `pull_request` only fires while a PR is open. Four commits went onto this
-    # branch after #14 was merged and before #15 was opened, and not one of them
-    # was ever built — a closed PR fires neither trigger, and nothing says so.
-    # The gap is silent by construction: a branch with no runs looks the same as
-    # a branch whose runs all passed.
-    branches: [main, implement-csp-system]
   pull_request:
 
 # One run per branch.
@@ -273,6 +282,29 @@ jobs:
             --entry-file index.js \
             --bundle-output /tmp/index.android.bundle --assets-dest /tmp/assets
 
+      # A throwaway upload key, generated per run and gone with the runner.
+      #
+      # The release build used to be signed with the debug keystore that is
+      # committed here, which is what made this step unnecessary and was the
+      # bug: an app installed from such a build can never be updated, because
+      # Android will only replace an app with a build signed by the same key.
+      #
+      # CI cannot hold the real upload key — it belongs to whoever publishes the
+      # app — but it must still produce something installable, since the whole
+      # point of the artefact below is that somebody runs it on a handset. So it
+      # makes its own, and the summary says what that means.
+      - name: Throwaway signing key
+        shell: bash
+        run: |
+          keytool -genkeypair -v -keystore /tmp/throwaway.jks \
+            -alias throwaway -keyalg RSA -keysize 2048 -validity 30 \
+            -storepass throwaway -keypass throwaway \
+            -dname "CN=Civil Servant Protect throwaway, O=not for release" >/dev/null
+          echo "CSP_UPLOAD_STORE_FILE=/tmp/throwaway.jks" >> "$GITHUB_ENV"
+          echo "CSP_UPLOAD_STORE_PASSWORD=throwaway" >> "$GITHUB_ENV"
+          echo "CSP_UPLOAD_KEY_ALIAS=throwaway" >> "$GITHUB_ENV"
+          echo "CSP_UPLOAD_KEY_PASSWORD=throwaway" >> "$GITHUB_ENV"
+
       - name: Build the APKs
         working-directory: mobile/android
         shell: bash
@@ -294,6 +326,10 @@ jobs:
 
           {
             echo '### APK sizes'
+            echo ''
+            echo '> Signed with a throwaway key generated for this run. Installable'
+            echo '> on a test handset, and **not** upgradable — a properly signed'
+            echo '> build will not replace it, so uninstall before trying one.'
             echo ''
             echo '| Build | Size | Against the 8 MB budget |'
             echo '|---|---|---|'

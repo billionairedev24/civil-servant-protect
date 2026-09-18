@@ -64,10 +64,46 @@ runtime compiled per architecture, and no configuration switch removes it. The n
 app bundle rather than an APK, which means distributing through Play. See
 `docs/plan.md` §2c.21 — it is a decision, not a build problem.
 
-**Release builds are signed with the debug key.** That is the React Native
-template's default and it is left visible rather than quietly changed: a real
-release needs a keystore that is not in this repository, and the decision about
-who holds it has not been made. See `android/app/build.gradle`.
+### Signing
+
+A release build needs an upload key and will not start without one. Four
+properties, read from `~/.gradle/gradle.properties`, from `-P`, or from the
+environment:
+
+| | |
+|---|---|
+| `CSP_UPLOAD_STORE_FILE` | path to the keystore |
+| `CSP_UPLOAD_STORE_PASSWORD` | |
+| `CSP_UPLOAD_KEY_ALIAS` | |
+| `CSP_UPLOAD_KEY_PASSWORD` | |
+
+For a size check or a test install, make a throwaway — this is what CI does on
+every run:
+
+```bash
+keytool -genkeypair -v -keystore /tmp/throwaway.jks \
+  -alias throwaway -keyalg RSA -keysize 2048 -validity 30 \
+  -storepass throwaway -keypass throwaway \
+  -dname "CN=Civil Servant Protect throwaway, O=not for release"
+
+cd android && ./gradlew assembleRelease \
+  -PCSP_UPLOAD_STORE_FILE=/tmp/throwaway.jks \
+  -PCSP_UPLOAD_STORE_PASSWORD=throwaway \
+  -PCSP_UPLOAD_KEY_ALIAS=throwaway \
+  -PCSP_UPLOAD_KEY_PASSWORD=throwaway
+```
+
+**This used to fall back to the debug key**, which is committed here with the
+password `android`. Play refuses an APK signed that way, so that route fails
+loudly — but sideloading does not, and that is the one that bites. An Android
+app can only ever be replaced by a build signed with the same key, so a pilot
+handed out on the debug key could never be updated; the only way out is
+uninstalling every copy. For a scheme people keep for decades that is not a
+recovery, and it would have been discovered at the first update rather than at
+the first install.
+
+The same applies to anything installed from a throwaway build: uninstall it
+before a properly signed one will replace it.
 
 ## iOS
 
