@@ -1,4 +1,4 @@
-# Civil Servant Protect
+# Civil Servant Protection Plan
 
 A group protection scheme for Nigerian civil servants — ₦2,500/month, taken from the payslip — implemented from the
 Claude Design handoff bundle in [`project/`](./project).
