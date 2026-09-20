@@ -4,3 +4,9 @@ dist
 
 # Maven
 target/
+
+# Redis writes its snapshot into whatever directory it was started from.
+# Only appears if you run redis-server yourself rather than through compose,
+# which SETUP.md does not tell you to do — but it lands in the repository root
+# when you do, and it is a binary snapshot of live OTP challenges.
+dump.rdb
