@@ -197,16 +197,24 @@ public class MemberService {
       LocalDate inForceSince,
       String collectedBy,
       String qrPayload,
+      /**
+       * The same payload as a PNG data URI, because nothing was drawing it.
+       *
+       * <p>See {@link CardQr}: rendered here rather than on each surface, so the phone does not
+       * carry a native SVG module to draw one square.
+       */
+      String qrImage,
       String signature,
       Instant expiresAt,
       String printUrl) {}
 
-  public Card card(UUID memberId, CardSigner signer) {
+  public Card card(UUID memberId, CardSigner signer, CardQr qr) {
     var m = load(memberId);
     var signed = signer.sign(m.cspId(), m.tier(), m.inForceSince());
     return new Card(
         m.cspId(), m.tier(), m.inForceSince(), m.railLabel(),
-        signed.qrPayload(), signed.signature(), signed.expiresAt(), "/v1/members/me/card.pdf");
+        signed.qrPayload(), qr.dataUri(signed.qrPayload()),
+        signed.signature(), signed.expiresAt(), "/v1/members/me/card.pdf");
   }
 
   /** Narrow seam so {@link MemberService} does not depend on the crypto. */

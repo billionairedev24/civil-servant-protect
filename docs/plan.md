@@ -217,9 +217,16 @@ biometrics on the device, and ten screens that reach parity with `/m` — the
 beneficiary confirmation folded into the beneficiaries screen and the accident
 report into the claim wizard's type picker, rather than as separate screens.
 
-Two things are still open inside it: the protection card's QR is not drawn, and
-there is no navigation library — `App.tsx` switches on a string. Neither blocks
-anything else, and both are small.
+One thing is still open inside it: there is no navigation library — `App.tsx`
+switches on a string. That is deliberate for now (see `mobile/README.md`) and
+blocks nothing.
+
+The protection card's QR is drawn. The API renders it and both surfaces show an
+image, rather than each drawing its own: the token is ~150 characters, which is
+a 45-module code, and the React Native way to draw one is a native SVG module
+compiled per ABI — against an APK already over its budget. It is a data URI
+cached beside the card, so it is there when the signal is not, and a test
+decodes the picture back to the signed token rather than trusting the encoder.
 
 ### Now — everything left is blocked on somebody else, except four things
 

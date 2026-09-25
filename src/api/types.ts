@@ -107,6 +107,15 @@ export interface ProtectionCard {
   collectedBy: string
   /** A signed offline token, so a hospital gate can verify with no network. */
   qrPayload: string
+  /**
+   * The same token as a PNG data URI.
+   *
+   * Drawn by the API rather than by each surface: the token is ~150 characters,
+   * which is a 45-module code, and the React Native way to draw one is a native
+   * SVG module compiled per ABI — against an APK already over its budget. See
+   * `CardQr`. A data URI rather than a URL because the gate has no network.
+   */
+  qrImage: string
   expiresAt: string
   printUrl: string
 }

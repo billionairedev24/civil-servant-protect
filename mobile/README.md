@@ -37,6 +37,7 @@ says so on screen, in the same words.
 | **The card** | Read from MMKV synchronously on first render. The moment it is most needed is a hospital gate with no signal, and an async read there means a spinner. |
 | **The lock** | `react-native-biometrics`, asked once on open. It is a lock on a handset that gets passed around, not a second authentication — the server was already satisfied by the token. A phone with no sensor is let through, because most ₦40,000 handsets have none. |
 | **Documents** | The camera, not a file input. `pickDocument` reads the photograph into a blob because the upload is a presigned PUT of raw bytes rather than a form. |
+| **The card's QR** | An image from the API, not drawn here. The token is ~150 characters — a 45-module code — and drawing one in React Native means `react-native-svg`, a native module compiled for four ABIs, against an APK already over budget. It is cached in MMKV as a data URI, so it is there at a gate with no signal. |
 | **Where the API is** | Passed in. `import.meta.env` is Vite's and Metro does not evaluate it, so `src/api/env.native.ts` answers empty and this app supplies the address. |
 
 ## Building an APK
@@ -142,9 +143,6 @@ that creates a member.
   the place to carry one that nothing imports. It is the right answer at the
   point there is a deep link or a stack worth having, and installing it then is
   one command.
-- **The QR on the protection card** is not drawn. The API issues a signed
-  offline payload for it; rendering it needs a QR library and a decision about
-  what a gate scans it with.
 - **Nobody has run it on a handset, on either platform.** It compiles, Metro
   bundles it, CI builds the APK and compiles the iOS target. Whether it is
   usable on a Tecno in sunlight is a question this repository cannot answer.
