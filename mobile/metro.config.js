@@ -30,6 +30,22 @@ const config = {
     extraNodeModules: {
       react: path.resolve(__dirname, 'node_modules/react'),
       'react-native': path.resolve(__dirname, 'node_modules/react-native'),
+      /*
+       * And react-query, which both packages depend on.
+       *
+       * A file in `../src` resolves it by the ordinary node walk and finds the
+       * root's copy; a file in here finds this one. Today every call site
+       * happens to live in `../src`, so the halves agree by accident — the
+       * first screen in this app to import `useQueryClient` gets a second
+       * copy, a second React context, and a provider it cannot see. That fails
+       * at runtime with a message about no QueryClient being set, which is not
+       * a clue about duplication.
+       *
+       * The jest config pins the same two for the same reason, where it
+       * surfaced as a test process that passed and then would not exit.
+       */
+      '@tanstack/react-query': path.resolve(__dirname, 'node_modules/@tanstack/react-query'),
+      '@tanstack/query-core': path.resolve(__dirname, 'node_modules/@tanstack/query-core'),
     },
   },
 }
