@@ -16,6 +16,7 @@ const store = createMMKV({ id: 'csp' })
 
 const REFRESH_KEY = 'session.refresh'
 const CARD_KEY = 'card.summary'
+const QR_KEY = 'card.qr'
 
 /**
  * The session, as the spec describes it: device-bound refresh token kept, access
@@ -72,8 +73,36 @@ export function rememberedCard(): MemberSummary | null {
   }
 }
 
+/**
+ * The card's QR, kept for the same reason and more urgently.
+ *
+ * The summary above is what the card *says*; this is what a gate *scans*, and
+ * it is the half that cannot be reconstructed from memory or read off the
+ * screen by a person. Stored separately from the summary because it comes from
+ * a different endpoint and expires on its own ninety-day clock.
+ *
+ * A data URI, so nothing has to be fetched or decoded to show it — which is the
+ * whole point at a gate with no signal.
+ */
+export function rememberQr(dataUri: string): void {
+  try {
+    store.set(QR_KEY, dataUri)
+  } catch {
+    // As above: a full disk should not break the screen that just worked.
+  }
+}
+
+export function rememberedQr(): string | null {
+  try {
+    return store.getString(QR_KEY) ?? null
+  } catch {
+    return null
+  }
+}
+
 /** Signing out takes the card with it. The next person on this handset is not them. */
 export function forgetEverything(): void {
   store.remove(REFRESH_KEY)
   store.remove(CARD_KEY)
+  store.remove(QR_KEY)
 }

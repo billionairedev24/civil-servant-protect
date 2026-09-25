@@ -33,10 +33,12 @@ public class MemberController {
 
   private final MemberService members;
   private final CardService cards;
+  private final CardQr qr;
 
-  public MemberController(MemberService members, CardService cards) {
+  public MemberController(MemberService members, CardService cards, CardQr qr) {
     this.members = members;
     this.cards = cards;
+    this.qr = qr;
   }
 
   @GetMapping("/members/me/summary")
@@ -48,7 +50,7 @@ public class MemberController {
   @GetMapping("/members/me/card")
   @PreAuthorize("hasAuthority('PERM_MEMBER_READ')")
   public MemberService.Card card(SessionUser session) {
-    return members.card(session.requireMemberId(), cards);
+    return members.card(session.requireMemberId(), cards, qr);
   }
 
   @GetMapping("/members/me/contributions")

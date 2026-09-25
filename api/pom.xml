@@ -35,6 +35,9 @@
          it, which is what wants to stay matched — a bcpg against a different
          bcprov fails at provider registration, not at compile time. -->
     <bouncycastle.version>1.82</bouncycastle.version>
+    <!-- QR encoding for the protection card. Server-side only: see CardQr for
+         why the phone does not do this itself. -->
+    <zxing.version>3.5.3</zxing.version>
   </properties>
 
   <dependencies>
@@ -214,6 +217,30 @@
       <groupId>org.bouncycastle</groupId>
       <artifactId>bcpg-jdk18on</artifactId>
       <version>${bouncycastle.version}</version>
+    </dependency>
+
+    <!-- QR encoding for the protection card. See CardQr. -->
+    <dependency>
+      <groupId>com.google.zxing</groupId>
+      <artifactId>core</artifactId>
+      <version>${zxing.version}</version>
+    </dependency>
+
+    <!--
+      The decoder's bridge to a BufferedImage, for tests only.
+
+      `core` has the reader; reading one out of an actual image file is in
+      `javase`. It is test scope because that is the only place it belongs — the
+      service encodes and never scans — but the test it enables is the one that
+      matters: encode a card, read the picture back, and check a scanner gets
+      the token we signed. An encoder checked against its own matrix proves the
+      matrix is self-consistent and nothing else.
+    -->
+    <dependency>
+      <groupId>com.google.zxing</groupId>
+      <artifactId>javase</artifactId>
+      <version>${zxing.version}</version>
+      <scope>test</scope>
     </dependency>
   </dependencies>
 

@@ -115,11 +115,34 @@ export function ProtectionCardScreen() {
 
         <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 14, marginTop: 20 }}>
           <div style={{ fontSize: 12.5, lineHeight: 1.45, opacity: 0.72, maxWidth: 165 }}>{t.scan_note}</div>
-          <div
+          {/*
+            The real code, drawn by the API.
+
+            This was a CSS checkerboard from the mockup — a picture of a QR that
+            decoded to nothing, on the one screen whose entire job is being
+            scanned. The image is a data URI, so it renders with no second
+            request and survives the gate having no signal.
+
+            `image-rendering: pixelated` matters: the PNG is one pixel block per
+            module and the browser's default smoothing blurs the edges at this
+            size, which is exactly what a cheap scanner fails to read.
+
+            120px rather than the mockup's 78. That 78 was a decorative square
+            and this is a functional one: the signed token is ~150 characters,
+            which is a 45-module code, and at 78px that is 1.7px per module —
+            marginal for the cheap reader on a scratched screen this is actually
+            for. At 120 it is closer to three, and it still fits beside the note
+            at 390px, which the layout test checks.
+          */}
+          <img
+            src={card.qrImage}
+            alt={t.scan_note}
+            width={120}
+            height={120}
             style={{
-              width: 78, height: 78, borderRadius: 8,
-              background: 'repeating-conic-gradient(#14181B 0 25%,#F7F6F2 0 50%) 0 0/9.75px 9.75px',
-              border: `4px solid ${C.surface}`,
+              width: 120, height: 120, borderRadius: 8, display: 'block',
+              border: `4px solid ${C.surface}`, background: C.surface,
+              imageRendering: 'pixelated',
             }}
           />
         </div>
