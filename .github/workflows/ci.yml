@@ -272,6 +272,17 @@ jobs:
       - name: Typecheck
         run: npm run typecheck --prefix mobile
 
+      # Renders every screen.
+      #
+      # The rest of this job proves the app compiles and an APK exists, which is
+      # not the same as the app working: a hook called conditionally, a fixture
+      # whose shape drifted, a native import reached at module scope — all
+      # typecheck, all build, all crash on a handset. These execute the
+      # components against the fixtures, which is the state a member sees before
+      # the first response arrives.
+      - name: Test
+        run: npm test --prefix mobile
+
       # Bundling is where a shared module that cannot cross to React Native
       # shows up: a DOM type is a compile error, but a `document` reference or a
       # Vite-only import is not, and it fails here instead.

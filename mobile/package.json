@@ -6,9 +6,11 @@
     "android": "react-native run-android",
     "start": "react-native start",
     "typecheck": "tsc --noEmit",
+    "test": "jest",
     "apk": "cd android && ./gradlew assembleRelease",
     "ios": "react-native run-ios",
-    "pods": "cd ios && pod install"
+    "pods": "cd ios && pod install",
+    "apk:throwaway": "keytool -genkeypair -v -keystore /tmp/csp-throwaway.jks -alias throwaway -keyalg RSA -keysize 2048 -validity 30 -storepass throwaway -keypass throwaway -dname \"CN=Civil Servant Protect throwaway, O=not for release\" 2>/dev/null; cd android && ./gradlew assembleRelease -PCSP_UPLOAD_STORE_FILE=/tmp/csp-throwaway.jks -PCSP_UPLOAD_STORE_PASSWORD=throwaway -PCSP_UPLOAD_KEY_ALIAS=throwaway -PCSP_UPLOAD_KEY_PASSWORD=throwaway"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.90.2",

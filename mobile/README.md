@@ -8,9 +8,23 @@ first person to find out is a family.
 
 ## Running it
 
+**`npm install` in here, not only at the repository root.** This is a separate
+package with its own `package-lock.json`, and installing at the root leaves
+`mobile/node_modules` empty — which shows up as `react-native: command not
+found`, because the CLI binary was never linked.
+
+**Two terminals.** Metro serves the JavaScript bundle and a debug build fetches
+it at launch; `run-android` tries to start one and frequently cannot. Without it
+the app opens on a red screen reading *"Unable to load script"*, which is the
+dev server being absent rather than anything wrong with the build.
+
 ```bash
 npm install
+npm run start                                         # terminal one, leave it up
+```
 
+```bash
+# terminal two
 CSP_API_URL=http://10.0.2.2:8080 npm run android      # Android emulator
 CSP_API_URL=http://192.168.1.42:8080 npm run android  # a handset on your wifi
 
@@ -18,6 +32,15 @@ npm run pods                                          # once, and after adding a
 CSP_API_URL=http://localhost:8080 npm run ios         # iOS simulator
 CSP_API_URL=http://192.168.1.42:8080 npm run ios      # an iPhone on your wifi
 ```
+
+If the red screen persists after Metro is up, the device cannot reach port 8081.
+`npm run android` normally sets that up; when it has not:
+
+```bash
+adb reverse tcp:8081 tcp:8081
+```
+
+Then press **R** twice in the emulator, or RELOAD on the error screen.
 
 The iOS simulator shares the host's network, so `localhost` is the machine —
 unlike the Android emulator, which needs `10.0.2.2`.
